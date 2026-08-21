@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>WhatsApp QR</title></head>
+<body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#111;">
+  <img id="qr" style="width:400px;height:400px;background:#fff;padding:16px;" src="qr.png">
+  <script>
+    setInterval(() => {
+      document.getElementById('qr').src = 'qr.png?t=' + Date.now();
+    }, 1500);
+  </script>
+</body>
+</html>

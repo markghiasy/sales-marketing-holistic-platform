@@ -1,0 +1,16 @@
+.env
+*.local
+.token_cache.bin
+.delta_link.txt
+.storage_state.json
+.downloads/
+adapters/whatsapp/node/.auth_state/
+adapters/whatsapp/node/node_modules/
+adapters/whatsapp/node/queue*.jsonl
+adapters/whatsapp/node/contacts.jsonl
+adapters/whatsapp/node/self_jid.txt
+adapters/whatsapp/node/*.log
+adapters/whatsapp/node/qr.png
+__pycache__/
+*.pyc
+.venv/
