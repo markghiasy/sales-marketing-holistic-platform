@@ -107,9 +107,10 @@ def _parse_export_date(date_str: str) -> datetime:
     # real format confirmed 2026-08-21: "2026-08-20 05:33:12 UTC" — not
     # ISO 8601, fromisoformat() rejects the trailing " UTC" outright
     if date_str.endswith(" UTC"):
-        naive = datetime.strptime(date_str[: -len(" UTC")], "%Y-%m-%d %H:%M:%S")
+        naive = datetime.strptime(date_str[: -len(" UTC")], "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — tzinfo attached on the next line
         return naive.replace(tzinfo=UTC)
-    return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    # Python 3.11+'s fromisoformat() accepts a trailing "Z" natively
+    return datetime.fromisoformat(date_str)
 
 
 def _handle(name: str, profile_url: str) -> str:
@@ -190,7 +191,7 @@ def run() -> None:
 
     zip_path = _download_archive(headless=True)
     if zip_path is None:
-        print("no archive ready yet")  # noqa: T201
+        print("no archive ready yet")
         return
 
     rows = _parse_messages_csv(zip_path)
@@ -205,7 +206,7 @@ def run() -> None:
             conn.commit()
             count += 1
 
-    print(f"synced {count} messages from {zip_path.name}")  # noqa: T201
+    print(f"synced {count} messages from {zip_path.name}")
 
 
 if __name__ == "__main__":

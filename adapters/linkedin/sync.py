@@ -13,7 +13,8 @@ import psycopg
 from dotenv import load_dotenv
 
 from ..store_writer import upsert
-from .client import STORAGE_STATE_PATH, _to_profile_urn, run as fetch_envelopes
+from .client import STORAGE_STATE_PATH, _to_profile_urn
+from .client import run as fetch_envelopes
 
 
 def run() -> None:
@@ -42,7 +43,7 @@ def run() -> None:
             conn.commit()
             count += 1
 
-    print(f"synced {count} messages")  # noqa: T201
+    print(f"synced {count} messages")
 
 
 if __name__ == "__main__":

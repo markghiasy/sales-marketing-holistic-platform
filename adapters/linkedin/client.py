@@ -33,7 +33,8 @@ from pathlib import Path
 from playwright.sync_api import Page, Response, sync_playwright
 
 from ..envelope import Channel, Direction, Envelope
-from .config import RateLimits, load as load_config
+from .config import RateLimits
+from .config import load as load_config
 
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 
@@ -162,7 +163,10 @@ def fetch_conversations(page: Page, limits: RateLimits, self_member_id: str):
             return
         try:
             payload = response.json()
-        except Exception:
+        except Exception:  # noqa: BLE001 — a page's own background
+            # traffic can be anything (non-JSON bodies, aborted requests,
+            # redirects); the only correct response to a malformed one is
+            # to skip it and keep listening, not crash the whole session
             return
         captured.extend(_extract_messages(payload, self_member_id))
 

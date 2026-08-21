@@ -65,4 +65,4 @@ def request_export(headless: bool = True) -> str:
 
 if __name__ == "__main__":
     result = request_export(headless=True)
-    print(result)  # noqa: T201
+    print(result)

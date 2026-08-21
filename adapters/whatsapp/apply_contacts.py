@@ -23,7 +23,7 @@ CONTACTS_PATH = Path(__file__).parent / "node" / "contacts.jsonl"
 def run() -> None:
     load_dotenv()
     if not CONTACTS_PATH.exists():
-        print("no contacts.jsonl — nothing to apply")  # noqa: T201
+        print("no contacts.jsonl — nothing to apply")
         return
 
     updated = 0
@@ -48,7 +48,7 @@ def run() -> None:
                 updated += cur.rowcount
         conn.commit()
 
-    print(f"updated {updated} identity rows")  # noqa: T201
+    print(f"updated {updated} identity rows")
 
 
 if __name__ == "__main__":

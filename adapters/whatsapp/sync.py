@@ -118,26 +118,28 @@ def run() -> None:
 
     claimed = _claim_queue()
     if claimed is None:
-        print("nothing queued")  # noqa: T201
+        print("nothing queued")
         return
 
     count = 0
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        with claimed.open(encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                record = json.loads(line)
-                env = _to_envelope(record, self_jid)
-                if env is None:
-                    continue
-                upsert(conn, env, self_jid)
-                conn.commit()
-                count += 1
+    with (
+        psycopg.connect(os.environ["DATABASE_URL"]) as conn,
+        claimed.open(encoding="utf-8") as f,
+    ):
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            env = _to_envelope(record, self_jid)
+            if env is None:
+                continue
+            upsert(conn, env, self_jid)
+            conn.commit()
+            count += 1
 
     claimed.unlink()
-    print(f"synced {count} messages")  # noqa: T201
+    print(f"synced {count} messages")
 
 
 if __name__ == "__main__":

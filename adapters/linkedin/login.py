@@ -22,11 +22,11 @@ def login() -> None:
         page = context.new_page()
         page.goto("https://www.linkedin.com/login")
 
-        print("Log in in the browser window. Waiting for the feed to load...")  # noqa: T201
+        print("Log in in the browser window. Waiting for the feed to load...")
         page.wait_for_url("https://www.linkedin.com/feed/**", timeout=300_000)
 
         context.storage_state(path=str(STORAGE_STATE_PATH))
-        print(f"Session saved to {STORAGE_STATE_PATH}")  # noqa: T201
+        print(f"Session saved to {STORAGE_STATE_PATH}")
         browser.close()
 
 

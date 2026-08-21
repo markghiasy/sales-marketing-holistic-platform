@@ -196,6 +196,45 @@ Only reach for this if the export path turns out unworkable (too slow,
 missing fields once real data lands) — see README for why it's not the
 default.
 
+## CI failure on the first push (2026-08-21) — fixed before commit two
+
+`ruff check .` failed with 32 errors, all real, none false alarms:
+
+- Every `# noqa: T201` comment in the repo (added on the assumption
+  ruff's default rule set flags bare `print()`) was itself flagged as
+  unused — `T201` was never actually enabled in `pyproject.toml`, so the
+  noqa comments were dead weight. Removed with `ruff check --fix`.
+- `adapters/linkedin/config.py`: `os.environ.get(key, 3.0)` passes a
+  float default where the function is typed to return `str | None` —
+  worked by accident (`float()`/`int()` are permissive), fixed to pass
+  string defaults (`"3.0"`) instead.
+- Two nested `with` statements (`scripts/pipe_health.py`,
+  `adapters/whatsapp/sync.py`) combined into one per ruff's SIM117.
+- `adapters/outlook/client.py`: `for msg in data.get(...): yield msg` →
+  `yield from data.get(...)`.
+- `adapters/linkedin/export_sync.py`: dropped the manual
+  `.replace("Z", "+00:00")` before `fromisoformat()` — Python 3.11+
+  accepts a trailing "Z" natively, the workaround predated realising
+  that.
+- A genuinely deliberate broad `except Exception` in
+  `adapters/linkedin/client.py` (a page's own background network traffic
+  can fail in any shape) kept its catch, with a `# noqa: BLE001` and a
+  reason this time — since `T201`'s lesson was "an unexplained noqa is
+  worse than useful," not "never noqa."
+
+**Found in the process, unrelated to the lint failure itself:**
+`scripts/pipe_health.py` and `scripts/export.py` both read
+`os.environ["DATABASE_URL"]` directly without ever calling
+`load_dotenv()` first — meaning neither script had actually been run
+end-to-end against a real `.env` file before today; both silently
+depended on the variable already being in the shell's environment.
+Fixed. `export.py`'s `pg_dump` invocation itself is still unverified on
+a real machine running this script — no `pg_dump` client installed
+locally to test with — but the same command was run directly through
+the Postgres container's own `pg_dump` and produced a valid 470KB dump,
+so the command shape is confirmed correct; only "does this exact Python
+subprocess call work on someone's actual machine" is untested.
+
 ## Known gaps at the end of Block A
 
 - Quoted-reply-chain stripping in `envelope.py::_strip_html` is not

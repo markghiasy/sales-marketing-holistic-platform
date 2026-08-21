@@ -55,7 +55,7 @@ def get_access_token() -> str:
         flow = app.initiate_device_flow(scopes=SCOPES)
         if "user_code" not in flow:
             raise RuntimeError(f"device flow failed to start: {flow}")
-        print(flow["message"])  # noqa: T201 — deliberate operator-facing prompt
+        print(flow["message"])
         result = app.acquire_token_by_device_flow(flow)
 
     _save_cache(cache)
@@ -85,8 +85,7 @@ def fetch_messages(delta_link: str | None = None, page_size: int = 50):
         resp = requests.get(url, headers=headers, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        for msg in data.get("value", []):
-            yield msg
+        yield from data.get("value", [])
         url = data.get("@odata.nextLink")
         if "@odata.deltaLink" in data:
             next_delta_link = data["@odata.deltaLink"]

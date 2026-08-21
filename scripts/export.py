@@ -11,8 +11,11 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 
+from dotenv import load_dotenv
+
 
 def export(out_dir: str = "exports") -> str:
+    load_dotenv()
     os.makedirs(out_dir, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out_path = os.path.join(out_dir, f"comms-store-{stamp}.dump")
@@ -21,8 +24,8 @@ def export(out_dir: str = "exports") -> str:
         ["pg_dump", "--format=custom", f"--file={out_path}", os.environ["DATABASE_URL"]],
         check=True,
     )
-    print(f"exported to {out_path}")  # noqa: T201
-    print(f"restore with: pg_restore --clean --if-exists -d <target-db-url> {out_path}")  # noqa: T201
+    print(f"exported to {out_path}")
+    print(f"restore with: pg_restore --clean --if-exists -d <target-db-url> {out_path}")
     return out_path
 
 

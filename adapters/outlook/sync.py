@@ -14,9 +14,9 @@ from pathlib import Path
 import psycopg
 from dotenv import load_dotenv
 
-from .client import fetch_messages
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
+from .client import fetch_messages
 
 DELTA_LINK_PATH = Path(__file__).parent / ".delta_link.txt"
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -94,7 +94,7 @@ def run() -> None:
     if next_delta_link:
         DELTA_LINK_PATH.write_text(next_delta_link)
 
-    print(f"synced {count} messages")  # noqa: T201
+    print(f"synced {count} messages")
 
 
 if __name__ == "__main__":
