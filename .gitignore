@@ -1,6 +1,8 @@
 .env
 *.local
 .token_cache.bin
+.token_cache_readwrite.bin
+.graph_token_cache.json
 .delta_link.txt
 .storage_state.json
 .downloads/
@@ -8,6 +10,11 @@ adapters/whatsapp/node/.auth_state/
 adapters/whatsapp/node/node_modules/
 adapters/whatsapp/node/queue*.jsonl
 adapters/whatsapp/node/contacts.jsonl
+adapters/whatsapp/node/chats*.jsonl
+adapters/whatsapp/node/lid_map.jsonl
+adapters/whatsapp/node/lids_input.jsonl
+scripts/*.dump
+comms_outreach_platform.egg-info/
 adapters/whatsapp/node/self_jid.txt
 adapters/whatsapp/node/*.log
 adapters/whatsapp/node/qr.png

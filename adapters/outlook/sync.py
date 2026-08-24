@@ -9,6 +9,8 @@ from __future__ import annotations
 import html
 import os
 import re
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 import psycopg
@@ -32,6 +34,30 @@ def _strip_html(body: dict) -> str:
     return content.strip()
 
 
+def _resolve_sent_at(raw: dict) -> datetime:
+    """Prefer the message's own Date header over Graph's receivedDateTime.
+
+    Found while investigating garbled timestamps on the Gmail-seeded test
+    mailbox: New Outlook's .eml importer stamps receivedDateTime with the
+    *import* time, not the message's real date — every seeded message
+    showed today's date. The original Date header survives untouched
+    (confirmed against real data), so it's the trustworthy source whenever
+    it's present; receivedDateTime is only a fallback for messages that
+    arrived normally (no header available in that shape).
+    """
+    headers = raw.get("internetMessageHeaders") or []
+    date_hdr = next((h["value"] for h in headers if h["name"].lower() == "date"), None)
+    if date_hdr:
+        try:
+            dt = parsedate_to_datetime(date_hdr)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return dt.astimezone(UTC)
+        except (TypeError, ValueError):
+            pass  # malformed header — fall through
+    return datetime.fromisoformat(raw["receivedDateTime"].replace("Z", "+00:00"))
+
+
 def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
     if raw.get("internetMessageId") is None:
         return None  # can't guarantee idempotency without it — drop, don't guess
@@ -48,7 +74,7 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         external_id=raw["internetMessageId"],
         thread_external_id=raw.get("conversationId", ""),
         direction=direction,
-        sent_at=raw["receivedDateTime"],
+        sent_at=_resolve_sent_at(raw),
         from_handle=from_handle,
         to_handles=to_handles,
         from_display_name=from_addr.get("name") or None,
