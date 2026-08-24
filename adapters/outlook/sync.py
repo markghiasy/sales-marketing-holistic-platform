@@ -55,7 +55,7 @@ def _resolve_sent_at(raw: dict) -> datetime:
             return dt.astimezone(UTC)
         except (TypeError, ValueError):
             pass  # malformed header — fall through
-    return datetime.fromisoformat(raw["receivedDateTime"].replace("Z", "+00:00"))
+    return datetime.fromisoformat(raw["receivedDateTime"])
 
 
 def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:

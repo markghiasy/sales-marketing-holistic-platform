@@ -48,7 +48,9 @@ def _debug_dump_token(access_token: str) -> None:
             {k: claims.get(k) for k in ("aud", "iss", "scp", "roles", "upn", "unique_name", "tid", "appid")},
             indent=2,
         ))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — best-effort diagnostic only;
+        # any failure here (bad base64, unexpected JWT shape) should just
+        # be reported, never block the actual auth flow that called this
         print(f"couldn't decode token for debugging: {e}")
 
 
