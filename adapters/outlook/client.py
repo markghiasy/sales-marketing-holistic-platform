@@ -13,7 +13,17 @@ from pathlib import Path
 import requests
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
-SCOPES = ["Mail.Read"]
+# offline_access is what actually gets a refresh_token back in the token
+# response — without it, Microsoft's default behaviour for this public
+# client can't be relied on to include one, and the whole point of this
+# scope list is making the refresh path in get_access_token() work.
+SCOPES = ["Mail.Read", "offline_access"]
+TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+# transient — worth a retry with backoff. 401 is deliberately not here: a
+# missing/expired token needs a fresh login, not a retry with the same bad
+# token.
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 4
 # a raw JSON cache, not msal.SerializableTokenCache — msal's cache object
 # never accepted the token response from the hand-rolled device-code poll
 # below cleanly (its .add() wants a shape tied to msal's own request flow),
@@ -34,12 +44,59 @@ TOKEN_CACHE_PATH = Path(__file__).parent / ".token_cache.bin"
 GRAPH_CLI_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
 
 
+def _save_token_cache(result: dict) -> None:
+    # the device-code/refresh token responses both carry a refresh_token
+    # when the app is set up for offline access (this public client is) —
+    # save it whenever present so an expired access token can be silently
+    # renewed instead of forcing a manual device-code login every ~90
+    # minutes. Previously only access_token was kept, which meant this
+    # adapter could never really run unattended: the first expiry after a
+    # human wasn't watching it would just kill the next sync.
+    cache = {
+        "access_token": result["access_token"],
+        "scopes": SCOPES,
+        "expires_at": time.time() + result.get("expires_in", 3600),
+    }
+    if "refresh_token" in result:
+        cache["refresh_token"] = result["refresh_token"]
+    TOKEN_CACHE_PATH.write_text(json.dumps(cache))
+
+
+def _refresh_access_token(refresh_token: str) -> dict | None:
+    """Returns the token response on success, None if the refresh token
+    itself is no longer valid (expired/revoked) — falls back to a fresh
+    device-code login in that case rather than raising."""
+    resp = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type": "refresh_token",
+            "client_id": GRAPH_CLI_CLIENT_ID,
+            "refresh_token": refresh_token,
+            "scope": " ".join(SCOPES),
+        },
+        timeout=30,
+    )
+    result = resp.json()
+    if "access_token" not in result:
+        return None
+    return result
+
+
 def get_access_token() -> str:
-    """Cached token if it's still valid; device-code prompt otherwise."""
+    """Cached token if valid; silently refreshed if expired but a refresh
+    token is on hand; device-code prompt only as a last resort."""
+    cached = None
     if TOKEN_CACHE_PATH.exists():
         cached = json.loads(TOKEN_CACHE_PATH.read_text())
         if cached.get("scopes") == SCOPES and cached.get("expires_at", 0) > time.time() + 60:
             return cached["access_token"]
+
+    if cached and cached.get("scopes") == SCOPES and cached.get("refresh_token"):
+        refreshed = _refresh_access_token(cached["refresh_token"])
+        if refreshed is not None:
+            _save_token_cache(refreshed)
+            return refreshed["access_token"]
+        # refresh token expired/revoked — fall through to device code
 
     device_code_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode"
     resp = requests.post(
@@ -56,14 +113,13 @@ def get_access_token() -> str:
     # acquire_token_by_device_flow, and hand-wrapping the latter in a
     # retry loop) were unreliable in this environment, returning
     # "authorization_pending" as a terminal result after a single poll.
-    token_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
     interval = flow.get("interval", 5)
     deadline = time.time() + flow.get("expires_in", 900)
     result = {"error": "authorization_pending"}
     while result.get("error") == "authorization_pending" and time.time() < deadline:
         time.sleep(interval)
         resp = requests.post(
-            token_url,
+            TOKEN_URL,
             data={
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 "client_id": GRAPH_CLI_CLIENT_ID,
@@ -77,11 +133,7 @@ def get_access_token() -> str:
     if "access_token" not in result:
         raise RuntimeError(f"auth failed: {result.get('error_description') or result}")
 
-    TOKEN_CACHE_PATH.write_text(json.dumps({
-        "access_token": result["access_token"],
-        "scopes": SCOPES,
-        "expires_at": time.time() + result.get("expires_in", 3600),
-    }))
+    _save_token_cache(result)
     return result["access_token"]
 
 
@@ -91,14 +143,30 @@ _SELECT_FIELDS = (
 )
 
 
+def _get_with_retry(url: str, headers: dict) -> requests.Response:
+    """A transient Graph error (rate limit, 5xx) used to kill the whole
+    sync mid-run instead of just costing a few seconds — a single blip
+    partway through a 4700-message backfill meant starting over. Retries
+    with exponential backoff, honouring Retry-After when Graph sends one
+    (it does on 429s) rather than guessing at a delay."""
+    for attempt in range(_MAX_RETRIES + 1):
+        resp = requests.get(url, headers=headers, timeout=30)
+        if resp.status_code not in _RETRYABLE_STATUS or attempt == _MAX_RETRIES:
+            resp.raise_for_status()
+            return resp
+        retry_after = resp.headers.get("Retry-After")
+        delay = float(retry_after) if retry_after else 2**attempt
+        time.sleep(delay)
+    raise AssertionError("unreachable")  # loop always returns or raises above
+
+
 def _walk(url: str, headers: dict):
     """Follows @odata.nextLink to exhaustion, yielding every item. Returns
     the final page's @odata.deltaLink, if any, via the generator's return
     value."""
     next_delta_link = None
     while url:
-        resp = requests.get(url, headers=headers, timeout=30)
-        resp.raise_for_status()
+        resp = _get_with_retry(url, headers)
         data = resp.json()
         yield from data.get("value", [])
         url = data.get("@odata.nextLink")
@@ -107,9 +175,11 @@ def _walk(url: str, headers: dict):
     return next_delta_link
 
 
-def fetch_messages(delta_link: str | None = None, page_size: int = 50):
-    """Yields raw Graph message dicts. Returns the next delta_link via the
-    generator's return value (see sync.py for how that's consumed).
+def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_size: int = 50):
+    """Yields raw Graph message dicts from the given mail folder ('inbox' or
+    'sentitems' — Graph's well-known folder names). Returns the next
+    delta_link via the generator's return value (see sync.py for how
+    that's consumed).
 
     delta_link given: pure incremental sync — only what changed since then.
 
@@ -131,13 +201,13 @@ def fetch_messages(delta_link: str | None = None, page_size: int = 50):
         return (yield from _walk(delta_link, headers))
 
     plain_url = (
-        f"{GRAPH_BASE}/me/mailFolders/inbox/messages"
+        f"{GRAPH_BASE}/me/mailFolders/{folder}/messages"
         f"?$top={page_size}&$select={_SELECT_FIELDS}"
     )
     yield from _walk(plain_url, headers)
 
     delta_seed_url = (
-        f"{GRAPH_BASE}/me/mailFolders/inbox/messages/delta"
+        f"{GRAPH_BASE}/me/mailFolders/{folder}/messages/delta"
         f"?$top={page_size}&$select={_SELECT_FIELDS}"
     )
     seed_gen = _walk(delta_seed_url, headers)

@@ -20,7 +20,16 @@ from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
 from .client import fetch_messages
 
-DELTA_LINK_PATH = Path(__file__).parent / ".delta_link.txt"
+# One delta link per folder — each folder's delta query is its own
+# independent paging sequence, so they can't share a single cursor.
+_FOLDERS = ("inbox", "sentitems")
+_DELTA_LINK_PATHS = {
+    folder: Path(__file__).parent / f".delta_link.{folder}.txt" for folder in _FOLDERS
+}
+# pre-existing single-folder cursor from before Sent was added — migrated
+# to the new per-folder name below so a re-run doesn't silently re-backfill
+# the whole inbox from scratch.
+_LEGACY_INBOX_DELTA_LINK_PATH = Path(__file__).parent / ".delta_link.txt"
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
@@ -88,37 +97,47 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
     )
 
 
+def _migrate_legacy_inbox_delta_link() -> None:
+    if _LEGACY_INBOX_DELTA_LINK_PATH.exists() and not _DELTA_LINK_PATHS["inbox"].exists():
+        _DELTA_LINK_PATHS["inbox"].write_text(_LEGACY_INBOX_DELTA_LINK_PATH.read_text())
+
+
 def run() -> None:
     load_dotenv()
     self_email = os.environ["OUTLOOK_MAILBOX"].lower()
-    delta_link = DELTA_LINK_PATH.read_text().strip() if DELTA_LINK_PATH.exists() else None
+    _migrate_legacy_inbox_delta_link()
 
-    next_delta_link = None
+    count = 0
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        gen = fetch_messages(delta_link=delta_link)
-        count = 0
-        while True:
-            # NOT `for raw in gen:` — that swallows the generator's return
-            # value. fetch_messages() returns the next delta link via
-            # `return`, which only surfaces through StopIteration.value on
-            # manual next() calls. A for-loop never exposes it — found
-            # while self-reviewing before the first git push: every past
-            # run of this adapter has been silently doing a full mailbox
-            # backfill instead of an incremental delta sync.
-            try:
-                raw = next(gen)
-            except StopIteration as e:
-                next_delta_link = e.value
-                break
-            env = _to_envelope(raw, self_handles={self_email})
-            if env is None:
-                continue
-            upsert(conn, env, self_email)
-            count += 1
-        conn.commit()
+        for folder in _FOLDERS:
+            delta_link_path = _DELTA_LINK_PATHS[folder]
+            delta_link = delta_link_path.read_text().strip() if delta_link_path.exists() else None
 
-    if next_delta_link:
-        DELTA_LINK_PATH.write_text(next_delta_link)
+            next_delta_link = None
+            gen = fetch_messages(folder=folder, delta_link=delta_link)
+            while True:
+                # NOT `for raw in gen:` — that swallows the generator's
+                # return value. fetch_messages() returns the next delta
+                # link via `return`, which only surfaces through
+                # StopIteration.value on manual next() calls. A for-loop
+                # never exposes it — found while self-reviewing before the
+                # first git push: every past run of this adapter had been
+                # silently doing a full mailbox backfill instead of an
+                # incremental delta sync.
+                try:
+                    raw = next(gen)
+                except StopIteration as e:
+                    next_delta_link = e.value
+                    break
+                env = _to_envelope(raw, self_handles={self_email})
+                if env is None:
+                    continue
+                upsert(conn, env, self_email)
+                count += 1
+
+            if next_delta_link:
+                delta_link_path.write_text(next_delta_link)
+        conn.commit()
 
     print(f"synced {count} messages")
 

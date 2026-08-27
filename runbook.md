@@ -235,6 +235,68 @@ the Postgres container's own `pg_dump` and produced a valid 470KB dump,
 so the command shape is confirmed correct; only "does this exact Python
 subprocess call work on someone's actual machine" is untested.
 
+## Pipeline health monitoring
+
+`scripts/monitor.py` (2026-08-27) replaces the old `pipe_health.py`
+single-check heartbeat with a per-channel staleness check and a real
+alert, meant to run on a schedule instead of by hand:
+
+- **Outlook / LinkedIn** run as one-shot sync scripts, not long-lived
+  processes, so their only available signal is "did the last sync run
+  recently and write something" — approximated by `max(message.ingested_at)`
+  per channel. Thresholds default to 24h (Outlook) / 48h (LinkedIn),
+  overridable via `MONITOR_OUTLOOK_STALE_HOURS` /
+  `MONITOR_LINKEDIN_STALE_HOURS`.
+- **WhatsApp** is a long-running connector (`ingest.js`), where message
+  volume alone can't distinguish "the socket died" from "nobody happened
+  to message for a while." `ingest.js` now writes its own liveness
+  heartbeat to `adapters/whatsapp/node/.heartbeat.txt` every 60s (and
+  immediately on connect); the monitor checks that file's mtime instead,
+  threshold 5 minutes.
+- Alerts always print to stderr; if `MONITOR_ALERT_WEBHOOK_URL` is set
+  (a Slack incoming-webhook URL, or anything else that accepts the same
+  `{"text": ...}` POST shape), they also get posted there. A failed
+  webhook delivery is caught and logged, not fatal to the check itself.
+- A per-channel alert only fires once per 6 hours (state in
+  `scripts/.monitor_alert_state.json`, gitignored) so a scheduled run
+  every few minutes doesn't spam — the channel still shows FAIL on every
+  run, it just doesn't re-page.
+- Exit code 0 if every channel is healthy, 1 otherwise, so this composes
+  with any scheduler without needing anything smarter than "did it exit
+  non-zero."
+
+**Verified against the real store and a real `ingest.js` run
+(2026-08-27):** with nothing synced in days (Outlook 86.5h, LinkedIn
+150.4h) and no heartbeat file yet, all three correctly reported FAIL with
+an alert. Starting `ingest.js` flipped WhatsApp to OK within the same
+run, heartbeat age 0.2m. Re-running within the cooldown window correctly
+suppressed duplicate alerts for the still-failing channels while still
+showing their FAIL status. A broken webhook URL was caught and logged
+without crashing the check.
+
+**Scheduling this (local dev, until Postgres/hosting migration):**
+Windows Task Scheduler, run every 15 minutes:
+```
+schtasks /create /tn "CommsPlatformMonitor" /tr "\"<path to .venv>\python.exe\" \"<repo path>\scripts\monitor.py\"" /sc minute /mo 15
+```
+Once the store moves to a real hosted instance, this becomes a proper
+cron job / systemd timer next to it instead of a per-laptop scheduled
+task.
+
+**Known gap:** nothing schedules the Outlook/LinkedIn/WhatsApp sync
+scripts themselves yet — they still run by hand. Until that exists, this
+monitor will correctly report Outlook/LinkedIn as stale whenever nobody's
+run a manual sync recently, because that's honestly what's happening.
+Wiring up the sync schedule itself is separate work from building the
+thing that watches it.
+
+**Cost estimate for closing that gap (real scheduled syncs, not just
+monitoring them):** roughly 3-4 hours — a Windows Task Scheduler entry
+(or cron/systemd timer once hosted) per sync script, each already
+idempotent so re-running on a fixed interval is safe as-is; the bulk of
+the time is picking sane intervals per channel and confirming a failed
+run doesn't corrupt the delta-link/queue state it left mid-write.
+
 ## Known gaps at the end of Block A
 
 - Quoted-reply-chain stripping in `envelope.py::_strip_html` is not

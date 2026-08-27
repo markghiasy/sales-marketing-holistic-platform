@@ -11,11 +11,26 @@
  * Run: node ingest.js
  */
 
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
+const { useEncryptedMultiFileAuthState } = require('./encrypted_auth_state.js');
 const QRCode = require('qrcode');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
+
+// no dotenv dependency in this Node project — the repo's real .env lives
+// three levels up (repo/.env); read WHATSAPP_AUTH_ENCRYPTION_KEY straight
+// off it if it's not already in the process environment (e.g. python's
+// side already loaded it and re-exported, or this is run some other way)
+if (!process.env.WHATSAPP_AUTH_ENCRYPTION_KEY) {
+  const envPath = path.join(__dirname, '..', '..', '..', '.env');
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, 'utf-8').split('\n')) {
+      const match = line.match(/^WHATSAPP_AUTH_ENCRYPTION_KEY=(.*)$/);
+      if (match) process.env.WHATSAPP_AUTH_ENCRYPTION_KEY = match[1].trim();
+    }
+  }
+}
 
 const AUTH_DIR = path.join(__dirname, '.auth_state');
 const QUEUE_PATH = path.join(__dirname, 'queue.jsonl');
@@ -23,6 +38,7 @@ const CONTACTS_PATH = path.join(__dirname, 'contacts.jsonl');
 const CHATS_PATH = path.join(__dirname, 'chats.jsonl');
 const SELF_JID_PATH = path.join(__dirname, 'self_jid.txt');
 const QR_PATH = path.join(__dirname, 'qr.png');
+const HEARTBEAT_PATH = path.join(__dirname, '.heartbeat.txt');
 
 function extractText(message) {
   if (!message) return null;
@@ -40,7 +56,7 @@ function appendToQueue(record) {
 }
 
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } = await useEncryptedMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
@@ -64,6 +80,7 @@ async function start() {
     }
     if (connection === 'open') {
       fs.writeFileSync(SELF_JID_PATH, sock.user.id);
+      fs.writeFileSync(HEARTBEAT_PATH, new Date().toISOString());
       console.log('CONNECTED as', sock.user.id);
     }
     if (connection === 'close') {
@@ -170,4 +187,13 @@ start().catch((e) => {
   process.exit(1);
 });
 
-setInterval(() => console.log('HEARTBEAT', new Date().toISOString()), 60000);
+// message volume alone can't tell monitoring "is the connector alive" —
+// a quiet chat looks identical to a dead socket if all you check is "when
+// did the last message arrive." This is the actual liveness signal:
+// as long as this process is running its event loop at all, the file's
+// mtime stays fresh, independent of whether anyone happens to be messaging.
+setInterval(() => {
+  const now = new Date().toISOString();
+  console.log('HEARTBEAT', now);
+  fs.writeFileSync(HEARTBEAT_PATH, now);
+}, 60000);
