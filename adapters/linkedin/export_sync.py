@@ -1,7 +1,7 @@
 """Check whether a requested LinkedIn data archive is ready; if so,
-download it, parse messages.csv, and upsert into the store. Safe to run
-on a schedule (daily/hourly, whatever the eventual cadence is) — if
-nothing's ready yet, this is a clean no-op, not an error.
+download it, parse messages.csv AND Connections.csv, and upsert both into
+the store. Safe to run on a schedule (daily/hourly, whatever the eventual
+cadence is) — if nothing's ready yet, this is a clean no-op, not an error.
 
 Run: python -m adapters.linkedin.export_sync
 
@@ -17,6 +17,17 @@ the earlier guessed version got wrong, fixed here:
   end in "messages.csv" too, and `learning_role_play_messages.csv` sorts
   before the real `messages.csv` in the archive listing. Matching on
   `endswith("messages.csv")` picked the wrong file entirely.
+
+Connections.csv parsing added 2026-08-28, checked against the same real
+archive: 935 connections, company name present for 890 (95%) but an
+email address for only 25 (2.7%) — LinkedIn only includes it when the
+connection opted into sharing. Company name is §8 Rule 5's actual
+material ("name plus organisation correlation for LinkedIn"); this just
+ingests the raw rows, the correlation itself is Block B. Unlike every
+other Block A source, this can only ever be a snapshot — there's no
+webhook or delta for "who connected with you since last time," only a
+fresh ~24h archive request, same constraint the messages side already
+works under.
 """
 
 from __future__ import annotations
@@ -101,6 +112,109 @@ def _parse_messages_csv(zip_path: Path) -> list[dict]:
     # normalise keys to lowercase so the rest of this module doesn't care
     # which capitalisation LinkedIn shipped this export with
     return [{k.strip().lower(): v for k, v in row.items()} for row in reader]
+
+
+def _parse_connections_csv(zip_path: Path) -> list[dict]:
+    """Connections.csv has a three-line preamble (a "Notes:" label and a
+    privacy disclaimer paragraph explaining why most email addresses are
+    blank) before the real header row — unlike messages.csv, which starts
+    straight with headers. Confirmed against the real archive (2026-08-28):
+    real header is "First Name,Last Name,URL,Email Address,Company,
+    Position,Connected On"."""
+    with zipfile.ZipFile(zip_path) as zf:
+        names = [n for n in zf.namelist() if n.lower() == "connections.csv"]
+        if not names:
+            raise RuntimeError(
+                f"no Connections.csv in archive — found: {zf.namelist()[:20]}"
+            )
+        raw = zf.read(names[0]).decode("utf-8-sig")
+
+    lines = raw.splitlines()
+    header_idx = next(
+        (i for i, line in enumerate(lines) if line.lower().startswith("first name,")),
+        None,
+    )
+    if header_idx is None:
+        raise RuntimeError(
+            "couldn't find the 'First Name,...' header row in Connections.csv "
+            "— LinkedIn may have changed the preamble format"
+        )
+
+    reader = csv.DictReader(io.StringIO("\n".join(lines[header_idx:])))
+    return [{k.strip().lower(): v for k, v in row.items()} for row in reader]
+
+
+def _parse_connected_on(date_str: str) -> object | None:
+    # real format confirmed 2026-08-28: "20 Aug 2026" — different from
+    # messages.csv's own date format, LinkedIn isn't consistent within its
+    # own export
+    date_str = date_str.strip()
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%d %b %Y").date()  # noqa: DTZ007 — date only, no tz to attach
+    except ValueError:
+        return None  # unparseable — leave null rather than guess
+
+
+def _connection_id(name: str, profile_url: str) -> str:
+    # same scheme as _handle() above, kept as a separate function since
+    # this table isn't part of the envelope/identity system at all — it's
+    # raw ingested rows, same spirit as adapters/outlook/contacts_sync.py
+    #
+    # Known collision, checked against the real archive (2026-08-28): 14
+    # of 935 rows have neither a name nor a URL at all — deactivated/
+    # deleted LinkedIn accounts, where LinkedIn keeps the "Connected On"
+    # date but strips every identifying field. All 14 collapse to the
+    # same "name:" id and only the last survives the upsert. Not real
+    # data loss (there's nothing to distinguish them by in the first
+    # place) but worth knowing before "935 rows in, 922 in the table"
+    # reads as a bug.
+    profile_url = profile_url.strip()
+    if profile_url:
+        return profile_url.lower()
+    return f"name:{name.strip().lower()}"
+
+
+def _sync_connections(conn, rows: list[dict]) -> int:
+    count = 0
+    with conn.cursor() as cur:
+        for row in rows:
+            first_name = row.get("first name", "").strip()
+            last_name = row.get("last name", "").strip()
+            profile_url = row.get("url", "").strip()
+            full_name = f"{first_name} {last_name}".strip()
+            connection_id = _connection_id(full_name, profile_url)
+
+            cur.execute(
+                """
+                insert into linkedin_connection
+                    (id, first_name, last_name, profile_url, email, company, position, connected_on, synced_at)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, now())
+                on conflict (id) do update
+                    set first_name = excluded.first_name,
+                        last_name = excluded.last_name,
+                        profile_url = excluded.profile_url,
+                        email = excluded.email,
+                        company = excluded.company,
+                        position = excluded.position,
+                        connected_on = excluded.connected_on,
+                        synced_at = excluded.synced_at
+                """,
+                (
+                    connection_id,
+                    first_name or None,
+                    last_name or None,
+                    profile_url or None,
+                    (row.get("email address") or "").strip().lower() or None,
+                    (row.get("company") or "").strip() or None,
+                    (row.get("position") or "").strip() or None,
+                    _parse_connected_on(row.get("connected on", "")),
+                ),
+            )
+            count += 1
+    conn.commit()
+    return count
 
 
 def _parse_export_date(date_str: str) -> datetime:
@@ -194,19 +308,22 @@ def run() -> None:
         print("no archive ready yet")
         return
 
-    rows = _parse_messages_csv(zip_path)
+    message_rows = _parse_messages_csv(zip_path)
+    connection_rows = _parse_connections_csv(zip_path)
 
-    count = 0
+    message_count = 0
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        for row in rows:
+        for row in message_rows:
             env = _to_envelope(row, self_profile_url)
             if env is None:
                 continue
             upsert(conn, env, self_profile_url.lower())
             conn.commit()
-            count += 1
+            message_count += 1
 
-    print(f"synced {count} messages from {zip_path.name}")
+        connection_count = _sync_connections(conn, connection_rows)
+
+    print(f"synced {message_count} messages and {connection_count} connections from {zip_path.name}")
 
 
 if __name__ == "__main__":

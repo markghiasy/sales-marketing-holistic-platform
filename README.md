@@ -27,10 +27,12 @@ here and how to run it.
   - **Initial backfill: LinkedIn's own data export.** `request_export.py`
     triggers the official "download my data" archive (Settings > Data
     Privacy); `export_sync.py` checks for a finished one, downloads it,
-    and parses `messages.csv`. Not real-time (~24h turnaround per
+    and parses both `messages.csv` and `Connections.csv` (§8 Rule 5
+    material — company name, not email; real coverage checked 2026-08-28
+    is 95% company / 2.7% email). Not real-time (~24h turnaround per
     request), and not ToS-grey either — it's a self-service export, not
-    scraping. Good for the one-time historical fill; too slow to be the
-    ongoing sync.
+    scraping. Connections can only ever be a periodic snapshot, not a
+    live sync — there's no delta for "who connected since last time."
   - **Ongoing real-time (planned, not built): SSE push.** LinkedIn's own
     messaging UI holds open a Server-Sent-Events connection rather than
     polling — same shape as WhatsApp's persistent socket. See runbook for

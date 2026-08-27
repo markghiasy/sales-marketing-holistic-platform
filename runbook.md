@@ -170,6 +170,42 @@ archive listing. The original `_parse_messages_csv` matched on
 `endswith("messages.csv")` and would have silently parsed the wrong file.
 Fixed to match the exact filename.
 
+**Connections.csv added 2026-08-28** — same archive, a second file,
+parsed and upserted into a new `linkedin_connection` table alongside the
+messages. This is §8 Rule 5's actual raw material ("name plus
+organisation correlation for LinkedIn") — company name, not email, is
+the useful field here. Checked against the real archive already sitting
+in Downloads from the 2026-08-21 run (reused it rather than requesting
+a fresh one and spending another LinkedIn session):
+
+- 935 rows, 890 (95%) carry a company name, only 25 (2.7%) carry an
+  email — LinkedIn only includes a connection's email if they opted into
+  sharing it (`Email Addresses.csv` in the same archive is *your own*
+  saved emails, not connections' — don't confuse the two).
+- No `Followers.csv` anywhere in the 34-file archive. LinkedIn's export
+  covers connections (mutual), not followers (one-way) — that data isn't
+  available through this path at all.
+- Parsing quirk: unlike `messages.csv`, `Connections.csv` has a
+  three-line preamble (a privacy disclaimer explaining the sparse email
+  coverage above) before the real header row — `_parse_connections_csv`
+  scans for the header rather than assuming line 1.
+- 14 of 935 rows are completely blank (no name, no URL) — deactivated/
+  deleted LinkedIn accounts, where LinkedIn keeps the connection date but
+  strips every identifying field. All 14 collapse to the same fallback
+  id and only the last survives — not real data loss, but the row count
+  in the table (922) will legitimately be lower than the CSV's (935).
+- Unlike every other Block A source, this can only be a periodic
+  snapshot — there's no delta/webhook for "who connected since last
+  time," only re-requesting a fresh ~24h archive. Worth deciding a real
+  cadence for this (monthly? on demand?) rather than treating it like
+  the continuously-synced channels.
+- **Not yet run through `run()`'s actual download step this session** —
+  tested `_parse_connections_csv`/`_sync_connections` directly against
+  the already-downloaded archive to avoid opening another LinkedIn
+  browser session on top of everything else scraped today. The download
+  half of the flow was already verified separately on 2026-08-21;
+  worth a real end-to-end run once a fresh archive is warranted anyway.
+
 ## LinkedIn: real-time push (parked 2026-08-21 — deprioritised, not abandoned)
 
 The messaging page doesn't poll — it holds open a Server-Sent-Events
