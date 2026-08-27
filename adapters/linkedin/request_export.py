@@ -15,6 +15,13 @@ finished processing and, if so, downloads and ingests it — LinkedIn
 doesn't expose a webhook or push notification we can drive off of, so this
 has to be two separate runs on a schedule, not one script that waits.
 
+Re-verified 2026-08-28 requesting a fresh archive: the option-selection
+logic broke since 2026-08-19 in two ways, both fixed — LinkedIn's own
+`<label>` around the radio button now intercepts direct clicks on it, and
+the option was being picked by DOM position rather than its label text
+(fragile: would silently request the wrong archive if the two options
+ever got reordered). See the fix comments below for both.
+
 Run: python -m adapters.linkedin.request_export
 """
 
@@ -43,17 +50,34 @@ def request_export(headless: bool = True) -> str:
             browser.close()
             return "already_pending"
 
-        full_archive_radio = page.query_selector(
-            'input[type="radio"] >> nth=0'
-        ) or page.get_by_text("Download larger data archive").first
+        # Match by the label's own text ("...including connections,
+        # verifications, contacts...") instead of position — an earlier
+        # version picked whichever <input type="radio"> happened to be
+        # first in the DOM, which only worked by coincidence of today's
+        # ordering. If LinkedIn ever swaps the two options' order, a
+        # position-based selector would silently request the *wrong*
+        # archive (missing Connections.csv) with no error at all — found
+        # while fixing a separate, unrelated click-interception bug
+        # (2026-08-28) and worth fixing properly rather than patching
+        # around the symptom.
+        full_archive_label = None
+        for label in page.query_selector_all("label"):
+            if "connections" in label.inner_text().lower():
+                full_archive_label = label
+                break
 
-        if full_archive_radio is None:
+        if full_archive_label is None:
             browser.close()
             raise RuntimeError(
-                "couldn't find the 'Download larger data archive' option — "
-                "LinkedIn may have changed this page since 2026-08-19"
+                "couldn't find a data-archive option whose label mentions "
+                "'connections' — LinkedIn may have changed this page's "
+                "wording or structure since 2026-08-28"
             )
-        full_archive_radio.click()
+        # the radio's own <label> visually wraps it and intercepts pointer
+        # events on the <input> directly — found 2026-08-28. Clicking the
+        # label itself (same toggle behaviour via its `for` attribute)
+        # sidesteps that rather than forcing a click through it.
+        full_archive_label.click()
 
         request_button = page.get_by_role("button", name="Request archive")
         request_button.click()
