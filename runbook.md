@@ -21,12 +21,43 @@ standing up and syncing cleanly is the exit criterion for this block, not
 a one-time demo (§2, "deploying a clean second instance is a gate at every
 block checkpoint").
 
+**Run for real, 2026-08-27/28** — this had never actually been done
+before (Block A had been called "functionally done" without it). Fresh
+`git clone` of the pushed repo, different Postgres port and password,
+`.venv` built from scratch:
+
+- `docker compose up -d` on an empty volume applied both migrations (9
+  tables + 4 views) automatically, no manual step.
+- Found a real gap doing this: the host port in `docker-compose.yml` was
+  hardcoded (`5432:5432`), so a second instance on the same machine as
+  an already-running one collided. Fixed to read `${POSTGRES_PORT:-5432}`,
+  matching the pattern already used for user/password/db.
+- `pip install -e .` — clean, no missing deps.
+- `python -m adapters.outlook.sync` against the empty store: fresh
+  device-code login (token cache is gitignored, as it should be),
+  **backfilled all 4769 messages**. Re-running immediately after synced
+  0 — idempotency holds from true zero.
+- `scripts/export.py` **failed outright** the first time — see the
+  entry above this section; fixed to run `pg_dump` in a throwaway
+  container instead of assuming a host-installed client. Re-tested:
+  export succeeded, and the resulting dump was restored into a third,
+  separate Postgres (different role name) with `pg_restore --clean
+  --if-exists --no-owner` — all 4769 messages and their edges came back
+  intact.
+- `scripts/pipe_health.py` / `scripts/monitor.py` both ran clean
+  against the empty store before syncing (correctly reported empty/
+  unhealthy, no crash).
+
+Net: the checkpoint passes, with two real fixes shipped as a result
+(`export.py`'s pg_dump dependency, and the hardcoded Postgres port).
+
 ## Re-running a full backfill
 
-Delete `adapters/outlook/.delta_link.txt` and re-run
-`python -m adapters.outlook.sync`. Idempotency is keyed on
-`internetMessageId` (see the warning in `envelope.py`), so this adds zero
-duplicate rows — safe to do any time something looks off.
+Delete the relevant `adapters/outlook/.delta_link.<folder>.txt` file
+(`inbox` or `sentitems`) and re-run `python -m adapters.outlook.sync`.
+Idempotency is keyed on `internetMessageId` (see the warning in
+`envelope.py`), so this adds zero duplicate rows — safe to do any time
+something looks off.
 
 ## Rotating the client secret
 
@@ -228,12 +259,13 @@ default.
 `load_dotenv()` first — meaning neither script had actually been run
 end-to-end against a real `.env` file before today; both silently
 depended on the variable already being in the shell's environment.
-Fixed. `export.py`'s `pg_dump` invocation itself is still unverified on
-a real machine running this script — no `pg_dump` client installed
-locally to test with — but the same command was run directly through
-the Postgres container's own `pg_dump` and produced a valid 470KB dump,
-so the command shape is confirmed correct; only "does this exact Python
-subprocess call work on someone's actual machine" is untested.
+Fixed. `export.py` originally shelled out to a host-installed `pg_dump`
+— confirmed broken for real on 2026-08-27/28 via the fresh-deploy
+checkpoint below: a genuinely clean machine has no `pg_dump` on PATH at
+all, so this failed outright, not just "untested." Rewrote it to run
+`pg_dump` inside a throwaway `postgres:16` container instead (see
+"Pipeline health monitoring" section's neighbour, the fresh-deploy
+checkpoint writeup, for the full verification).
 
 ## Pipeline health monitoring
 
