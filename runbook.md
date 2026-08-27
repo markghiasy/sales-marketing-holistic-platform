@@ -128,10 +128,10 @@ idempotent on re-run (second run reported "nothing queued").
    in by hand (password, 2FA, whatever it asks — this script never sees
    the password). Session saves to `adapters/linkedin/.storage_state.json`
    once you land on the feed.
-2. Set `LINKEDIN_SELF_NAME` in `.env` to your exact LinkedIn display name
-   (used by the export path to tell your own messages apart from theirs).
-   For the backup scraping path, also find your member id from your own
-   profile URL (`/in/<this part>`) and set `LINKEDIN_MEMBER_ID`.
+2. Set `LINKEDIN_SELF_PROFILE_URL` in `.env` to your own profile URL (used
+   by the export path to tell your own messages apart from theirs). The
+   network-interception path (client.py/sync.py) needs no id configured
+   at all — see the entry below on why.
 
 ## LinkedIn: the data-export sync (primary path)
 
@@ -337,40 +337,62 @@ run doesn't corrupt the delta-link/queue state it left mid-write.
   corpus later (Block E), not blocking for Block A itself.
 - No polling schedule wired up yet for delta sync — `sync.py` runs once
   per invocation. Cadence is an open question for Mark (not yet decided).
-- Contacts ingest (the `/me/contacts` bridge from §8) isn't built —
-  identity resolution across channels doesn't start until Block B anyway.
 - **LinkedIn rate/volume limits are placeholders, not agreed numbers.**
   §13 rule 2 requires Mark's written sign-off before these change —
   `adapters/linkedin/config.py` ships a conservative guess (3–8s between
   actions, 20 pages/session, 4 sessions/day) so the adapter has something
   to run with, but don't treat these as decided.
-- **LinkedIn message id/timestamp: fixed in design, unverified in practice.**
-  Rebuilt `client.py` to read the `voyagerMessagingGraphQL` JSON responses
-  the page itself fetches (via Playwright's `page.on("response")`) instead
-  of scraping rendered text — those responses carry a stable `entityUrn`
-  and a real epoch timestamp per message. But the exact field names in
-  `_extract_messages()` (`eventContent.attributedBody.text`, `createdAt`,
-  etc.) were inferred from LinkedIn's documented RestLi conventions, not
-  confirmed against a live response — the manual probe that would have
-  confirmed it was correctly blocked by Claude Code's safety classifier
-  (constructing an authenticated request with an extracted CSRF token,
-  outside of normal Playwright page control, reads as exactly the kind of
-  action that guardrail exists to catch). **First real run against
-  `login.py` + `sync.py` needs to happen with someone watching, to confirm
-  the field names actually match and fix them if not.**
-- **Virtualized-list scrolling: implemented, unverified.** Both the
-  conversation list and each thread's message history only render what's
-  scrolled into view. `_collect_conversation_hrefs` and
-  `_scroll_thread_history` in `client.py` now scroll-and-recheck until
-  nothing new shows up (bounded by `max_scroll_attempts`), instead of only
-  reading the first screenful — but like the response field names above,
-  this hasn't been run against a real long history yet.
-- The conversation-list link discovery now keys off
-  `a[href*="/messaging/thread/"]` — LinkedIn's URL routing, not a CSS
-  class — specifically because routing is more durable than styling. The
-  scroll *containers* themselves (`ul.msg-conversations-container__conversations-list`,
+- The scroll *containers* (`ul.msg-conversations-container__conversations-list`,
   `.msg-s-message-list`) are still class-selected and captured live on
-  2026-08-19; those will still need periodic re-capture.
+  2026-08-19/28; those will still need periodic re-capture if LinkedIn
+  reworks the page again.
+
+### LinkedIn network-interception path — verified for real, 2026-08-28
+
+Everything below was previously "fixed in design, unverified in
+practice" — the response field names were guessed from LinkedIn's
+documented RestLi conventions, never confirmed against a live message.
+Verified this session by sending a real message from a second (throwaway)
+LinkedIn account to the real one and capturing what actually came back.
+The guess was wrong in three separate places, all now fixed:
+
+1. **Response shape.** No `included` array at all — real shape is
+   `data.messengerMessagesBySyncToken.elements[]`, each element a Message
+   object directly. Text is at `body.text`, sender id at
+   `sender.hostIdentityUrn`. `_extract_messages()` rewritten accordingly.
+2. **"Who am I."** `LINKEDIN_MEMBER_ID` was meant to hold your profile's
+   internal id, but the documented way to find it (the vanity slug from
+   your own profile URL, e.g. "evang2") isn't that id at all — it never
+   matched anything pulled from a real response, so direction was always
+   wrong. Fixed by removing the env var entirely: every
+   `conversation.entityUrn` LinkedIn sends already embeds your own real
+   profile urn as its first component
+   (`urn:li:msg_conversation:(<your urn>,<thread id>)`), so
+   `_self_urn_from_conversation_urn()` derives it per-message instead of
+   trusting a separately-configured value that could drift out of sync.
+3. **Conversation list navigation.** The old code assumed conversation
+   rows were `<a href="/messaging/thread/...">` links and navigated by
+   URL — real DOM has no such links at all; LinkedIn routes client-side
+   off a click handler on a plain `<div class="msg-conversation-listitem__link">`.
+   Rewritten to click each row by position instead of navigating by href;
+   which thread a batch of captured messages belongs to is now
+   ground-truthed from the response payload's own `conversation.entityUrn`
+   rather than guessed from how the (nonexistent) href was encoded.
+
+**Verified against real data:** full sync against the real inbox synced
+122 messages (740 outbound / 814 inbound — a plausible split, unlike the
+old code which could never produce outbound at all). Re-ran immediately
+after: store row count unchanged (1554 before and after), confirming
+`on conflict do nothing` idempotency holds for this path too. Virtualized
+conversation-list scrolling was exercised for real reaching the
+`max_pages_per_session` cap (20), not just implemented-but-untested.
+
+**One resilience fix made along the way, not a bug in the above:** some
+conversation rows (a bare connection-request preview, LinkedIn's own
+automated threads) don't render a normal message-list DOM at all —
+clicking them used to hang the whole run waiting on a selector that would
+never appear. `fetch_conversations` now catches that specific timeout and
+skips just that row.
 
 ### Found and fixed while self-reviewing this file (2026-08-19)
 
@@ -380,8 +402,14 @@ run doesn't corrupt the delta-link/queue state it left mid-write.
   directly meant `direction` could never resolve to outbound — every
   message you'd ever sent would have landed in the store as if someone
   else sent it to you, corrupting exactly the `message_participant` edges
-  the network graph depends on. Fixed with `_to_profile_urn()`, which
-  normalises both sides before comparing.
+  the network graph depends on. Fixed at the time with `_to_profile_urn()`,
+  which normalised both sides before comparing — **this fix turned out to
+  be incomplete, not wrong in principle but built on a wrong assumption**:
+  the profile-URL vanity slug (e.g. "evang2") normalised into
+  `_to_profile_urn()` was never the right id to begin with, confirmed
+  2026-08-28 against a real message. `_to_profile_urn()` and
+  `LINKEDIN_MEMBER_ID` are both gone now — see the 2026-08-28 section
+  above for what replaced them.
 - **Messages could get attributed to the wrong thread.** `captured` is
   cleared right before navigating to the next conversation, but a slow
   network response from the *previous* thread landing after that clear

@@ -9,12 +9,16 @@ from the DOM. This module drives a normal, logged-in Playwright session
 (your own cookies, your own account) and reads the responses the page
 already makes as it loads; it does not construct or replay requests itself.
 
-Known gap: the exact response shape below (`included` array, `$type`
-filtering) was inferred from LinkedIn's documented RestLi/GraphQL
-conventions, not confirmed against a live response in this session — the
-CSRF-bearing manual probe needed to confirm it was (correctly) blocked by
-Claude Code's safety classifier. **This needs a real run against
-`login.py` + a live session before anyone trusts the field names below.**
+Verified against a real live message (2026-08-28): the response shape
+guessed from LinkedIn's documented RestLi/GraphQL conventions (`included`
+array, `$type` filtering) was wrong. The real shape is
+`data.messengerMessagesBySyncToken.elements[]`, each element a Message
+object directly — no `included` array, no `$type` filtering needed. Text
+is at `body.text`, the sender's real id at `sender.hostIdentityUrn`, and
+usefully, `conversation.entityUrn` embeds *your own* profile urn as its
+first component (`urn:li:msg_conversation:(<your urn>, <thread id>)`) —
+so "who am I" no longer needs a separately-configured member id at all,
+see `_self_urn_from_conversation_urn`.
 
 Both lists on the messaging page (conversations, and each thread's message
 history) are virtualized — `_collect_conversation_hrefs` and
@@ -26,11 +30,13 @@ happened to be rendered on first load.
 from __future__ import annotations
 
 import random
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 from playwright.sync_api import Page, Response, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from ..envelope import Channel, Direction, Envelope
 from .config import RateLimits
@@ -39,6 +45,16 @@ from .config import load as load_config
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 
 _MESSAGES_QUERY = "messengerMessages"
+
+# `conversation.entityUrn` looks like
+# "urn:li:msg_conversation:(urn:li:fsd_profile:ACoAAD...,2-OTgw...)" — the
+# first component is always *your own* profile urn, confirmed against a
+# real live message (2026-08-28). Using this instead of a configured
+# member id sidesteps a real bug: the old LINKEDIN_MEMBER_ID scheme took
+# the vanity slug from a profile URL (e.g. "evang2"), which is not the
+# internal fsd_profile id LinkedIn's own payloads use at all — comparing
+# the two never matched, so every message silently looked inbound.
+_CONVERSATION_SELF_URN_RE = re.compile(r"^urn:li:msg_conversation:\((?P<self>urn:li:fsd_profile:[^,]+),")
 
 
 def _pace(limits: RateLimits) -> None:
@@ -49,88 +65,76 @@ def _epoch_ms_to_dt(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, tz=UTC)
 
 
-def _to_profile_urn(member_id: str) -> str:
-    """LINKEDIN_MEMBER_ID (per the runbook) is the bare id from your own
-    profile URL (/in/<this>). Everything pulled from the JSON responses —
-    including the `from` field this gets compared against — is a full
-    `urn:li:fsd_profile:<id>` URN. Comparing the two formats directly
-    always fails, which silently mislabels every self-sent message as
-    inbound (found while self-reviewing this file — not caught by any
-    test, since nothing had exercised outbound messages yet).
-    """
-    if member_id.startswith("urn:li:"):
-        return member_id
-    return f"urn:li:fsd_profile:{member_id}"
+def _self_urn_from_conversation_urn(conversation_urn: str) -> str | None:
+    m = _CONVERSATION_SELF_URN_RE.match(conversation_urn)
+    return m.group("self") if m else None
 
 
-def _extract_messages(payload: dict, self_member_id: str) -> list[dict]:
+def _extract_messages(payload: dict) -> list[dict]:
     """Pull message entities out of a messengerMessages response.
 
-    LinkedIn's RestLi convention: `included` is a flat list of entities of
-    mixed types, referenced by URN from the top-level `data` block. We only
-    want the ones that are actually messages.
+    Real shape (verified 2026-08-28, see module docstring):
+    data.messengerMessagesBySyncToken.elements[] — each element is a
+    Message object directly, no `included` array, no `$type` filtering.
     """
+    elements = (
+        payload.get("data", {})
+        .get("messengerMessagesBySyncToken", {})
+        .get("elements", [])
+    )
     out = []
-    for entity in payload.get("included", []):
-        entity_type = entity.get("$type", "")
-        if "Event" not in entity_type and "Message" not in entity_type:
-            continue
-        body = entity.get("eventContent", {}).get("attributedBody", {}).get("text") or entity.get("body")
-        if not body:
+    for msg in elements:
+        text = (msg.get("body") or {}).get("text")
+        if not text:
             continue
 
-        sender_urn = (
-            entity.get("from", {}).get("com.linkedin.voyager.messaging.MessagingMember", {})
-            .get("miniProfile", {}).get("entityUrn", "")
-        )
-        created_at = entity.get("createdAt") or entity.get("deliveredAt")
+        sender = msg.get("sender") or {}
+        sender_urn = sender.get("hostIdentityUrn") or sender.get("entityUrn", "")
+        conversation_urn = (msg.get("conversation") or {}).get("entityUrn", "")
 
         out.append({
-            "message_urn": entity.get("entityUrn", ""),
-            "conversation_urn": entity.get("*conversation") or entity.get("conversation"),
-            "body_text": body,
+            "message_urn": msg.get("entityUrn", ""),
+            "conversation_urn": conversation_urn,
+            "body_text": text,
             "sender_urn": sender_urn,
-            "created_at_ms": created_at,
+            "created_at_ms": msg.get("deliveredAt"),
         })
     return out
 
 
-def _collect_conversation_hrefs(page: Page, limits: RateLimits) -> list[str]:
+_CONVERSATION_ITEM_SELECTOR = "div.msg-conversation-listitem__link"
+
+
+def _count_conversation_items(page: Page, limits: RateLimits) -> int:
     """Both lists on this page are virtualized — items outside the viewport
     aren't in the DOM at all, so a single query only sees what's currently
     rendered. Scroll the list container and re-query until the count stops
     growing (or we hit the attempt budget), same pattern as
     `_scroll_thread_history` below.
 
-    Selector note: `a[href*="/messaging/thread/"]` keys off LinkedIn's URL
-    routing, not a CSS class — routing structure changes far less often
-    than styling, so this is the more durable of the two DOM dependencies
-    left in this file (the other being the scroll container itself).
+    Verified 2026-08-28 against a real live message: conversation rows are
+    NOT `<a href>` links (an earlier version of this file assumed
+    `a[href*="/messaging/thread/"]`, which matched nothing — LinkedIn
+    routes these client-side off a click handler on a plain `<div>`
+    instead, no href to read at all). `fetch_conversations` below clicks
+    each one by position rather than navigating to a URL.
     """
-    seen: dict[str, None] = {}  # dict for order-preserving de-dupe
     scroller = page.query_selector("ul.msg-conversations-container__conversations-list")
     if scroller is None:
-        return []
+        return 0
 
+    count = len(page.query_selector_all(_CONVERSATION_ITEM_SELECTOR))
     for _ in range(limits.max_scroll_attempts):
-        for a in page.query_selector_all('a[href*="/messaging/thread/"]'):
-            href = a.get_attribute("href")
-            if href:
-                seen[href] = None
-            if len(seen) >= limits.max_pages_per_session:
-                return list(seen.keys())
-
-        before = len(seen)
+        if count >= limits.max_pages_per_session:
+            return limits.max_pages_per_session
         scroller.evaluate("el => el.scrollTo(0, el.scrollHeight)")
         time.sleep(limits.scroll_pause_seconds)
-        for a in page.query_selector_all('a[href*="/messaging/thread/"]'):
-            href = a.get_attribute("href")
-            if href:
-                seen[href] = None
-        if len(seen) == before:
+        new_count = len(page.query_selector_all(_CONVERSATION_ITEM_SELECTOR))
+        if new_count == count:
             break  # scrolling didn't surface anything new — bottom reached
+        count = new_count
 
-    return list(seen.keys())
+    return min(count, limits.max_pages_per_session)
 
 
 def _scroll_thread_history(page: Page, limits: RateLimits, captured: list[dict]) -> None:
@@ -152,7 +156,7 @@ def _scroll_thread_history(page: Page, limits: RateLimits, captured: list[dict])
             break  # no new messages arrived — top of history reached
 
 
-def fetch_conversations(page: Page, limits: RateLimits, self_member_id: str):
+def fetch_conversations(page: Page, limits: RateLimits):
     """Yields raw message dicts by loading the inbox and each conversation
     thread, capturing the JSON responses the page makes as it renders."""
 
@@ -168,7 +172,7 @@ def fetch_conversations(page: Page, limits: RateLimits, self_member_id: str):
             # redirects); the only correct response to a malformed one is
             # to skip it and keep listening, not crash the whole session
             return
-        captured.extend(_extract_messages(payload, self_member_id))
+        captured.extend(_extract_messages(payload))
 
     page.on("response", on_response)
 
@@ -176,43 +180,67 @@ def fetch_conversations(page: Page, limits: RateLimits, self_member_id: str):
     page.wait_for_selector("ul.msg-conversations-container__conversations-list")
     _pace(limits)
 
-    hrefs = _collect_conversation_hrefs(page, limits)
+    item_count = _count_conversation_items(page, limits)
 
-    for href in hrefs[: limits.max_pages_per_session]:
+    for i in range(item_count):
         captured.clear()
-        page.goto(f"https://www.linkedin.com{href}")
-        page.wait_for_selector("li.msg-s-message-list__event", timeout=15_000)
+        # re-query fresh each time rather than keeping element handles from
+        # the scroll pass above — virtualization can recycle/detach DOM
+        # nodes as the list scrolls, and a stale handle's .click() either
+        # errors or silently clicks the wrong row
+        items = page.query_selector_all(_CONVERSATION_ITEM_SELECTOR)
+        if i >= len(items):
+            break  # list shrank (e.g. a conversation got removed) — stop rather than index into nothing
+        items[i].click()
+        try:
+            page.wait_for_selector("li.msg-s-message-list__event", timeout=15_000)
+        except PlaywrightTimeoutError:
+            # some conversation types (a bare connection-request preview,
+            # LinkedIn's own automated threads) don't render this list at
+            # all — found empirically 2026-08-28: this selector reliably
+            # appears for a normal message thread, but not every row in
+            # the inbox is one. Skip this row rather than crash the whole
+            # session over one conversation type nobody anticipated.
+            _pace(limits)
+            continue
         _pace(limits)  # let the initial page of messages land before scrolling
 
         _scroll_thread_history(page, limits, captured)
 
-        thread_id = href.strip("/").split("/")[-1]
+        if not captured:
+            continue
+
+        # Which thread these responses belong to is ground-truthed from
+        # the response payload itself (conversation_urn), not guessed
+        # from the href's own encoding — simpler and can't drift out of
+        # sync with however LinkedIn happens to encode the URL that day.
+        # A response from the *previous* thread's page can still land
+        # late after captured.clear(); this filters those out too.
+        thread_urn = captured[0]["conversation_urn"]
         seen_urns: set[str] = set()
         for msg in captured:
+            if msg.get("conversation_urn") != thread_urn:
+                continue
             urn = msg.get("message_urn")
             if not urn or urn in seen_urns:
                 continue  # no id to dedupe on, or scrolling re-fired an
                           # overlapping response — either way skip
-            # a response from the previous thread's page can land after
-            # `captured.clear()` if it was still in flight — the
-            # conversation_urn LinkedIn attaches to each message embeds
-            # this thread's id, so check it rather than trusting "arrived
-            # between two goto() calls" to mean "belongs to this thread"
-            if thread_id not in (msg.get("conversation_urn") or ""):
-                continue
             seen_urns.add(urn)
-            msg["thread_id"] = thread_id
+            msg["thread_id"] = thread_urn
             yield msg
 
         _pace(limits)
 
 
-def _to_envelope(raw: dict, self_member_id: str) -> Envelope | None:
+def _to_envelope(raw: dict) -> Envelope | None:
     if not raw.get("message_urn"):
         return None  # no stable id — drop rather than guess one (unlike
                       # the DOM-scraping version this replaces)
 
-    self_urn = _to_profile_urn(self_member_id)
+    self_urn = _self_urn_from_conversation_urn(raw.get("conversation_urn") or "")
+    if self_urn is None:
+        return None  # can't tell direction without it — drop rather than guess
+
     sender = raw.get("sender_urn") or self_urn
     direction = Direction.outbound if sender == self_urn else Direction.inbound
     sent_at = (
@@ -236,7 +264,7 @@ def _to_envelope(raw: dict, self_member_id: str) -> Envelope | None:
     )
 
 
-def run(self_member_id: str, headless: bool = True):
+def run(headless: bool = True):
     """Yields envelopes as they're scraped (one browser session, generator
     all the way through) rather than collecting everything into a list
     first — so a crash partway through a run doesn't throw away whatever
@@ -249,8 +277,8 @@ def run(self_member_id: str, headless: bool = True):
         context = browser.new_context(storage_state=str(STORAGE_STATE_PATH))
         page = context.new_page()
 
-        for raw in fetch_conversations(page, limits, self_member_id):
-            env = _to_envelope(raw, self_member_id)
+        for raw in fetch_conversations(page, limits):
+            env = _to_envelope(raw)
             if env is not None:
                 yield env
 

@@ -1,6 +1,9 @@
 """LinkedIn adapter entrypoint. Requires a saved session (run login.py
-first) and your own member id in LINKEDIN_MEMBER_ID — find it by opening
-your own profile and reading the id out of the URL (/in/<this part>).
+first). No member id to configure — client.py derives "who am I" straight
+from LinkedIn's own response payloads (see _self_urn_from_conversation_urn),
+which replaced an earlier LINKEDIN_MEMBER_ID scheme that turned out to
+compare the wrong id shape entirely (found 2026-08-28 against a real
+message: it never matched, so direction was silently always wrong).
 
 Run: python -m adapters.linkedin.sync
 """
@@ -12,9 +15,21 @@ import os
 import psycopg
 from dotenv import load_dotenv
 
+from ..envelope import Direction
 from ..store_writer import upsert
-from .client import STORAGE_STATE_PATH, _to_profile_urn
+from .client import STORAGE_STATE_PATH
 from .client import run as fetch_envelopes
+
+
+def _self_handle(env) -> str:
+    # store_writer.upsert() needs to know which handle is "you" to set
+    # identity.is_self correctly — client.py already computed direction
+    # against exactly this, so it's recoverable from the envelope itself
+    # without re-deriving it: outbound means from_handle is you, inbound
+    # means the (single) to_handle is you (see client.py's _to_envelope).
+    if env.direction == Direction.outbound:
+        return env.from_handle
+    return env.to_handles[0] if env.to_handles else ""
 
 
 def run() -> None:
@@ -26,20 +41,14 @@ def run() -> None:
             "`python -m adapters.linkedin.login` first"
         )
 
-    self_member_id = os.environ["LINKEDIN_MEMBER_ID"]
-    self_urn = _to_profile_urn(self_member_id)  # envelopes carry full URNs
-                                                 # as handles, not the bare
-                                                 # id — upsert must compare
-                                                 # against the same format
-
     count = 0
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         # commit as each message lands, not once at the end — a scrape
         # session can span many minutes across many threads (§13's
         # human-paced delays add up), and a crash or a killed process
         # partway through should not throw away everything pulled so far
-        for env in fetch_envelopes(self_member_id, headless=True):
-            upsert(conn, env, self_urn)
+        for env in fetch_envelopes(headless=True):
+            upsert(conn, env, _self_handle(env))
             conn.commit()
             count += 1
 

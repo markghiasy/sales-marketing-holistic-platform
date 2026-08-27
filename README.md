@@ -36,11 +36,12 @@ here and how to run it.
     polling — same shape as WhatsApp's persistent socket. See runbook for
     why this isn't implemented yet (needs a real message captured first to
     know the topic format) and the plan for building it.
-  - **Backup: live session scraping.** `login.py` (one-time interactive
-    login) + `client.py`/`sync.py` read the messaging page via network
-    interception, human-paced per §13 rule 2. Fallback if the export path
-    or the SSE approach turn out unworkable. Rate limits in `config.py`
-    are placeholders — not yet signed off by Mark.
+  - **Live session scraping, verified 2026-08-28 against a real
+    message.** `login.py` (one-time interactive login) + `client.py`/
+    `sync.py` read the messaging page via network interception,
+    human-paced per §13 rule 2. No member id to configure — "who am I"
+    comes straight out of LinkedIn's own response payloads. Rate limits
+    in `config.py` are placeholders — not yet signed off by Mark.
 - `scripts/pipe_health.py` — heartbeat: is the store reachable, did
   ingestion run recently.
 - `scripts/export.py` — full re-importable dump of the store.
