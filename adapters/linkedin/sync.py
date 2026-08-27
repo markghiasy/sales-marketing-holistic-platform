@@ -19,6 +19,7 @@ from ..envelope import Direction
 from ..store_writer import upsert
 from .client import STORAGE_STATE_PATH
 from .client import run as fetch_envelopes
+from .session_limit import SessionLimitExceeded
 
 
 def _self_handle(env) -> str:
@@ -47,10 +48,22 @@ def run() -> None:
         # session can span many minutes across many threads (§13's
         # human-paced delays add up), and a crash or a killed process
         # partway through should not throw away everything pulled so far
-        for env in fetch_envelopes(headless=True):
-            upsert(conn, env, _self_handle(env))
-            conn.commit()
-            count += 1
+        try:
+            for env in fetch_envelopes(headless=True):
+                upsert(conn, env, _self_handle(env))
+                conn.commit()
+                count += 1
+        except SessionLimitExceeded as e:
+            # expected, not a bug: §13's daily cap doing exactly its job.
+            # A scheduler calling this too often (someone in a hurry
+            # pointing cron at every 5 minutes, say) should see a clean
+            # refusal here, not a stack trace — and every call after
+            # today's cap is spent is a local file check before this
+            # point, no LinkedIn traffic at all, so calling it again in a
+            # tight loop costs nothing further.
+            print(f"stopped: {e}")
+            print(f"synced {count} messages before hitting the limit")
+            return
 
     print(f"synced {count} messages")
 

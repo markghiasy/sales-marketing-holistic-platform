@@ -41,6 +41,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from ..envelope import Channel, Direction, Envelope
 from .config import RateLimits
 from .config import load as load_config
+from .session_limit import record_session
 
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 
@@ -272,6 +273,10 @@ def run(headless: bool = True):
     of waiting for this to finish.
     """
     limits = load_config()
+    record_session(limits.max_sessions_per_day)  # raises SessionLimitExceeded
+                                                   # before a browser ever
+                                                   # opens if today's cap
+                                                   # is already spent
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
         context = browser.new_context(storage_state=str(STORAGE_STATE_PATH))

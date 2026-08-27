@@ -19,6 +19,7 @@ comms_outreach_platform.egg-info/
 adapters/whatsapp/node/self_jid.txt
 adapters/whatsapp/node/.heartbeat.txt
 scripts/.monitor_alert_state.json
+adapters/linkedin/.session_count.json
 adapters/whatsapp/node/*.log
 adapters/whatsapp/node/qr.png
 __pycache__/
