@@ -367,12 +367,37 @@ run doesn't corrupt the delta-link/queue state it left mid-write.
 
 ## Known gaps at the end of Block A
 
-- Quoted-reply-chain stripping in `envelope.py::_strip_html` is not
-  implemented — plain-text body currently includes quoted history. §6
-  calls for stripping it; needed clean for both extraction and the voice
-  corpus later (Block E), not blocking for Block A itself.
+- **Quoted-reply-chain stripping — done 2026-08-28.** `_strip_html` in
+  `adapters/outlook/sync.py` now cuts the body at the first quote marker
+  found. Checked against this mailbox's real data before picking which
+  markers matter: Outlook's own `divRplyFwdMsg` appeared in only 0.7% of
+  messages here (this mailbox is Gmail-seeded test data), so `gmail_quote`
+  (7.2%) and bare `<blockquote>` (8.2%, catches other clients) are the
+  ones that actually count. First version matched `class="gmail_quote"`
+  exactly and silently missed 25 of 27 real cases — real markup pairs it
+  with a second class (`class="gmail_quote gmail_quote_container"`) or
+  prefixes it (`class="x_gmail_quote"`); fixed to match the substring
+  anywhere inside the class attribute instead. Verified: 423/425 real
+  messages with a quote marker got shorter after stripping (the other 2
+  matched too, just at a position with nothing meaningful left to cut).
+  A plain-text fallback (`"On ... wrote:"`) covers the 103 of 4,769
+  messages here that aren't HTML at all.
 - No polling schedule wired up yet for delta sync — `sync.py` runs once
   per invocation. Cadence is an open question for Mark (not yet decided).
+- **`is_automated` now set from a real signal, 2026-08-28.** §9 tier 1's
+  own table names this exact one: "Graph's own Focused/Other
+  classification. Sets `is_automated` at ingest." Added
+  `inferenceClassification` to the Graph `$select` and map `"other"` to
+  `true`. This is one field, not tier 1's full ruleset (List-Unsubscribe
+  header, known automated domains, bulk-sender patterns are still real
+  Block B work) — and tier 1 itself is Block B scope per §14's own table,
+  so treat this as a deliberate small exception, not tier 1 quietly
+  starting early. Verified against 10 real messages (8 focused / 2 other,
+  mapped correctly), then backfilled the 4,772 already-ingested messages
+  that predate this field existing in the raw payload — `store_writer`'s
+  upsert is on-conflict-do-nothing, so a normal re-sync would never have
+  touched them otherwise. 2,177 of 4,772 (46%) came back classified
+  "other."
 - **LinkedIn rate/volume limits are placeholders, not agreed numbers.**
   §13 rule 2 requires Mark's written sign-off before these change —
   `adapters/linkedin/config.py` ships a conservative guess (3–8s between

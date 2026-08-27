@@ -143,7 +143,8 @@ def get_access_token() -> str:
 
 _SELECT_FIELDS = (
     "subject,body,from,toRecipients,receivedDateTime,"
-    "internetMessageId,id,conversationId,internetMessageHeaders"
+    "internetMessageId,id,conversationId,internetMessageHeaders,"
+    "inferenceClassification"
 )
 
 

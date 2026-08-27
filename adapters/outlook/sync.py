@@ -32,14 +32,46 @@ _DELTA_LINK_PATHS = {
 _LEGACY_INBOX_DELTA_LINK_PATH = Path(__file__).parent / ".delta_link.txt"
 _TAG_RE = re.compile(r"<[^>]+>")
 
+# Where a quoted reply chain starts, checked against this mailbox's real
+# HTML bodies (2026-08-28) before picking these rather than assuming
+# Outlook's own convention would dominate: divRplyFwdMsg (Outlook's own
+# "reply/forward" marker) appeared in only 0.7% of messages here — this
+# mailbox is Gmail-seeded test data, so gmail_quote (7.2%) and bare
+# <blockquote> (8.2%, catches other clients that wrap quotes without
+# Gmail's specific class) are what actually matter for real coverage.
+# Order matters: first match found wins, everything from there on is cut.
+_QUOTE_START_RE = re.compile(
+    # class="gmail_quote" alone is rare in practice — real messages here
+    # overwhelmingly pair it with a second class (class="gmail_quote
+    # gmail_quote_container") or prefix it (class="x_gmail_quote"), so
+    # this matches gmail_quote appearing anywhere inside a class
+    # attribute rather than requiring it to be the whole value —
+    # confirmed against real data after the exact-match version silently
+    # missed 25 of 27 real gmail_quote messages.
+    r'id="divRplyFwdMsg"|class="[^"]*gmail_quote|<blockquote',
+    re.IGNORECASE,
+)
+# Plain-text fallback (103 of 4,769 real messages here are contentType
+# "text", not "html") — "On <date>, <name> wrote:" is the cross-client
+# convention for where quoted history starts in a plain-text body.
+_QUOTE_START_TEXT_RE = re.compile(r"^On .{5,80} wrote:\s*$", re.MULTILINE)
+
 
 def _strip_html(body: dict) -> str:
-    """Graph returns body as {contentType, content}. Plain-text it, no
-    quoted-reply-chain stripping yet — noted as follow-up in the runbook."""
+    """Graph returns body as {contentType, content}. Plain-text it and cut
+    the quoted-reply chain — §6 calls for a clean body, needed for both
+    later extraction and the voice corpus (Block E)."""
     content = body.get("content", "") or ""
     if body.get("contentType") == "html":
+        match = _QUOTE_START_RE.search(content)
+        if match:
+            content = content[: match.start()]
         content = _TAG_RE.sub(" ", content)
         content = html.unescape(content)
+    else:
+        match = _QUOTE_START_TEXT_RE.search(content)
+        if match:
+            content = content[: match.start()]
     return content.strip()
 
 
@@ -91,8 +123,13 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         subject=raw.get("subject"),
         body_text=_strip_html(raw.get("body", {})),
         is_group=len(to_handles) > 1,
-        is_automated=False,  # parser tier 1 sets this later (§9) — out of
-                             # scope for the adapter itself
+        # §9 tier 1's own table names this exact signal: "Graph's own
+        # Focused/Other classification. Sets is_automated at ingest." Not
+        # the full tier-1 ruleset (List-Unsubscribe header, known
+        # automated domains, bulk-sender patterns) — those still belong
+        # to the real Block B noise-parser build — just this one field,
+        # since Graph already computes it and hands it back for free.
+        is_automated=raw.get("inferenceClassification") == "other",
         raw=raw,
     )
 
