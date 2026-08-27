@@ -17,7 +17,11 @@ GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 # response — without it, Microsoft's default behaviour for this public
 # client can't be relied on to include one, and the whole point of this
 # scope list is making the refresh path in get_access_token() work.
-SCOPES = ["Mail.Read", "offline_access"]
+# Contacts.Read is for fetch_contacts() (§8's bridge source) — confirmed
+# separately (2026-08-27) that this scope authenticates fine against this
+# personal mailbox the same way Mail.Read does (no AADSTS530035), so it's
+# safe to fold into the same token rather than keeping a second cache.
+SCOPES = ["Mail.Read", "offline_access", "Contacts.Read"]
 TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
 # transient — worth a retry with backoff. 401 is deliberately not here: a
 # missing/expired token needs a fresh login, not a retry with the same bad
@@ -216,3 +220,16 @@ def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_si
             next(seed_gen)  # discard — already have everything from the plain pass
         except StopIteration as e:
             return e.value
+
+
+_CONTACTS_SELECT_FIELDS = "id,displayName,emailAddresses,mobilePhone,businessPhones,homePhones"
+
+
+def fetch_contacts(page_size: int = 50):
+    """Yields raw Graph contact dicts from /me/contacts — the whole
+    folder, every run (no delta; contact volume is small enough that a
+    full refresh each time is simpler than tracking another cursor)."""
+    token = get_access_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"{GRAPH_BASE}/me/contacts?$top={page_size}&$select={_CONTACTS_SELECT_FIELDS}"
+    yield from _walk(url, headers)

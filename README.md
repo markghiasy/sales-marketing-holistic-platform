@@ -13,7 +13,9 @@ here and how to run it.
   that writes an envelope into the store — every adapter calls this
   instead of reimplementing the upsert.
 - `adapters/outlook/` — Graph auth (`client.py`) + the sync entrypoint
-  (`sync.py`), idempotent on `internetMessageId`.
+  (`sync.py`), idempotent on `internetMessageId`. `contacts_sync.py` pulls
+  `/me/contacts` into `graph_contact` (§8's bridge source) — no matching
+  logic, that's Block B. Empty on this mailbox; wired up regardless.
 - `adapters/whatsapp/` — split across two languages on purpose: no mature
   Python multi-device WhatsApp library exists, so `node/ingest.js`
   (Baileys) is the connection layer and does nothing but write raw
