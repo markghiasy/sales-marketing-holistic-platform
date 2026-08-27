@@ -25,3 +25,4 @@ adapters/whatsapp/node/qr.png
 __pycache__/
 *.pyc
 .venv/
+.pytest_cache/

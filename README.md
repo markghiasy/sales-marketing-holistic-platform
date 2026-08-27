@@ -63,3 +63,18 @@ python -m adapters.outlook.sync
 
 First run opens a device-code auth prompt — sign in as the mailbox owner.
 Subsequent runs reuse the cached token silently.
+
+## Running the tests
+
+```bash
+pip install -e .[dev]
+docker compose up -d   # store_writer tests need a real Postgres
+pytest -v
+```
+
+Most tests are pure logic, no network or DB needed. The `store_writer`
+tests need the local docker-compose Postgres specifically (not the
+hosted instance) and run inside a transaction that's rolled back after
+each test — nothing they do persists. CI runs the full suite against a
+fresh Postgres service container on every push.
+Subsequent runs reuse the cached token silently.
