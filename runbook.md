@@ -351,19 +351,56 @@ Once the store moves to a real hosted instance, this becomes a proper
 cron job / systemd timer next to it instead of a per-laptop scheduled
 task.
 
-**Known gap:** nothing schedules the Outlook/LinkedIn/WhatsApp sync
-scripts themselves yet — they still run by hand. Until that exists, this
-monitor will correctly report Outlook/LinkedIn as stale whenever nobody's
-run a manual sync recently, because that's honestly what's happening.
-Wiring up the sync schedule itself is separate work from building the
-thing that watches it.
+**Outlook sync scheduling — done 2026-08-28, cadence bumped 2026-08-30.**
+Mark approved a 15-minute cadence on the 2026-08-28 call, then tightened
+it to 10 minutes in his written follow-up the same week.
+`scripts/run_outlook_sync.bat` `cd`s into the repo before invoking the
+venv's `python -m adapters.outlook.sync` — needed because `load_dotenv()`
+in `sync.py` resolves `.env` relative to the process's working directory,
+not the script's own location, and Task Scheduler does not otherwise set
+a working directory; confirmed empirically (`find_dotenv()` returned
+nothing when launched from outside the repo). Registered as a real
+Windows Task Scheduler task, then re-pointed at the 10-minute interval:
+```
+schtasks /create /tn "CommsPlatformOutlookSync" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_outlook_sync.bat" /sc minute /mo 10 /st 00:00
+```
+Verified live: ran the batch file by hand first (synced 3 messages, `.env`
+loaded correctly from the repo root), confirmed the registered task
+itself via `schtasks /query /tn "CommsPlatformOutlookSync" /v` at the
+original 15-minute interval, then changed it in place
+(`schtasks /change /tn "CommsPlatformOutlookSync" /ri 10`) and re-queried
+to confirm `Repeat: Every: 10 Minute(s)`.
 
-**Cost estimate for closing that gap (real scheduled syncs, not just
-monitoring them):** roughly 3-4 hours — a Windows Task Scheduler entry
-(or cron/systemd timer once hosted) per sync script, each already
-idempotent so re-running on a fixed interval is safe as-is; the bulk of
-the time is picking sane intervals per channel and confirming a failed
-run doesn't corrupt the delta-link/queue state it left mid-write.
+**LinkedIn sync scheduling — done 2026-08-30.** Mark's cadence call
+specified 4 sessions/day at fixed clock times, ~9am/12:30/3:30/7pm, with
+jitter — a flat interval doesn't fit here the way it does Outlook, both
+because of the timetable and because `max_sessions_per_day=4` (§13 rule
+2, a fixed rate/volume param) would reject a 5th run anyway.
+`scripts/run_linkedin_sync.py` sleeps a random 0-15 minute jitter
+(`RateLimits.session_jitter_minutes`, tunable via
+`LINKEDIN_SESSION_JITTER_MINUTES` — this one isn't a §13 rule 2 param, it
+only affects when a session *starts*, not how it behaves once running,
+so no sign-off needed to tune it) before calling
+`adapters.linkedin.sync.run()`. Verified the jitter/call wiring with the
+real `sync.run` swapped for a stub — confirmed it actually gets called
+after the sleep — without spending a real session on a wiring test.
+Registered as four separate Windows Task Scheduler tasks, one per time
+slot, each pointing at `scripts/run_linkedin_sync.bat` (same
+`cd`-into-repo-first pattern as Outlook's wrapper, same reason):
+```
+schtasks /create /tn "CommsPlatformLinkedInSync-0900" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 09:00
+schtasks /create /tn "CommsPlatformLinkedInSync-1230" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 12:30
+schtasks /create /tn "CommsPlatformLinkedInSync-1530" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 15:30
+schtasks /create /tn "CommsPlatformLinkedInSync-1900" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 19:00
+```
+Verified all four live via `schtasks /query ... /v`: correct `Task To
+Run` path, `Status: Ready`, and each `Next Run Time` landing on its own
+slot.
+
+**Still open:** WhatsApp is not on a schedule — it's the long-running
+`ingest.js` connector rather than a one-shot sync, so it needs to run
+continuously on Mark's cloud box rather than on a Task Scheduler trigger,
+blocked until that box exists.
 
 ## Known gaps at the end of Block A
 
@@ -490,8 +527,16 @@ skips just that row.
   after that sleep reads as "nothing more to load" and truncates history.
   The correct fix is `page.expect_response()` around each scroll instead
   of a flat `time.sleep()`.
-- The browser launches with Playwright's default headless Chromium
-  fingerprint — no custom user agent, no anti-detection handling of any
-  kind. For a feature that's explicitly ToS-grey (§13), this is the part
-  most likely to get the account flagged, and it's currently the least
-  defended.
+- **Anti-detection posture — decided 2026-08-28, not a gap.** All four
+  LinkedIn browser launches go through `adapters/linkedin/browser.py`'s
+  `launch_browser_context()`, which uses the real, locally-installed
+  Chrome (`channel="chrome"`) and a realistic viewport, and does nothing
+  else — no `navigator.webdriver`/`plugins` patching, no User-Agent
+  rewriting. An earlier version of this file did both, built off a
+  verbal "make it more human" approval on a call; Mark's written
+  follow-up the same day ratified the opposite: no fingerprint or
+  countermeasure work, ever, pacing and the §13 daily session cap ARE
+  the strategy, and if that stops being sufficient the response is to
+  stop and talk, not escalate technique. Reverted the JS patches and UA
+  rewrite accordingly; kept `channel="chrome"` since it doesn't falsify
+  anything the browser reports, it's just which real browser runs.

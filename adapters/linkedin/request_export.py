@@ -31,6 +31,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from .browser import launch_browser_context
+
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 DATA_PRIVACY_URL = "https://www.linkedin.com/mypreferences/d/download-my-data"
 
@@ -40,8 +42,9 @@ def request_export(headless: bool = True) -> str:
     doesn't look like what was captured on 2026-08-19 — fail loudly rather
     than silently doing nothing if LinkedIn changes this flow."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(storage_state=str(STORAGE_STATE_PATH))
+        browser, context = launch_browser_context(
+            p, headless=headless, storage_state=str(STORAGE_STATE_PATH)
+        )
         page = context.new_page()
         page.goto(DATA_PRIVACY_URL)
         page.wait_for_load_state("networkidle")

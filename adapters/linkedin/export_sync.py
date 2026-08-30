@@ -46,6 +46,7 @@ from playwright.sync_api import sync_playwright
 
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
+from .browser import launch_browser_context
 
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 DATA_PRIVACY_URL = "https://www.linkedin.com/mypreferences/d/download-my-data"
@@ -64,8 +65,9 @@ def _download_archive(headless: bool = True) -> Path | None:
     """Returns the path to a downloaded zip, or None if nothing's ready."""
     DOWNLOAD_DIR.mkdir(exist_ok=True)
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(storage_state=str(STORAGE_STATE_PATH))
+        browser, context = launch_browser_context(
+            p, headless=headless, storage_state=str(STORAGE_STATE_PATH)
+        )
         page = context.new_page()
         page.goto(DATA_PRIVACY_URL)
         page.wait_for_load_state("networkidle")

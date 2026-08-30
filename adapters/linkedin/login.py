@@ -12,13 +12,14 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from .browser import launch_browser_context
+
 STORAGE_STATE_PATH = Path(__file__).parent / ".storage_state.json"
 
 
 def login() -> None:
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context()
+        browser, context = launch_browser_context(p, headless=False)
         page = context.new_page()
         page.goto("https://www.linkedin.com/login")
 

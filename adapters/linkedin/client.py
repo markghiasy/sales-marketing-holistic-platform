@@ -39,6 +39,7 @@ from playwright.sync_api import Page, Response, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from ..envelope import Channel, Direction, Envelope
+from .browser import launch_browser_context
 from .config import RateLimits
 from .config import load as load_config
 from .session_limit import record_session
@@ -278,8 +279,9 @@ def run(headless: bool = True):
                                                    # opens if today's cap
                                                    # is already spent
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        context = browser.new_context(storage_state=str(STORAGE_STATE_PATH))
+        browser, context = launch_browser_context(
+            p, headless=headless, storage_state=str(STORAGE_STATE_PATH)
+        )
         page = context.new_page()
 
         for raw in fetch_conversations(page, limits):

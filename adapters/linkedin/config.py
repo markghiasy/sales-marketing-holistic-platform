@@ -29,6 +29,14 @@ class RateLimits:
     # history before giving up, independent of max_pages_per_session.
     max_scroll_attempts: int = 10
     scroll_pause_seconds: float = 1.5
+    # jitter applied by scripts/run_linkedin_sync.py before a scheduled
+    # session starts — not one of §13 rule 2's fixed rate/volume params
+    # (it doesn't touch how the session itself behaves once running), so
+    # this one's tunable without a sign-off round trip. Mark's 2026-08-30
+    # cadence call specified 4 sessions/day at fixed clock times "with
+    # jitter"; a flat 15-minute default keeps every scheduled run inside
+    # the same half-hour window as its neighbour on the timetable.
+    session_jitter_minutes: float = 15.0
 
 
 def load() -> RateLimits:
@@ -41,4 +49,5 @@ def load() -> RateLimits:
         max_sessions_per_day=int(os.environ.get("LINKEDIN_MAX_SESSIONS_PER_DAY", "4")),
         max_scroll_attempts=int(os.environ.get("LINKEDIN_MAX_SCROLL_ATTEMPTS", "10")),
         scroll_pause_seconds=float(os.environ.get("LINKEDIN_SCROLL_PAUSE_S", "1.5")),
+        session_jitter_minutes=float(os.environ.get("LINKEDIN_SESSION_JITTER_MINUTES", "15.0")),
     )
