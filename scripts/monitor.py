@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.request
@@ -48,9 +49,10 @@ from dotenv import load_dotenv
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
-WHATSAPP_HEARTBEAT_PATH = (
-    Path(__file__).parent.parent / "adapters" / "whatsapp" / "node" / ".heartbeat.txt"
-)
+_WHATSAPP_DIR = Path(__file__).parent.parent / "adapters" / "whatsapp" / "node"
+WHATSAPP_HEARTBEAT_PATH = _WHATSAPP_DIR / ".heartbeat.txt"
+WHATSAPP_STATUS_PATH = _WHATSAPP_DIR / ".status.json"
+WHATSAPP_PID_PATH = _WHATSAPP_DIR / ".pid"
 ALERT_STATE_PATH = Path(__file__).parent / ".monitor_alert_state.json"
 
 # Staleness thresholds per channel, in hours — overridable via env so
@@ -97,22 +99,88 @@ def _check_message_staleness(cur, channel: str) -> ChannelStatus:
     return ChannelStatus(channel, True, f"last ingest {age_hours:.1f}h ago")
 
 
+def _pid_is_alive(pid: int) -> bool:
+    # os.kill(pid, 0) isn't a liveness check on Windows the way it is on
+    # POSIX — shell out to tasklist and check whether it actually lists
+    # the pid, rather than trust a signal call that doesn't mean the same
+    # thing here.
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+            capture_output=True, text=True, timeout=5, check=False,
+        ).stdout
+    except Exception:  # noqa: BLE001 — can't determine, treat as unknown-not-alive
+        return False
+    return str(pid) in out
+
+
 def _check_whatsapp_liveness() -> ChannelStatus:
+    """Distinguishes the states that actually matter operationally, not
+    just healthy/unhealthy — 2026-08-31, in direct response to "how do we
+    even tell if it's a zombie or a live one, and what do we do about
+    it": a stale heartbeat alone can mean four different things, each
+    with a different fix, and conflating them into one generic "looks
+    dead" message is exactly what left a zombie connector undiagnosed
+    for days. Every unhealthy branch below names the actual next
+    command, not just the symptom."""
     if not WHATSAPP_HEARTBEAT_PATH.exists():
         return ChannelStatus(
             "whatsapp", False,
-            f"no heartbeat file at {WHATSAPP_HEARTBEAT_PATH} — ingest.js has "
-            "never run, or ran before this heartbeat feature existed",
+            "never run yet, or ran before this monitoring existed — "
+            "start it: `node adapters/whatsapp/node/ingest.js`",
         )
-    age_minutes = (time.time() - WHATSAPP_HEARTBEAT_PATH.stat().st_mtime) / 60
-    if age_minutes > _WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES:
+
+    status = {}
+    if WHATSAPP_STATUS_PATH.exists():
+        try:
+            status = json.loads(WHATSAPP_STATUS_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass  # treat as no status available — heartbeat age still decides
+    state = status.get("state")
+
+    if state == "logged_out":
         return ChannelStatus(
             "whatsapp", False,
-            f"connector heartbeat is {age_minutes:.1f}m old, threshold is "
-            f"{_WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES:.0f}m — ingest.js looks "
-            "dead, not just quiet",
+            "session logged out by WhatsApp — delete "
+            "adapters/whatsapp/node/.auth_state and run `node ingest.js` "
+            "again, then scan the new qr.png",
         )
-    return ChannelStatus("whatsapp", True, f"connector heartbeat {age_minutes:.1f}m old")
+    if state == "qr_pending":
+        return ChannelStatus(
+            "whatsapp", False,
+            "waiting on a QR scan to pair — open "
+            "adapters/whatsapp/node/qr.png and scan it in WhatsApp",
+        )
+    if state == "crashed":
+        return ChannelStatus(
+            "whatsapp", False,
+            f"connector crashed ({status.get('detail', 'no detail')}) — "
+            "restart it: `node adapters/whatsapp/node/ingest.js`, then "
+            "check .connection_log.txt if it happens again",
+        )
+
+    age_minutes = (time.time() - WHATSAPP_HEARTBEAT_PATH.stat().st_mtime) / 60
+    if age_minutes <= _WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES:
+        return ChannelStatus("whatsapp", True, f"connector heartbeat {age_minutes:.1f}m old")
+
+    # heartbeat stale and no known-bad status — the process is either gone
+    # (down) or alive but not doing anything (zombie); tell them apart by
+    # actually checking whether the pid is still running, since that's
+    # exactly the question that couldn't be answered before this existed
+    pid_text = WHATSAPP_PID_PATH.read_text().strip() if WHATSAPP_PID_PATH.exists() else ""
+    if pid_text and pid_text.isdigit() and _pid_is_alive(int(pid_text)):
+        return ChannelStatus(
+            "whatsapp", False,
+            f"ZOMBIE — process {pid_text} is still running but heartbeat is "
+            f"{age_minutes:.1f}m old (threshold {_WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES:.0f}m). "
+            f"Kill it and restart: `taskkill /PID {pid_text} /F` then "
+            "`node adapters/whatsapp/node/ingest.js`",
+        )
+    return ChannelStatus(
+        "whatsapp", False,
+        f"DOWN — no running process found (heartbeat {age_minutes:.1f}m old). "
+        "Start it: `node adapters/whatsapp/node/ingest.js`",
+    )
 
 
 def _load_alert_state() -> dict:
@@ -126,21 +194,37 @@ def _save_alert_state(state: dict) -> None:
 
 
 def _send_alert(message: str) -> None:
-    """Console output always happens — that's the floor. A Slack webhook
-    is layered on top if MONITOR_ALERT_WEBHOOK_URL is set; nothing here
-    depends on Mark having picked a destination yet, since he hasn't."""
+    """Console output always happens — that's the floor. ntfy.sh is the
+    real destination, 2026-08-31: a push straight to phone + desktop, no
+    account needed, just a topic name treated as a shared secret (anyone
+    who knows it can read and post to it, so it's a long random string,
+    not something guessable). A Slack-style webhook is also supported if
+    MONITOR_ALERT_WEBHOOK_URL is ever set, but nothing currently uses it."""
     print(f"ALERT: {message}", file=sys.stderr)
+
+    ntfy_topic = os.environ.get("MONITOR_NTFY_TOPIC")
+    if ntfy_topic:
+        req = urllib.request.Request(
+            f"https://ntfy.sh/{ntfy_topic}",
+            data=f"[pipe-health] {message}".encode(),
+            headers={"Title": "Comms Platform Alert", "Priority": "high"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(req, timeout=10)
+        except Exception as e:  # noqa: BLE001 — alerting must never itself crash the monitor
+            print(f"ALERT DELIVERY FAILED (ntfy): {e}", file=sys.stderr)
+
     webhook_url = os.environ.get("MONITOR_ALERT_WEBHOOK_URL")
-    if not webhook_url:
-        return
-    payload = json.dumps({"text": f"[pipe-health] {message}"}).encode("utf-8")
-    req = urllib.request.Request(
-        webhook_url, data=payload, headers={"Content-Type": "application/json"}
-    )
-    try:
-        urllib.request.urlopen(req, timeout=10)
-    except Exception as e:  # noqa: BLE001 — alerting must never itself crash the monitor
-        print(f"ALERT DELIVERY FAILED (webhook): {e}", file=sys.stderr)
+    if webhook_url:
+        payload = json.dumps({"text": f"[pipe-health] {message}"}).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url, data=payload, headers={"Content-Type": "application/json"}
+        )
+        try:
+            urllib.request.urlopen(req, timeout=10)
+        except Exception as e:  # noqa: BLE001 — alerting must never itself crash the monitor
+            print(f"ALERT DELIVERY FAILED (webhook): {e}", file=sys.stderr)
 
 
 def run() -> int:

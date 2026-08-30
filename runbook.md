@@ -402,6 +402,99 @@ slot.
 continuously on Mark's cloud box rather than on a Task Scheduler trigger,
 blocked until that box exists.
 
+**Found broken, fixed for real — 2026-08-31.** All five tasks above had
+never actually run successfully since creation. `schtasks /create /tr`
+with a quoted path containing a space ("Eva Ng") got silently split by
+Task Scheduler into `Execute=C:\Users\Eva` +
+`Arguments=Ng\...\run_outlook_sync.bat` — `schtasks /query ... /v`'s
+"Task To Run" field shows the reconstructed string, which looked correct
+and masked this; `Get-ScheduledTask | Select Actions` shows the real
+Execute/Arguments split and was what actually caught it. Every run that
+had fired failed with result `-2147024703`
+(`ERROR_MOD_NOT_FOUND`) — three days of "scheduled" Outlook/LinkedIn
+sync that never happened, only caught by actually running
+`scripts/monitor.py` and seeing all three channels flagged unhealthy
+rather than trusting the earlier `schtasks /query` check. Recreated all
+five via PowerShell's `Register-ScheduledTask`/`New-ScheduledTaskAction`
+instead of `schtasks.exe`'s CLI string parsing, confirmed each one's
+`Actions.Execute` is the full clean path with empty `Arguments`.
+Verified live: triggered Outlook manually, `LastTaskResult: 0`, and a
+new row landed in the store with `ingested_at` matching the trigger
+time — not just "the process exited 0," the sync actually happened.
+Triggered one LinkedIn slot the same way to confirm the fix holds there
+too.
+
+**`scripts/monitor.py` itself, actually scheduled — 2026-08-31.** Same
+gap as above, one level up: the monitor that's supposed to catch a dead
+channel had never been scheduled either, so the three days of broken
+Outlook/LinkedIn tasks above went unnoticed until it was run by hand.
+Registered as `CommsPlatformMonitor`, same `Register-ScheduledTask`
+pattern, every 15 minutes. Verified: triggered manually,
+`LastTaskResult: 0`.
+
+**Real alerting — ntfy.sh, 2026-08-31.** `MONITOR_ALERT_WEBHOOK_URL` had
+existed since the first version of `monitor.py` but was never set to
+anything, so every alert before today only ever reached a stderr stream
+nobody was watching. `_send_alert` now also posts to `MONITOR_NTFY_TOPIC`
+on ntfy.sh — free, no account, subscribed on phone and desktop via the
+topic URL, the topic name itself treated as a shared secret (long random
+string, not guessable). Verified live: sent two real test alerts,
+confirmed delivered.
+
+**WhatsApp: "is it a zombie" is now an answerable question, not a
+guess — 2026-08-31.** Prompted directly by "how do we even tell if it's
+a zombie or a live one, and what do we do about it." Before this,
+`ingest.js` only ever wrote a heartbeat file and printed to a console
+that vanishes when the terminal closes — a stale heartbeat couldn't tell
+you *why*, and nothing distinguished "process crashed and exited" from
+"process alive but stuck" from "session got logged out and needs a
+fresh QR scan." Added:
+- `.status.json` — current state (`connected` / `reconnecting` /
+  `logged_out` / `qr_pending` / `crashed`), written on every connection
+  transition.
+- `.pid` — written once at process start, so a caller can check whether
+  the OS process is actually still running, independent of the
+  heartbeat.
+- `.connection_log.txt` — persistent, timestamped event log (connects,
+  disconnects with reason code, QR generation, fatal errors), so a
+  future incident has real evidence instead of nothing. `uncaughtException`
+  / `unhandledRejection` handlers now log the crash here before exiting
+  with the same code Node's default handler would have used — previously
+  these left zero trace anywhere once the terminal closed.
+- Also fixed a real, separate bug found while doing this: the logged-out
+  message told you to "re-pair via login.js" — no such file exists in
+  this repo; pairing happens by deleting `.auth_state` and re-running
+  `ingest.js` itself, which generates a fresh QR. Fixed the message to
+  say the actual command.
+
+`monitor.py`'s WhatsApp check now reads `.status.json` and `.pid`
+instead of only the heartbeat's age, and classifies into the states that
+actually matter, each with the literal next command:
+- `logged_out` → delete `.auth_state`, rerun `ingest.js`, scan the new QR
+- `qr_pending` → open `qr.png`, scan it
+- `crashed` → restart `ingest.js`, check `.connection_log.txt` if it
+  recurs
+- stale heartbeat + pid confirmed still running (via `tasklist`) →
+  **ZOMBIE** — `taskkill /PID <pid> /F` then restart
+- stale heartbeat + pid gone → **DOWN** — just restart
+
+**Verified all three states for real, not just read the code:** faked a
+stale heartbeat with the `.pid` pointing at this shell's own real PID →
+correctly reported `ZOMBIE` with the exact `taskkill` command; pointed
+it at a nonexistent PID → correctly reported `DOWN`; set
+`.status.json` to `logged_out` → correctly reported the QR re-pair
+steps. Restored the real files afterward and re-ran `monitor.py`
+against the actual live connector — back to `OK`, heartbeat 0.1m old,
+confirming the test didn't leave anything broken.
+
+**What caused the original 2026-08-27 zombie is still genuinely
+unknown** — there was no persisted log at the time, only console output
+that's gone once that terminal closed, so nothing above should be read
+as having found that root cause. What changed is that the same failure
+now leaves evidence: `.connection_log.txt` and the `uncaughtException`/
+`unhandledRejection` handlers exist specifically so the next one doesn't
+end the same way.
+
 ## Known gaps at the end of Block A
 
 - **Quoted-reply-chain stripping — done 2026-08-28.** `_strip_html` in

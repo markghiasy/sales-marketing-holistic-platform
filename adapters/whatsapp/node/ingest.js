@@ -39,6 +39,52 @@ const CHATS_PATH = path.join(__dirname, 'chats.jsonl');
 const SELF_JID_PATH = path.join(__dirname, 'self_jid.txt');
 const QR_PATH = path.join(__dirname, 'qr.png');
 const HEARTBEAT_PATH = path.join(__dirname, '.heartbeat.txt');
+const STATUS_PATH = path.join(__dirname, '.status.json');
+const PID_PATH = path.join(__dirname, '.pid');
+const EVENT_LOG_PATH = path.join(__dirname, '.connection_log.txt');
+
+// The heartbeat alone can't tell a caller (monitor.py, or a human staring
+// at a stale heartbeat) *what's actually going on* — found the hard way
+// 2026-08-27, when a dead-in-practice process was still alive in the OS
+// process list with no record anywhere of why it had stopped doing
+// anything. These two together close that gap: .status.json is the
+// current, single-fact answer ("what state is this in right now"); the
+// event log is the history, so a future incident is diagnosable instead
+// of guessed at from a stale timestamp alone.
+function logEvent(message) {
+  const line = `${new Date().toISOString()} ${message}\n`;
+  console.log(message);
+  fs.appendFileSync(EVENT_LOG_PATH, line);
+}
+
+function writeStatus(state, detail) {
+  fs.writeFileSync(STATUS_PATH, JSON.stringify({ state, detail, at: new Date().toISOString() }));
+}
+
+// written once at process start, independent of connection state — this
+// is what lets a caller tell "the process itself is gone" (down, needs
+// restarting) apart from "the process is alive but stuck" (zombie, needs
+// killing before restarting), which a heartbeat-only check can't do.
+fs.writeFileSync(PID_PATH, String(process.pid));
+logEvent(`PROCESS_START pid=${process.pid}`);
+
+// an uncaught error used to just crash silently (or, worse, leave the
+// process alive with a dead event loop depending on what threw) with
+// nothing persisted anywhere about what happened — exactly the kind of
+// gap that made 2026-08-27's incident undiagnosable after the fact.
+// Log first, then exit with the same non-zero code Node's own default
+// handler would have used, so failure behaviour is unchanged, only now
+// it leaves evidence.
+process.on('uncaughtException', (e) => {
+  logEvent(`FATAL uncaughtException: ${e.stack || e}`);
+  writeStatus('crashed', String(e.message || e));
+  process.exit(1);
+});
+process.on('unhandledRejection', (e) => {
+  logEvent(`FATAL unhandledRejection: ${e && e.stack ? e.stack : e}`);
+  writeStatus('crashed', String(e));
+  process.exit(1);
+});
 
 function extractText(message) {
   if (!message) return null;
@@ -75,22 +121,31 @@ async function start() {
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
-      console.log('QR_UPDATED — scan via the viewer page');
+      logEvent('QR_UPDATED — scan qr.png to pair');
+      writeStatus('qr_pending', `scan ${QR_PATH} to pair — the app was logged out or this is a fresh setup`);
       QRCode.toFile(QR_PATH, qr, { width: 500 }).catch((e) => console.error('qr write failed', e));
     }
     if (connection === 'open') {
       fs.writeFileSync(SELF_JID_PATH, sock.user.id);
       fs.writeFileSync(HEARTBEAT_PATH, new Date().toISOString());
-      console.log('CONNECTED as', sock.user.id);
+      logEvent(`CONNECTED as ${sock.user.id}`);
+      writeStatus('connected', `connected as ${sock.user.id}`);
     }
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
       const loggedOut = code === DisconnectReason.loggedOut;
-      console.log(`CONNECTION_CLOSED code=${code} loggedOut=${loggedOut}`);
+      logEvent(`CONNECTION_CLOSED code=${code} loggedOut=${loggedOut}`);
       if (loggedOut) {
-        console.log('LOGGED_OUT — delete .auth_state and re-pair via login.js');
-        return;
+        // no separate "re-pair" script exists — .auth_state itself is
+        // now invalid, so the fix is deleting it and starting fresh:
+        // the next run has no valid session, generates a QR (see the
+        // qr branch above), and re-pairing happens the same way initial
+        // setup did.
+        logEvent('LOGGED_OUT — delete .auth_state and run `node ingest.js` again to re-pair via a fresh QR');
+        writeStatus('logged_out', 'session invalidated by WhatsApp — delete .auth_state and run `node ingest.js` again, then scan the new qr.png');
+        return; // deliberately no auto-restart — a fresh QR needs a human, retrying would just loop
       }
+      writeStatus('reconnecting', `connection dropped (code ${code}), retrying in 2s`);
       setTimeout(() => start(), 2000);
     }
   });
@@ -183,7 +238,8 @@ async function start() {
 }
 
 start().catch((e) => {
-  console.error('FATAL', e);
+  logEvent(`FATAL start() failed: ${e.stack || e}`);
+  writeStatus('crashed', String(e.message || e));
   process.exit(1);
 });
 
