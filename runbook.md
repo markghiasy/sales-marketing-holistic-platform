@@ -364,12 +364,16 @@ Windows Task Scheduler task, then re-pointed at the 10-minute interval:
 ```
 schtasks /create /tn "CommsPlatformOutlookSync" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_outlook_sync.bat" /sc minute /mo 10 /st 00:00
 ```
+**⚠ This exact command is broken — see "Found broken, fixed for real"
+below. Don't copy it; use the `Register-ScheduledTask` version there.**
 Verified live: ran the batch file by hand first (synced 3 messages, `.env`
 loaded correctly from the repo root), confirmed the registered task
 itself via `schtasks /query /tn "CommsPlatformOutlookSync" /v` at the
 original 15-minute interval, then changed it in place
 (`schtasks /change /tn "CommsPlatformOutlookSync" /ri 10`) and re-queried
-to confirm `Repeat: Every: 10 Minute(s)`.
+to confirm `Repeat: Every: 10 Minute(s)`. **This verification itself
+turned out to be insufficient — `/query`'s display masked the real bug;
+see below.**
 
 **LinkedIn sync scheduling — done 2026-08-30.** Mark's cadence call
 specified 4 sessions/day at fixed clock times, ~9am/12:30/3:30/7pm, with
@@ -393,9 +397,11 @@ schtasks /create /tn "CommsPlatformLinkedInSync-1230" /tr "C:\Users\Eva Ng\Deskt
 schtasks /create /tn "CommsPlatformLinkedInSync-1530" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 15:30
 schtasks /create /tn "CommsPlatformLinkedInSync-1900" /tr "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_linkedin_sync.bat" /sc daily /st 19:00
 ```
+**⚠ Also broken, same reason — see "Found broken, fixed for real"
+below.**
 Verified all four live via `schtasks /query ... /v`: correct `Task To
 Run` path, `Status: Ready`, and each `Next Run Time` landing on its own
-slot.
+slot. **This check was also insufficient — see below.**
 
 **Still open:** WhatsApp is not on a schedule — it's the long-running
 `ingest.js` connector rather than a one-shot sync, so it needs to run
@@ -422,7 +428,34 @@ Verified live: triggered Outlook manually, `LastTaskResult: 0`, and a
 new row landed in the store with `ingested_at` matching the trigger
 time — not just "the process exited 0," the sync actually happened.
 Triggered one LinkedIn slot the same way to confirm the fix holds there
-too.
+too. The actual working recipe, for recreating any of these:
+```powershell
+$action = New-ScheduledTaskAction -Execute "C:\Users\Eva Ng\Desktop\ironman\repo\scripts\run_outlook_sync.bat"
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 10) -RepetitionDuration (New-TimeSpan -Days 3650)
+Register-ScheduledTask -TaskName "CommsPlatformOutlookSync" -Action $action -Trigger $trigger -Force
+```
+(`-RepetitionDuration ([TimeSpan]::MaxValue)` fails outright — Task
+Scheduler rejects the resulting ISO 8601 duration as out of range; a
+long finite duration like 10 years works.)
+
+**Found broken #2, same day — task LogonType, not yet fixed.** Every
+task above registers with `Principal.LogonType = Interactive` by
+default, meaning it only fires while the account is actually logged in
+(locked is fine, logged out is not) — a real problem for "unattended"
+given a laptop that gets logged out or restarted without auto-login.
+The fix is `-LogonType S4U` (runs on schedule regardless of logged-in
+state, no stored password needed), but `Set-ScheduledTask` requires an
+elevated PowerShell session this one didn't have — confirmed by trying
+it and getting `Access is denied`, not by assuming. Left as a real open
+item, not silently worked around:
+```powershell
+$tasks = @("CommsPlatformOutlookSync","CommsPlatformLinkedInSync-0900","CommsPlatformLinkedInSync-1230","CommsPlatformLinkedInSync-1530","CommsPlatformLinkedInSync-1900","CommsPlatformMonitor")
+foreach ($t in $tasks) {
+  $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
+  Set-ScheduledTask -TaskName $t -Principal $principal
+}
+```
+Run from an elevated PowerShell to actually close this gap.
 
 **`scripts/monitor.py` itself, actually scheduled — 2026-08-31.** Same
 gap as above, one level up: the monitor that's supposed to catch a dead
