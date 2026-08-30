@@ -438,24 +438,28 @@ Register-ScheduledTask -TaskName "CommsPlatformOutlookSync" -Action $action -Tri
 Scheduler rejects the resulting ISO 8601 duration as out of range; a
 long finite duration like 10 years works.)
 
-**Found broken #2, same day — task LogonType, not yet fixed.** Every
-task above registers with `Principal.LogonType = Interactive` by
-default, meaning it only fires while the account is actually logged in
+**Found broken #2, same day — task LogonType, fixed 2026-08-31.** Every
+task above registered with `Principal.LogonType = Interactive` by
+default, meaning it only fired while the account was actually logged in
 (locked is fine, logged out is not) — a real problem for "unattended"
 given a laptop that gets logged out or restarted without auto-login.
-The fix is `-LogonType S4U` (runs on schedule regardless of logged-in
-state, no stored password needed), but `Set-ScheduledTask` requires an
-elevated PowerShell session this one didn't have — confirmed by trying
-it and getting `Access is denied`, not by assuming. Left as a real open
-item, not silently worked around:
-```powershell
-$tasks = @("CommsPlatformOutlookSync","CommsPlatformLinkedInSync-0900","CommsPlatformLinkedInSync-1230","CommsPlatformLinkedInSync-1530","CommsPlatformLinkedInSync-1900","CommsPlatformMonitor")
-foreach ($t in $tasks) {
-  $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited
-  Set-ScheduledTask -TaskName $t -Principal $principal
-}
-```
-Run from an elevated PowerShell to actually close this gap.
+`Set-ScheduledTask` needs an elevated session — this one didn't have
+one (confirmed by trying it and getting `Access is denied`, not by
+assuming), so `scripts/fix_task_logontype.ps1` was written for the user
+to run from an elevated PowerShell themselves rather than paste a
+multi-line command (an earlier attempt at that got mangled mid-paste by
+the console — `-RunLevel` and `Limited` ended up as two separate lines,
+a known fragility of pasting long single-line commands into the Windows
+console host). Run for real, confirmed: all six tasks now show
+`LogonType=S4U`. Re-verified the fix didn't break execution — `schtasks
+/run` on `CommsPlatformOutlookSync` came back `LastTaskResult: 0`; the
+mailbox itself just had nothing new to sync at that moment (confirmed
+by running `python -m adapters.outlook.sync` by hand immediately after
+and getting the same `synced 0 messages`, not a S4U-specific failure).
+One quirk noted, not chased further: `Start-ScheduledTask` (the
+PowerShell cmdlet) silently no-opped on the S4U-registered task in this
+same session, where `schtasks /run` (the older CLI) worked — use
+`schtasks /run` to manually trigger these going forward.
 
 **`scripts/monitor.py` itself, actually scheduled — 2026-08-31.** Same
 gap as above, one level up: the monitor that's supposed to catch a dead
