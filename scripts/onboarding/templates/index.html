@@ -68,20 +68,29 @@ async function refreshOutlook() {
   if (data.state === "connected") {
     stateEl.textContent = `Connected as ${data.mailbox}`;
     stateEl.className = "state connected";
+    stateEl.title = "";
     detailsEl.textContent = "";
   } else if (data.state === "pending" || data.state === "starting") {
     stateEl.textContent = "Waiting for you to sign in";
     stateEl.className = "state pending";
+    stateEl.title = "";
     detailsEl.innerHTML = data.code
       ? `Go to <a href="${data.url}" target="_blank">${data.url}</a> and enter code <code class="big">${data.code}</code>`
       : "Starting…";
   } else if (data.state === "expired") {
     stateEl.textContent = "Code expired — click Connect Outlook to get a new one";
     stateEl.className = "state error";
+    stateEl.title = "";
+    detailsEl.textContent = "";
+  } else if (data.state === "error") {
+    stateEl.textContent = "Something went wrong — click Connect Outlook to try again";
+    stateEl.className = "state error";
+    stateEl.title = data.error || "";
     detailsEl.textContent = "";
   } else {
     stateEl.textContent = "Not connected yet";
     stateEl.className = "state";
+    stateEl.title = "";
     detailsEl.textContent = "";
   }
 }
@@ -100,18 +109,32 @@ async function refreshWhatsapp() {
   if (data.state === "connected") {
     stateEl.textContent = "Connected" + (data.detail ? ` — ${data.detail}` : "");
     stateEl.className = "state connected";
+    stateEl.title = "";
     detailsEl.innerHTML = "";
   } else if (data.state === "qr_pending") {
     stateEl.textContent = "Scan this with your phone's WhatsApp";
     stateEl.className = "state qr_pending";
+    stateEl.title = "";
     detailsEl.innerHTML = `<img id="qr" src="/whatsapp/qr.png?t=${Date.now()}">`;
-  } else if (data.state === "logged_out" || data.state === "crashed") {
-    stateEl.textContent = data.detail || "Needs attention";
-    stateEl.className = `state ${data.state}`;
+  } else if (data.state === "reconnecting") {
+    stateEl.textContent = "Reconnecting…";
+    stateEl.className = "state pending";
+    stateEl.title = data.detail || "";
+    detailsEl.textContent = "";
+  } else if (data.state === "logged_out") {
+    stateEl.textContent = "Your session needs to be reconnected — click Connect WhatsApp below and scan the new code.";
+    stateEl.className = "state logged_out";
+    stateEl.title = data.detail || "";
+    detailsEl.textContent = "";
+  } else if (data.state === "crashed") {
+    stateEl.textContent = "Something went wrong — click Connect WhatsApp below to try again.";
+    stateEl.className = "state crashed";
+    stateEl.title = data.detail || "";
     detailsEl.textContent = "";
   } else {
     stateEl.textContent = "Not connected yet";
     stateEl.className = "state";
+    stateEl.title = "";
     detailsEl.textContent = "";
   }
 }
