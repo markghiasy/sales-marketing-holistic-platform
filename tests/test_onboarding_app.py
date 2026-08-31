@@ -374,9 +374,25 @@ def test_linkedin_upload_session_concurrent_requests_only_one_accepted(tmp_path,
     # is accepted. Without the lock around the "token not yet used?" check
     # and the "mark it used" write, multiple threads can each observe the
     # token as unused before any of them marks it, so more than one would
-    # be accepted here — this test would be flaky-but-sometimes-failing on
-    # the old code and is deterministic on the fixed code, where the lock
-    # makes the check-and-mark atomic.
+    # be accepted here.
+    #
+    # Barrier(n_threads) only synchronizes thread *start* though — it does
+    # nothing to guarantee any two threads are executing inside the actual
+    # check-then-mark window (a couple of bytecodes) at the same instant,
+    # and that window is far too narrow for the GIL's ~5ms preemption timer
+    # to reliably land inside it. Left alone, this test passes even against
+    # unlocked code essentially 100% of the time — it wouldn't catch a
+    # regression. So we force the race deterministically: monkeypatch the
+    # route's _token_check_delay_hook() (a no-op in production, called
+    # between the check and the mark, inside the lock) to sleep briefly.
+    # With the lock present, that sleep happens one thread at a time and
+    # every other thread blocks on the lock during it. Without the lock,
+    # every thread's check-then-sleep-then-mark window overlaps and
+    # multiple threads observe "unused" before any of them marks it,
+    # so this test fails against unlocked code and passes against locked
+    # code — see the Fix Report in .superpowers/sdd/task-7-report.md for
+    # the before/after evidence.
+    monkeypatch.setattr(onboarding_app, "_token_check_delay_hook", lambda: time.sleep(0.05))
     storage_path = tmp_path / ".storage_state.json"
     monkeypatch.setattr(onboarding_app.linkedin_login, "STORAGE_STATE_PATH", storage_path)
     flask_app = onboarding_app.create_app(testing=True)

@@ -66,6 +66,17 @@ _linkedin_tokens_lock = threading.Lock()
 _LINKEDIN_HELPER_TEMPLATE_PATH = Path(__file__).parent / "linkedin_helper.py.tmpl"
 
 
+def _token_check_delay_hook() -> None:
+    """No-op in production. linkedin_upload_session() calls this between
+    its "is the token unused?" check and its "mark it used" write, inside
+    _linkedin_tokens_lock. Tests can monkeypatch this to a small
+    time.sleep() to force multiple threads to be inside that critical
+    section's check-then-mark window at the same instant, which makes the
+    concurrency test in tests/test_onboarding_app.py deterministically
+    discriminate locked from unlocked behavior instead of relying on a
+    lucky GIL preemption inside a two-line window."""
+
+
 def _onboarding_base_url() -> str:
     return os.environ.get("ONBOARDING_BASE_URL", "http://localhost:5000")
 
@@ -282,6 +293,7 @@ def create_app(testing: bool = False) -> Flask:
         with _linkedin_tokens_lock:
             if token not in _linkedin_tokens or _linkedin_tokens[token]:
                 return jsonify({"error": "invalid or already-used token"}), 403
+            _token_check_delay_hook()
             _linkedin_tokens[token] = True
         linkedin_login.STORAGE_STATE_PATH.write_text(json.dumps(request.get_json()))
         return jsonify({"status": "connected"})
