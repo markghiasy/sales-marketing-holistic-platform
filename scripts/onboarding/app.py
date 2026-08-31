@@ -18,6 +18,8 @@ import psycopg
 from dotenv import load_dotenv
 from flask import Flask, jsonify
 
+from adapters.outlook import client as outlook_client
+
 # scripts/ isn't an installed package (only adapters* is, see
 # pyproject.toml), so import its sibling monitor.py by path — same
 # Path(__file__)-relative pattern used throughout this repo's adapters.
@@ -33,6 +35,31 @@ def _get_status_cursor():
     manages on its own schedule."""
     conn = psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
     return conn.cursor()
+
+
+# in-memory only — a real device-code flow is inherently short-lived
+# (expires in ~15 min), and this app has no other persistent store, so
+# a restart simply means "connect again" rather than needing to survive
+# a restart mid-flow
+_outlook_state: dict = {"phase": "not_connected"}
+_outlook_lock = threading.Lock()
+
+
+def _outlook_connect_worker() -> None:
+    def on_device_code(flow: dict) -> None:
+        with _outlook_lock:
+            _outlook_state.update(
+                phase="pending", code=flow["user_code"], url=flow["verification_uri"]
+            )
+
+    try:
+        outlook_client.get_access_token(on_device_code=on_device_code)
+        with _outlook_lock:
+            _outlook_state.update(phase="connected")
+    except RuntimeError as e:
+        with _outlook_lock:
+            state = "expired" if "expired" in str(e) else "error"
+            _outlook_state.update(phase=state, error=str(e))
 
 
 def _background_monitor_loop() -> None:
@@ -64,6 +91,30 @@ def create_app(testing: bool = False) -> Flask:
             finally:
                 cur.connection.close()
         return jsonify({s.channel: {"healthy": s.healthy, "detail": s.detail} for s in statuses})
+
+    @flask_app.post("/outlook/connect")
+    def outlook_connect():
+        with _outlook_lock:
+            _outlook_state.clear()
+            _outlook_state["phase"] = "starting"
+        threading.Thread(target=_outlook_connect_worker, daemon=True).start()
+        return jsonify({"status": "started"})
+
+    @flask_app.get("/outlook/status")
+    def outlook_status():
+        with _outlook_lock:
+            phase = _outlook_state.get("phase", "not_connected")
+            code = _outlook_state.get("code")
+            url = _outlook_state.get("url")
+
+        if phase in ("not_connected", "starting"):
+            return jsonify({"state": phase, "code": None, "url": None, "mailbox": None})
+        if phase == "pending":
+            return jsonify({"state": "pending", "code": code, "url": url, "mailbox": None})
+        if phase == "connected":
+            mailbox = os.environ.get("OUTLOOK_MAILBOX")
+            return jsonify({"state": "connected", "code": None, "url": None, "mailbox": mailbox})
+        return jsonify({"state": phase, "code": None, "url": None, "mailbox": None})
 
     if not testing:
         thread = threading.Thread(target=_background_monitor_loop, daemon=True)
