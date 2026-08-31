@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -18,8 +19,9 @@ from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
-from flask import Flask, jsonify, send_file
+from flask import Flask, jsonify, request, send_file
 
+from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
 
 # scripts/ isn't an installed package (only adapters* is, see
@@ -45,6 +47,17 @@ def _get_status_cursor():
 # a restart mid-flow
 _outlook_state: dict = {"phase": "not_connected"}
 _outlook_lock = threading.Lock()
+
+# token -> used; issued fresh by /linkedin/download-helper and consumed by
+# /linkedin/upload-session (single-use, in-memory only — same rationale as
+# _outlook_state above: this app has no other persistent store, and a
+# restart simply means "download the helper again").
+_linkedin_tokens: dict[str, bool] = {}
+_LINKEDIN_HELPER_TEMPLATE_PATH = Path(__file__).parent / "linkedin_helper.py.tmpl"
+
+
+def _onboarding_base_url() -> str:
+    return os.environ.get("ONBOARDING_BASE_URL", "http://localhost:5000")
 
 # guards whatsapp_connect()'s check-then-spawn sequence the same way
 # _outlook_lock guards the Outlook flow above. ingest.js only writes its
@@ -239,6 +252,31 @@ def create_app(testing: bool = False) -> Flask:
         if not qr_path.exists():
             return jsonify({"error": "no QR available yet"}), 404
         return send_file(qr_path, mimetype="image/png", max_age=0)
+
+    @flask_app.get("/linkedin/download-helper")
+    def linkedin_download_helper():
+        token = secrets.token_urlsafe(24)
+        _linkedin_tokens[token] = False
+        template = _LINKEDIN_HELPER_TEMPLATE_PATH.read_text()
+        script = template.replace("{{BASE_URL}}", _onboarding_base_url()).replace("{{TOKEN}}", token)
+        return flask_app.response_class(
+            script,
+            mimetype="text/x-python",
+            headers={"Content-Disposition": "attachment; filename=connect_linkedin.py"},
+        )
+
+    @flask_app.post("/linkedin/upload-session")
+    def linkedin_upload_session():
+        token = request.headers.get("X-Onboarding-Token", "")
+        if token not in _linkedin_tokens or _linkedin_tokens[token]:
+            return jsonify({"error": "invalid or already-used token"}), 403
+        _linkedin_tokens[token] = True
+        linkedin_login.STORAGE_STATE_PATH.write_text(json.dumps(request.get_json()))
+        return jsonify({"status": "connected"})
+
+    @flask_app.get("/linkedin/status")
+    def linkedin_status():
+        return jsonify({"connected": linkedin_login.STORAGE_STATE_PATH.exists()})
 
     if not testing:
         thread = threading.Thread(target=_background_monitor_loop, daemon=True)

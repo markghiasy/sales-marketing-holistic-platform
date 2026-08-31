@@ -312,3 +312,55 @@ def test_whatsapp_connect_stale_flag_self_heals_after_grace_period(monkeypatch, 
     assert popen_mock.call_count == 1
 
     onboarding_app._whatsapp_spawn_started_at = None
+
+
+def test_linkedin_download_helper_embeds_a_fresh_token(monkeypatch):
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.get("/linkedin/download-helper")
+
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "{{TOKEN}}" not in body
+    assert "{{BASE_URL}}" not in body
+    assert "def main()" in body
+
+
+def test_linkedin_upload_session_rejects_unknown_token(tmp_path, monkeypatch):
+    monkeypatch.setattr(onboarding_app.linkedin_login, "STORAGE_STATE_PATH", tmp_path / ".storage_state.json")
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.post(
+        "/linkedin/upload-session",
+        json={"cookies": []},
+        headers={"X-Onboarding-Token": "not-a-real-token"},
+    )
+    assert resp.status_code == 403
+
+
+def test_linkedin_upload_session_accepts_valid_token_then_rejects_reuse(tmp_path, monkeypatch):
+    storage_path = tmp_path / ".storage_state.json"
+    monkeypatch.setattr(onboarding_app.linkedin_login, "STORAGE_STATE_PATH", storage_path)
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    download_resp = client.get("/linkedin/download-helper")
+    body = download_resp.get_data(as_text=True)
+    token = body.split('TOKEN = "')[1].split('"')[0]
+
+    upload_resp = client.post(
+        "/linkedin/upload-session",
+        json={"cookies": ["fake"]},
+        headers={"X-Onboarding-Token": token},
+    )
+    assert upload_resp.status_code == 200
+    assert json.loads(storage_path.read_text()) == {"cookies": ["fake"]}
+
+    reuse_resp = client.post(
+        "/linkedin/upload-session",
+        json={"cookies": ["fake"]},
+        headers={"X-Onboarding-Token": token},
+    )
+    assert reuse_resp.status_code == 403
