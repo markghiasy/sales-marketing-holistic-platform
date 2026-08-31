@@ -206,3 +206,45 @@ def test_whatsapp_status_not_connected_when_no_status_file(monkeypatch, tmp_path
 
     resp = client.get("/whatsapp/status")
     assert resp.get_json() == {"state": "not_connected"}
+
+
+def test_whatsapp_status_handles_malformed_json(monkeypatch, tmp_path):
+    # simulates ingest.js's writeStatus() (a non-atomic fs.writeFileSync)
+    # being read mid-write — the file exists but isn't valid JSON yet.
+    status_path = tmp_path / ".status.json"
+    status_path.write_text('{"state": "connected", "detail": "conn')  # truncated
+    monkeypatch.setattr(monitor, "WHATSAPP_STATUS_PATH", status_path)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.get("/whatsapp/status")
+
+    # must not 500, and must fall back to the exact same shape as the
+    # "no status file at all" case for consistency
+    assert resp.status_code == 200
+    assert resp.get_json() == {"state": "not_connected"}
+
+
+def test_whatsapp_connect_rapid_fire_only_spawns_once(monkeypatch, tmp_path):
+    # simulates two /whatsapp/connect requests arriving before ingest.js
+    # has had a chance to write its own .pid file (a real, hundreds-of-ms
+    # window in production) — neither call can see a live pid yet, so
+    # without the in-progress guard both would spawn a duplicate process.
+    onboarding_app._whatsapp_spawn_in_progress = False
+    monkeypatch.setattr(monitor, "WHATSAPP_PID_PATH", tmp_path / "missing.pid")
+
+    popen_mock = MagicMock()
+    monkeypatch.setattr(onboarding_app.subprocess, "Popen", popen_mock)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp1 = client.post("/whatsapp/connect")
+    resp2 = client.post("/whatsapp/connect")
+
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
+    assert popen_mock.call_count == 1
+
+    onboarding_app._whatsapp_spawn_in_progress = False

@@ -46,6 +46,40 @@ def _get_status_cursor():
 _outlook_state: dict = {"phase": "not_connected"}
 _outlook_lock = threading.Lock()
 
+# guards whatsapp_connect()'s check-then-spawn sequence the same way
+# _outlook_lock guards the Outlook flow above. ingest.js only writes its
+# own .pid file after it finishes starting up (after all its require()s),
+# so there's a real window where a second /whatsapp/connect call would
+# otherwise see .pid as still-missing-or-stale and spawn a duplicate
+# "node ingest.js" — ingest.js has no protection against being
+# double-started, and two processes sharing one .auth_state would
+# corrupt it. _whatsapp_spawn_in_progress is set True right before
+# Popen() and only cleared once a later call observes .pid pointing at
+# a live process, so it can't be permanently stuck if the process dies
+# before ever writing .pid — see whatsapp_connect() for that recovery.
+_whatsapp_lock = threading.Lock()
+_whatsapp_spawn_in_progress = False
+
+
+def _whatsapp_pid_is_live() -> bool:
+    pid_text = (
+        monitor.WHATSAPP_PID_PATH.read_text().strip()
+        if monitor.WHATSAPP_PID_PATH.exists() else ""
+    )
+    return bool(pid_text and pid_text.isdigit() and monitor._pid_is_alive(int(pid_text)))
+
+
+def _clear_whatsapp_spawn_flag_if_live() -> None:
+    """Called from /whatsapp/status (and implicitly whenever
+    /whatsapp/connect re-checks liveness) so the in-progress flag doesn't
+    permanently lock out future spawns after the connector it was tracking
+    is confirmed alive and later dies."""
+    global _whatsapp_spawn_in_progress
+    if _whatsapp_spawn_in_progress:
+        with _whatsapp_lock:
+            if _whatsapp_spawn_in_progress and _whatsapp_pid_is_live():
+                _whatsapp_spawn_in_progress = False
+
 
 def _outlook_connect_worker() -> None:
     def on_device_code(flow: dict) -> None:
@@ -127,25 +161,44 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/whatsapp/status")
     def whatsapp_status():
+        _clear_whatsapp_spawn_flag_if_live()
         if not monitor.WHATSAPP_STATUS_PATH.exists():
             return jsonify({"state": "not_connected"})
-        return jsonify(json.loads(monitor.WHATSAPP_STATUS_PATH.read_text()))
+        try:
+            status = json.loads(monitor.WHATSAPP_STATUS_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            # .status.json exists but is malformed — ingest.js's
+            # writeStatus() does a non-atomic fs.writeFileSync, so a
+            # concurrent read can catch it mid-write. Treat this the same
+            # as "no status available yet" rather than 500ing the route,
+            # mirroring monitor._check_whatsapp_liveness()'s handling of
+            # this exact same file/failure mode.
+            return jsonify({"state": "not_connected"})
+        return jsonify(status)
 
     @flask_app.post("/whatsapp/connect")
     def whatsapp_connect():
-        pid_text = (
-            monitor.WHATSAPP_PID_PATH.read_text().strip()
-            if monitor.WHATSAPP_PID_PATH.exists() else ""
-        )
-        if pid_text and pid_text.isdigit() and monitor._pid_is_alive(int(pid_text)):
-            return jsonify({"status": "already_running"})
+        global _whatsapp_spawn_in_progress
+        with _whatsapp_lock:
+            if _whatsapp_pid_is_live():
+                _whatsapp_spawn_in_progress = False
+                return jsonify({"status": "already_running"})
 
-        subprocess.Popen(
-            ["node", "ingest.js"],
-            cwd=str(monitor._WHATSAPP_DIR),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            # a spawn from a rapid-fire earlier call may still be starting
+            # up — ingest.js hasn't written .pid yet, so the liveness
+            # check above can't see it. Don't spawn a second process on
+            # top of it; it'll clear itself once .pid shows the process
+            # alive (see _whatsapp_pid_is_live/_clear_whatsapp_spawn_flag_if_live).
+            if _whatsapp_spawn_in_progress:
+                return jsonify({"status": "already_running"})
+
+            _whatsapp_spawn_in_progress = True
+            subprocess.Popen(
+                ["node", "ingest.js"],
+                cwd=str(monitor._WHATSAPP_DIR),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
         return jsonify({"status": "started"})
 
     @flask_app.get("/whatsapp/qr.png")
