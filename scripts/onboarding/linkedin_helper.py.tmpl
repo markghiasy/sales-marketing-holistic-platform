@@ -1,0 +1,54 @@
+"""Connects your LinkedIn account to the Comms Platform.
+
+Double-click this file to run it (or run `python connect_linkedin.py`
+from a terminal in this folder if double-clicking doesn't open it).
+Requires Python and Playwright's Chrome browser — if this fails with
+"playwright not found", run: pip install playwright && playwright install chrome
+
+A real Chrome window will open. Log in to LinkedIn normally, exactly
+as you would in any browser. Once you land on your feed, this window
+closes itself and your connection finishes automatically.
+"""
+
+from __future__ import annotations
+
+import json
+import urllib.request
+
+from playwright.sync_api import sync_playwright
+
+BASE_URL = "{{BASE_URL}}"
+TOKEN = "{{TOKEN}}"
+
+
+def main() -> None:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(channel="chrome", headless=False)
+        context = browser.new_context(viewport={"width": 1536, "height": 864})
+        page = context.new_page()
+        page.goto("https://www.linkedin.com/login")
+
+        print("Log in in the browser window. Waiting for your feed to load...")
+        page.wait_for_url("https://www.linkedin.com/feed/**", timeout=300_000)
+
+        storage_state = context.storage_state()
+        browser.close()
+
+    print("Login complete — sending your session back to the dashboard...")
+    body = json.dumps(storage_state).encode()
+    req = urllib.request.Request(
+        f"{BASE_URL}/linkedin/upload-session",
+        data=body,
+        headers={"Content-Type": "application/json", "X-Onboarding-Token": TOKEN},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        if resp.status == 200:
+            print("Done — you can close this window. The dashboard now shows you as connected.")
+        else:
+            print(f"Something went wrong sending your session back (HTTP {resp.status}). "
+                  f"Please tell whoever sent you this tool.")
+
+
+if __name__ == "__main__":
+    main()
