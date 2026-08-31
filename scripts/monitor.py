@@ -227,6 +227,15 @@ def _send_alert(message: str) -> None:
             print(f"ALERT DELIVERY FAILED (webhook): {e}", file=sys.stderr)
 
 
+def check_all(cur) -> list[ChannelStatus]:
+    statuses: list[ChannelStatus] = [
+        _check_message_staleness(cur, "outlook"),
+        _check_message_staleness(cur, "linkedin"),
+    ]
+    statuses.append(_check_whatsapp_liveness())
+    return statuses
+
+
 def run() -> int:
     load_dotenv()
 
@@ -236,11 +245,8 @@ def run() -> int:
         _send_alert(f"cannot reach store at all: {e}")
         return 1
 
-    statuses: list[ChannelStatus] = []
     with conn, conn.cursor() as cur:
-        statuses.append(_check_message_staleness(cur, "outlook"))
-        statuses.append(_check_message_staleness(cur, "linkedin"))
-    statuses.append(_check_whatsapp_liveness())
+        statuses = check_all(cur)
 
     alert_state = _load_alert_state()
     now = time.time()
