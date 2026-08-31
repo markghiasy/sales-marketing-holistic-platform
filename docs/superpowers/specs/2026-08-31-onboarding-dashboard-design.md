@@ -1,4 +1,4 @@
-# Onboarding Dashboard — Design
+# Ops Dashboard (Onboarding + Live Status) — Design
 
 **Date:** 2026-08-31
 **Status:** Approved by Eva, pending implementation plan
@@ -12,21 +12,40 @@ who built it, but not for Mark's team, who need to be able to connect
 their own accounts without going through her — every manual step is a
 future support request landing back on her.
 
+Separately, `scripts/monitor.py` already checks channel health and
+alerts via ntfy, but only when Windows Task Scheduler fires it every 15
+minutes — there's no live view, just a periodic check-and-exit.
+Revised 2026-08-31 (Eva's idea): fold both into one always-running
+service instead of two separate things. The connect flow and the
+ongoing health view are the same underlying question — "what's the
+state of each channel right now" — so they belong in one page, not a
+dashboard for setup and a separate cron job for health.
+
 ## Scope
 
-- **In scope:** a single web dashboard that walks a non-technical person
-  through connecting all three channels, reusing the existing adapter
-  auth mechanisms as-is (no changes to how Outlook/LinkedIn/WhatsApp
-  actually authenticate).
+- **In scope:** a single, continuously-running web app with three
+  panels (Outlook/LinkedIn/WhatsApp) that both (a) walks a
+  non-technical person through connecting an account, reusing the
+  existing adapter auth mechanisms as-is, and (b) shows each channel's
+  live health once connected, running the same background checks
+  `scripts/monitor.py` already does (imported, not reimplemented) and
+  firing the same ntfy alerts — regardless of whether anyone has the
+  page open.
 - **Out of scope:** multi-tenant account isolation (this only serves
   Mark's own internal accounts, confirmed with Eva — not a product other
   customers self-serve into). Packaging LinkedIn's helper as a
   zero-dependency single executable (ruled out — the dashboard will
   instead tell the user to have Python and Node installed first).
-  Deploying this to real hosting — it runs locally for now, the same as
-  every other script in this repo, and moves wherever the backend ends
-  up once the Supabase/cloud migration happens, without needing a
-  redesign.
+  **Where this runs, long-term.** This service needs to run
+  continuously to do its job (the health-checking half doesn't work if
+  the process isn't alive) — the same requirement WhatsApp's `ingest.js`
+  connector already has, and the same open question: a laptop that gets
+  closed takes the whole thing down with it. That's an infrastructure
+  decision for Eva and Mark to make together (tied to the pending
+  Supabase/cloud migration), not something this design resolves. It
+  runs locally for development the same as everything else in this repo
+  today; nothing about the design below assumes a particular host, so
+  it moves without a rewrite once that decision is made.
 
 ## Architecture
 
@@ -39,14 +58,27 @@ with three panels, each polling its own JSON status endpoint every
 1.5s (same auto-refresh trick already proven in `qr_viewer.html`) so
 the page updates itself without the user doing anything.
 
+The process also runs a background thread that does exactly what
+`scripts/monitor.py` does today, on the same interval (15 min,
+unchanged), by importing and calling its existing check functions
+rather than duplicating the logic — same ntfy alerts, same cooldown
+state file. This thread runs independent of any browser being open;
+the page's live view and the background alert are two ways of surfacing
+the same underlying check, not two separate mechanisms. Once this
+ships, the standalone `CommsPlatformMonitor` Task Scheduler entry
+becomes redundant and should be retired — one persistent process doing
+the job instead of a page plus a separate scheduled task.
+
 ```
-Browser (dashboard)
-  │  poll every 1.5s
-  ▼
-Flask app (scripts/onboarding/app.py)
+Browser (dashboard)                    ntfy.sh
+  │  poll every 1.5s                      ▲
+  ▼                                        │ every 15 min, regardless of
+Flask app (scripts/onboarding/app.py)      │ whether the browser is open
   ├── /outlook/*   → wraps adapters/outlook/client.py's device-code flow
   ├── /whatsapp/*  → ensures ingest.js is running, reads .status.json / serves qr.png
-  └── /linkedin/*  → serves a downloadable helper script + accepts its upload
+  ├── /linkedin/*  → serves a downloadable helper script + accepts its upload
+  ├── /status      → live JSON for all three panels' ongoing health
+  └── background thread ─────────────────┘ (imports scripts/monitor.py's checks)
 ```
 
 ## Components
@@ -123,4 +155,8 @@ pattern. The real validation, consistent with how every other piece of
 this project has been checked, is a live walkthrough by someone who
 didn't build it — ideally a non-technical person on Mark's side
 actually connecting a real account through the dashboard, not just
-Eva clicking through it herself.
+Eva clicking through it herself. Separately, the background-alerting
+half needs its own real check: close the browser tab entirely, force a
+channel unhealthy, and confirm the ntfy alert still arrives — the exact
+behavior the merge was for, not something to assume works because the
+code looks right.
