@@ -1,8 +1,141 @@
 <!-- scripts/onboarding/templates/index.html -->
 <!DOCTYPE html>
 <html>
-<head><title>Comms Platform — Connect Your Accounts</title></head>
+<head>
+  <title>Comms Platform — Connect Your Accounts</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    .panel { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .panel h2 { margin-top: 0; }
+    .state { font-weight: 600; }
+    .state.connected { color: #2f8f5b; }
+    .state.pending, .state.qr_pending { color: #a8791f; }
+    .state.error, .state.crashed, .state.logged_out { color: #b1453c; }
+    button { padding: 8px 16px; cursor: pointer; }
+    img#qr { width: 240px; height: 240px; display: block; margin-top: 8px; }
+    code.big { font-size: 1.4em; }
+  </style>
+</head>
 <body>
-  <p>Placeholder — filled in with the real three-panel dashboard in Task 7.</p>
+  <h1>Connect your accounts</h1>
+  <p>Connect Outlook, LinkedIn, and WhatsApp below — for your convenience, each one only takes a minute.</p>
+
+  <div class="panel" id="outlook-panel">
+    <h2>Outlook</h2>
+    <p class="state" id="outlook-state">Checking…</p>
+    <div id="outlook-details"></div>
+    <button id="outlook-connect">Connect Outlook</button>
+  </div>
+
+  <div class="panel" id="whatsapp-panel">
+    <h2>WhatsApp</h2>
+    <p class="state" id="whatsapp-state">Checking…</p>
+    <div id="whatsapp-details"></div>
+    <button id="whatsapp-connect">Connect WhatsApp</button>
+  </div>
+
+  <div class="panel" id="linkedin-panel">
+    <h2>LinkedIn</h2>
+    <p class="state" id="linkedin-state">Checking…</p>
+    <p>Requires Python installed on your computer — <a href="https://www.python.org/downloads/">get it here</a> if you don't have it.</p>
+    <button id="linkedin-connect">Download connection tool</button>
+  </div>
+
+<script>
+async function pollJSON(url) {
+  const resp = await fetch(url);
+  return resp.json();
+}
+
+function confirmIfConnected(currentStateText, accountLabel) {
+  if (currentStateText && currentStateText.toLowerCase().startsWith("connected")) {
+    return confirm(`This will disconnect ${accountLabel} — continue?`);
+  }
+  return true;
+}
+
+// --- Outlook ---
+document.getElementById("outlook-connect").addEventListener("click", async () => {
+  const stateEl = document.getElementById("outlook-state");
+  if (!confirmIfConnected(stateEl.textContent, "the connected Outlook account")) return;
+  await fetch("/outlook/connect", { method: "POST" });
+});
+
+async function refreshOutlook() {
+  const data = await pollJSON("/outlook/status");
+  const stateEl = document.getElementById("outlook-state");
+  const detailsEl = document.getElementById("outlook-details");
+  if (data.state === "connected") {
+    stateEl.textContent = `Connected as ${data.mailbox}`;
+    stateEl.className = "state connected";
+    detailsEl.textContent = "";
+  } else if (data.state === "pending" || data.state === "starting") {
+    stateEl.textContent = "Waiting for you to sign in";
+    stateEl.className = "state pending";
+    detailsEl.innerHTML = data.code
+      ? `Go to <a href="${data.url}" target="_blank">${data.url}</a> and enter code <code class="big">${data.code}</code>`
+      : "Starting…";
+  } else if (data.state === "expired") {
+    stateEl.textContent = "Code expired — click Connect Outlook to get a new one";
+    stateEl.className = "state error";
+    detailsEl.textContent = "";
+  } else {
+    stateEl.textContent = "Not connected yet";
+    stateEl.className = "state";
+    detailsEl.textContent = "";
+  }
+}
+
+// --- WhatsApp ---
+document.getElementById("whatsapp-connect").addEventListener("click", async () => {
+  const stateEl = document.getElementById("whatsapp-state");
+  if (!confirmIfConnected(stateEl.textContent, "the connected WhatsApp account")) return;
+  await fetch("/whatsapp/connect", { method: "POST" });
+});
+
+async function refreshWhatsapp() {
+  const data = await pollJSON("/whatsapp/status");
+  const stateEl = document.getElementById("whatsapp-state");
+  const detailsEl = document.getElementById("whatsapp-details");
+  if (data.state === "connected") {
+    stateEl.textContent = "Connected" + (data.detail ? ` — ${data.detail}` : "");
+    stateEl.className = "state connected";
+    detailsEl.innerHTML = "";
+  } else if (data.state === "qr_pending") {
+    stateEl.textContent = "Scan this with your phone's WhatsApp";
+    stateEl.className = "state qr_pending";
+    detailsEl.innerHTML = `<img id="qr" src="/whatsapp/qr.png?t=${Date.now()}">`;
+  } else if (data.state === "logged_out" || data.state === "crashed") {
+    stateEl.textContent = data.detail || "Needs attention";
+    stateEl.className = `state ${data.state}`;
+    detailsEl.textContent = "";
+  } else {
+    stateEl.textContent = "Not connected yet";
+    stateEl.className = "state";
+    detailsEl.textContent = "";
+  }
+}
+
+// --- LinkedIn ---
+document.getElementById("linkedin-connect").addEventListener("click", async () => {
+  const stateEl = document.getElementById("linkedin-state");
+  if (!confirmIfConnected(stateEl.textContent, "the connected LinkedIn account")) return;
+  window.location.href = "/linkedin/download-helper";
+});
+
+async function refreshLinkedin() {
+  const data = await pollJSON("/linkedin/status");
+  const stateEl = document.getElementById("linkedin-state");
+  stateEl.textContent = data.connected ? "Connected" : "Not connected yet";
+  stateEl.className = data.connected ? "state connected" : "state";
+}
+
+async function refreshAll() {
+  await Promise.all([refreshOutlook(), refreshWhatsapp(), refreshLinkedin()]);
+}
+
+refreshAll();
+setInterval(refreshAll, 1500);
+</script>
 </body>
 </html>

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file
 
 from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
@@ -158,6 +158,10 @@ def _background_monitor_loop() -> None:
 def create_app(testing: bool = False) -> Flask:
     load_dotenv()
     flask_app = Flask(__name__)
+
+    @flask_app.get("/")
+    def index():
+        return render_template("index.html")
 
     @flask_app.get("/status")
     def status():
