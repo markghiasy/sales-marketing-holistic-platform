@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-import monitor  # noqa: E402
+import monitor
 
 
 def test_check_all_returns_three_channel_statuses(monkeypatch):

@@ -50,11 +50,19 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/status")
     def status():
-        cur = _get_status_cursor()
         try:
-            statuses = monitor.check_all(cur)
-        finally:
-            cur.connection.close()
+            cur = _get_status_cursor()
+        except Exception as e:  # noqa: BLE001 — degrade, don't crash the route
+            statuses = [
+                monitor.ChannelStatus("outlook", False, f"cannot reach store: {e}"),
+                monitor.ChannelStatus("linkedin", False, f"cannot reach store: {e}"),
+                monitor._check_whatsapp_liveness(),
+            ]
+        else:
+            try:
+                statuses = monitor.check_all(cur)
+            finally:
+                cur.connection.close()
         return jsonify({s.channel: {"healthy": s.healthy, "detail": s.detail} for s in statuses})
 
     if not testing:
