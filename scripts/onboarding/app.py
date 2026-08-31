@@ -8,7 +8,9 @@ Run: python scripts/onboarding/app.py
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -16,7 +18,7 @@ from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_file
 
 from adapters.outlook import client as outlook_client
 
@@ -122,6 +124,36 @@ def create_app(testing: bool = False) -> Flask:
         # terminal failure states ("error", "expired") carry the message
         # from _outlook_connect_worker's except clause
         return jsonify({"state": phase, "code": None, "url": None, "mailbox": None, "error": error})
+
+    @flask_app.get("/whatsapp/status")
+    def whatsapp_status():
+        if not monitor.WHATSAPP_STATUS_PATH.exists():
+            return jsonify({"state": "not_connected"})
+        return jsonify(json.loads(monitor.WHATSAPP_STATUS_PATH.read_text()))
+
+    @flask_app.post("/whatsapp/connect")
+    def whatsapp_connect():
+        pid_text = (
+            monitor.WHATSAPP_PID_PATH.read_text().strip()
+            if monitor.WHATSAPP_PID_PATH.exists() else ""
+        )
+        if pid_text and pid_text.isdigit() and monitor._pid_is_alive(int(pid_text)):
+            return jsonify({"status": "already_running"})
+
+        subprocess.Popen(
+            ["node", "ingest.js"],
+            cwd=str(monitor._WHATSAPP_DIR),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return jsonify({"status": "started"})
+
+    @flask_app.get("/whatsapp/qr.png")
+    def whatsapp_qr():
+        qr_path = monitor._WHATSAPP_DIR / "qr.png"
+        if not qr_path.exists():
+            return jsonify({"error": "no QR available yet"}), 404
+        return send_file(qr_path, mimetype="image/png", max_age=0)
 
     if not testing:
         thread = threading.Thread(target=_background_monitor_loop, daemon=True)

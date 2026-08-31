@@ -1,6 +1,7 @@
 # tests/test_onboarding_app.py
 from __future__ import annotations
 
+import json
 import sys
 import threading
 import time
@@ -183,3 +184,25 @@ def test_outlook_connect_handles_generic_exception(monkeypatch):
 
     assert body["state"] == "error"
     assert body["error"]
+
+
+def test_whatsapp_status_reads_status_json(monkeypatch, tmp_path):
+    status_path = tmp_path / ".status.json"
+    status_path.write_text(json.dumps({"state": "connected", "detail": "connected as 123", "at": "now"}))
+    monkeypatch.setattr(monitor, "WHATSAPP_STATUS_PATH", status_path)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.get("/whatsapp/status")
+    assert resp.get_json() == {"state": "connected", "detail": "connected as 123", "at": "now"}
+
+
+def test_whatsapp_status_not_connected_when_no_status_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(monitor, "WHATSAPP_STATUS_PATH", tmp_path / "missing.json")
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.get("/whatsapp/status")
+    assert resp.get_json() == {"state": "not_connected"}
