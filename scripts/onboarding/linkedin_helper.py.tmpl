@@ -13,8 +13,10 @@ closes itself and your connection finishes automatically.
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.request
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 BASE_URL = "{{BASE_URL}}"
@@ -42,13 +44,28 @@ def main() -> None:
         headers={"Content-Type": "application/json", "X-Onboarding-Token": TOKEN},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        if resp.status == 200:
-            print("Done — you can close this window. The dashboard now shows you as connected.")
-        else:
-            print(f"Something went wrong sending your session back (HTTP {resp.status}). "
-                  f"Please tell whoever sent you this tool.")
+    with urllib.request.urlopen(req, timeout=30):
+        pass
+
+    print("Done — you can close this window. The dashboard now shows you as connected.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except urllib.error.HTTPError as e:
+        print(
+            f"Could not send your session to the dashboard (server said: {e.code} {e.reason}). "
+            f"Please tell whoever sent you this tool."
+        )
+    except urllib.error.URLError:
+        print(
+            "Could not reach the dashboard to send your session — check your internet "
+            "connection and try again, or tell whoever sent you this tool."
+        )
+    except PlaywrightTimeoutError:
+        print(
+            "Login didn't complete in time — please run this again and log in within 5 minutes."
+        )
+    except Exception as e:
+        print(f"Something went wrong: {e}. Please tell whoever sent you this tool.")
