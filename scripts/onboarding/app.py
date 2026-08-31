@@ -53,12 +53,24 @@ _outlook_lock = threading.Lock()
 # otherwise see .pid as still-missing-or-stale and spawn a duplicate
 # "node ingest.js" — ingest.js has no protection against being
 # double-started, and two processes sharing one .auth_state would
-# corrupt it. _whatsapp_spawn_in_progress is set True right before
-# Popen() and only cleared once a later call observes .pid pointing at
-# a live process, so it can't be permanently stuck if the process dies
-# before ever writing .pid — see whatsapp_connect() for that recovery.
+# corrupt it.
+#
+# _whatsapp_spawn_started_at is set to time.monotonic() right before
+# Popen() and cleared (back to None) the first of three ways: (1) a later
+# call observes .pid pointing at a live process, (2) Popen() itself raises
+# (node missing, bad cwd, ...) — caught in whatsapp_connect() so the flag
+# never survives a spawn attempt that failed synchronously, or (3) the
+# grace period below elapses without either of the above happening, which
+# covers ingest.js exiting before it ever gets far enough to write .pid
+# (e.g. a require() failure on a broken node_modules) — with no live pid
+# and no exception, nothing else would ever clear the flag. The grace
+# period only needs to comfortably exceed ingest.js's require()-to-.pid
+# window (that write happens essentially immediately, before any async
+# work) — 10s leaves a wide margin without meaningfully weakening the
+# rapid-fire double-spawn protection this flag exists for.
+_WHATSAPP_SPAWN_GRACE_SECONDS = 10.0
 _whatsapp_lock = threading.Lock()
-_whatsapp_spawn_in_progress = False
+_whatsapp_spawn_started_at: float | None = None
 
 
 def _whatsapp_pid_is_live() -> bool:
@@ -74,11 +86,11 @@ def _clear_whatsapp_spawn_flag_if_live() -> None:
     /whatsapp/connect re-checks liveness) so the in-progress flag doesn't
     permanently lock out future spawns after the connector it was tracking
     is confirmed alive and later dies."""
-    global _whatsapp_spawn_in_progress
-    if _whatsapp_spawn_in_progress:
+    global _whatsapp_spawn_started_at
+    if _whatsapp_spawn_started_at is not None:
         with _whatsapp_lock:
-            if _whatsapp_spawn_in_progress and _whatsapp_pid_is_live():
-                _whatsapp_spawn_in_progress = False
+            if _whatsapp_spawn_started_at is not None and _whatsapp_pid_is_live():
+                _whatsapp_spawn_started_at = None
 
 
 def _outlook_connect_worker() -> None:
@@ -178,27 +190,47 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.post("/whatsapp/connect")
     def whatsapp_connect():
-        global _whatsapp_spawn_in_progress
+        global _whatsapp_spawn_started_at
         with _whatsapp_lock:
             if _whatsapp_pid_is_live():
-                _whatsapp_spawn_in_progress = False
+                _whatsapp_spawn_started_at = None
                 return jsonify({"status": "already_running"})
 
-            # a spawn from a rapid-fire earlier call may still be starting
-            # up — ingest.js hasn't written .pid yet, so the liveness
-            # check above can't see it. Don't spawn a second process on
-            # top of it; it'll clear itself once .pid shows the process
-            # alive (see _whatsapp_pid_is_live/_clear_whatsapp_spawn_flag_if_live).
-            if _whatsapp_spawn_in_progress:
-                return jsonify({"status": "already_running"})
+            if _whatsapp_spawn_started_at is not None:
+                elapsed = time.monotonic() - _whatsapp_spawn_started_at
+                if elapsed < _WHATSAPP_SPAWN_GRACE_SECONDS:
+                    # a spawn from a rapid-fire earlier call may still be
+                    # starting up — ingest.js hasn't written .pid yet, so
+                    # the liveness check above can't see it. Don't spawn a
+                    # second process on top of it; it'll clear itself once
+                    # .pid shows the process alive (see
+                    # _whatsapp_pid_is_live/_clear_whatsapp_spawn_flag_if_live).
+                    return jsonify({"status": "already_running"})
+                # past the grace period with no live pid and no exception
+                # from a prior Popen() — the earlier spawn's process must
+                # have exited before ever writing .pid (e.g. ingest.js's
+                # require()s failing outright, before its own crash
+                # handlers even exist to record anything). Treat the flag
+                # as stale and fall through to try a fresh spawn rather
+                # than staying locked out until the app is restarted.
+                _whatsapp_spawn_started_at = None
 
-            _whatsapp_spawn_in_progress = True
-            subprocess.Popen(
-                ["node", "ingest.js"],
-                cwd=str(monitor._WHATSAPP_DIR),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            _whatsapp_spawn_started_at = time.monotonic()
+            try:
+                subprocess.Popen(
+                    ["node", "ingest.js"],
+                    cwd=str(monitor._WHATSAPP_DIR),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except OSError as e:
+                # e.g. node isn't on PATH, or cwd doesn't exist — Popen()
+                # raised synchronously inside the lock, so nothing was
+                # ever spawned. Clear the flag immediately rather than
+                # waiting out the grace period, and report a clean error
+                # instead of letting this 500.
+                _whatsapp_spawn_started_at = None
+                return jsonify({"status": "error", "detail": str(e)})
         return jsonify({"status": "started"})
 
     @flask_app.get("/whatsapp/qr.png")

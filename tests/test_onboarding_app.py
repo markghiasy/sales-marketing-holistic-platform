@@ -231,7 +231,7 @@ def test_whatsapp_connect_rapid_fire_only_spawns_once(monkeypatch, tmp_path):
     # has had a chance to write its own .pid file (a real, hundreds-of-ms
     # window in production) — neither call can see a live pid yet, so
     # without the in-progress guard both would spawn a duplicate process.
-    onboarding_app._whatsapp_spawn_in_progress = False
+    onboarding_app._whatsapp_spawn_started_at = None
     monkeypatch.setattr(monitor, "WHATSAPP_PID_PATH", tmp_path / "missing.pid")
 
     popen_mock = MagicMock()
@@ -246,5 +246,69 @@ def test_whatsapp_connect_rapid_fire_only_spawns_once(monkeypatch, tmp_path):
     assert resp1.status_code == 200
     assert resp2.status_code == 200
     assert popen_mock.call_count == 1
+    assert resp2.get_json() == {"status": "already_running"}
 
-    onboarding_app._whatsapp_spawn_in_progress = False
+    onboarding_app._whatsapp_spawn_started_at = None
+
+
+def test_whatsapp_connect_popen_failure_clears_flag_and_returns_clean_error(monkeypatch, tmp_path):
+    # simulates Popen() itself raising synchronously (e.g. "node" isn't on
+    # PATH, or the whatsapp cwd doesn't exist) — this used to leave the
+    # in-progress flag stuck True forever and 500 the request instead of
+    # reporting a clean error.
+    onboarding_app._whatsapp_spawn_started_at = None
+    monkeypatch.setattr(monitor, "WHATSAPP_PID_PATH", tmp_path / "missing.pid")
+
+    failing_popen = MagicMock(side_effect=FileNotFoundError("[WinError 2] node not found"))
+    monkeypatch.setattr(onboarding_app.subprocess, "Popen", failing_popen)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.post("/whatsapp/connect")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "error"
+    assert "node not found" in body["detail"]
+
+    # the flag must be cleared, not just the response — prove it with a
+    # subsequent call that has a working Popen and should actually spawn
+    working_popen = MagicMock()
+    monkeypatch.setattr(onboarding_app.subprocess, "Popen", working_popen)
+
+    resp2 = client.post("/whatsapp/connect")
+
+    assert resp2.status_code == 200
+    assert resp2.get_json() == {"status": "started"}
+    assert working_popen.call_count == 1
+
+    onboarding_app._whatsapp_spawn_started_at = None
+
+
+def test_whatsapp_connect_stale_flag_self_heals_after_grace_period(monkeypatch, tmp_path):
+    # simulates finding #1: ingest.js exits (e.g. a require() failure)
+    # before it ever gets far enough to write .pid, so there's no live pid
+    # to observe and no Python-side exception to catch — nothing else
+    # would ever clear the flag. Set it as if a spawn happened long enough
+    # ago that ingest.js should have written .pid by now if it were going
+    # to; /whatsapp/connect should treat it as stale and retry instead of
+    # reporting "already_running" forever.
+    onboarding_app._whatsapp_spawn_started_at = (
+        time.monotonic() - onboarding_app._WHATSAPP_SPAWN_GRACE_SECONDS - 1.0
+    )
+    monkeypatch.setattr(monitor, "WHATSAPP_PID_PATH", tmp_path / "missing.pid")
+
+    popen_mock = MagicMock()
+    monkeypatch.setattr(onboarding_app.subprocess, "Popen", popen_mock)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.post("/whatsapp/connect")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "started"}
+    assert popen_mock.call_count == 1
+
+    onboarding_app._whatsapp_spawn_started_at = None
