@@ -148,6 +148,15 @@ def test_outlook_connect_twice_returns_already_in_progress(monkeypatch):
 
     assert call_count["n"] == 1
 
+    # drain the background worker (it finishes shortly after release.set())
+    # so it can't land its "connected" update mid-flight during a later
+    # test, which otherwise shares this same module-level _outlook_state
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if client.get("/outlook/status").get_json()["state"] not in ("starting", "pending"):
+            break
+        time.sleep(0.01)
+
 
 def test_outlook_connect_handles_generic_exception(monkeypatch):
     def fake_get_access_token(on_device_code=None):
