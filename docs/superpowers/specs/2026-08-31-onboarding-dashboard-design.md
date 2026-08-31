@@ -31,11 +31,29 @@ dashboard for setup and a separate cron job for health.
   `scripts/monitor.py` already does (imported, not reimplemented) and
   firing the same ntfy alerts — regardless of whether anyone has the
   page open.
-- **Out of scope:** multi-tenant account isolation (this only serves
-  Mark's own internal accounts, confirmed with Eva — not a product other
-  customers self-serve into). Packaging LinkedIn's helper as a
-  zero-dependency single executable (ruled out — the dashboard will
-  instead tell the user to have Python and Node installed first).
+- **Out of scope, for now:** multiple accounts per channel. This isn't
+  "we don't track whose account received what" — the underlying
+  system has no multi-account concept at all today. Each channel has
+  exactly one credential file system-wide
+  (`.token_cache.bin`/`.storage_state.json`/`.auth_state/`), so
+  connecting an account through this dashboard **replaces** whatever
+  was connected before, it doesn't add a second one. Concretely: when
+  Mark connects his real Outlook, it overwrites Eva's test mailbox's
+  session, it doesn't sit alongside it. Confirmed with Eva this is
+  acceptable for now, but explicitly **not acceptable long-term** —
+  once more than one person on Mark's team needs their own accounts
+  connected simultaneously, this needs real multi-account support
+  (separate credential storage per account, messages attributed to
+  which account received them) as its own follow-up project, not an
+  afterthought bolted onto this dashboard.
+- **Out of scope:** multi-tenant account isolation across different
+  customer organizations (this only serves Mark's own internal team,
+  confirmed with Eva — not a SaaS product other companies self-serve
+  into; see the multi-account point above for the separate,
+  same-organization case that IS a real near-term need). Packaging
+  LinkedIn's helper as a zero-dependency single executable (ruled out —
+  the dashboard will instead tell the user to have Python and Node
+  installed first).
   **Where this runs, long-term.** This service needs to run
   continuously to do its job (the health-checking half doesn't work if
   the process isn't alive) — the same requirement WhatsApp's `ingest.js`
@@ -153,6 +171,12 @@ of truth.
   (`python -m adapters.linkedin.login` run by Eva) still works
   unchanged as a fallback — this dashboard doesn't replace that, it
   removes the need for it in the common case.
+- Clicking "Connect" on a panel that already shows a connected account:
+  given the single-account-per-channel limitation above, this silently
+  replaces the existing session — that's a real footgun (Mark connects
+  his own LinkedIn, not realizing it just disconnected someone else's),
+  so each panel confirms first ("This will disconnect `<current
+  account>` — continue?") rather than overwriting on the first click.
 
 ## Testing
 
