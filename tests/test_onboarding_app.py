@@ -2,14 +2,31 @@
 from __future__ import annotations
 
 import sys
+import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts" / "onboarding"))
 
 import app as onboarding_app
 import monitor
+
+
+@pytest.fixture(autouse=True)
+def _reset_outlook_state():
+    # _outlook_state is a module-level global shared by every test in this
+    # file (the Flask app doesn't scope it per-instance), so a background
+    # worker thread left over from one test's fake device-code flow can
+    # otherwise mutate state a later test just reset — reset it before
+    # each test to keep them independent.
+    with onboarding_app._outlook_lock:
+        onboarding_app._outlook_state.clear()
+        onboarding_app._outlook_state["phase"] = "not_connected"
+    yield
 
 
 def test_status_route_returns_all_three_channels(monkeypatch):
@@ -77,9 +94,83 @@ def test_outlook_connect_then_status_shows_pending_code(monkeypatch):
     assert resp.status_code == 200
 
     import time as _time
-    _time.sleep(0.01)  # let the background thread reach on_device_code
-    status_resp = client.get("/outlook/status")
-    body = status_resp.get_json()
+
+    deadline = _time.monotonic() + 2.0
+    body = None
+    while _time.monotonic() < deadline:
+        status_resp = client.get("/outlook/status")
+        body = status_resp.get_json()
+        if body["state"] != "starting":
+            break
+        _time.sleep(0.01)
+
     assert body["state"] == "pending"
     assert body["code"] == "ABC-123"
     assert body["url"] == "https://microsoft.com/devicelogin"
+
+    # drain the background worker (it finishes ~0.05s after on_device_code)
+    # so it can't land its "connected" update mid-flight during a later
+    # test, which otherwise shares this same module-level _outlook_state
+    deadline = _time.monotonic() + 2.0
+    while _time.monotonic() < deadline:
+        if client.get("/outlook/status").get_json()["state"] != "pending":
+            break
+        _time.sleep(0.01)
+
+
+def test_outlook_connect_twice_returns_already_in_progress(monkeypatch):
+    call_count = {"n": 0}
+    started = threading.Event()
+    release = threading.Event()
+
+    def fake_get_access_token(on_device_code=None):
+        call_count["n"] += 1
+        started.set()
+        release.wait(timeout=2)
+        return "tok"
+
+    monkeypatch.setattr(onboarding_app.outlook_client, "get_access_token", fake_get_access_token)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp1 = client.post("/outlook/connect")
+    assert resp1.status_code == 200
+    assert resp1.get_json() == {"status": "started"}
+
+    assert started.wait(timeout=2)
+
+    resp2 = client.post("/outlook/connect")
+    assert resp2.status_code == 200
+    assert resp2.get_json() == {"status": "already_in_progress"}
+
+    release.set()
+
+    assert call_count["n"] == 1
+
+
+def test_outlook_connect_handles_generic_exception(monkeypatch):
+    def fake_get_access_token(on_device_code=None):
+        # a plain Exception, deliberately not RuntimeError, to prove the
+        # worker's except clause isn't narrowly scoped to RuntimeError
+        raise Exception("boom: something unexpected happened")  # noqa: TRY002
+
+    monkeypatch.setattr(onboarding_app.outlook_client, "get_access_token", fake_get_access_token)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.post("/outlook/connect")
+    assert resp.status_code == 200
+
+    deadline = time.monotonic() + 2.0
+    body = None
+    while time.monotonic() < deadline:
+        status_resp = client.get("/outlook/status")
+        body = status_resp.get_json()
+        if body["state"] != "starting":
+            break
+        time.sleep(0.01)
+
+    assert body["state"] == "error"
+    assert body["error"]

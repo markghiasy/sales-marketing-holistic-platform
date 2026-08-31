@@ -56,7 +56,9 @@ def _outlook_connect_worker() -> None:
         outlook_client.get_access_token(on_device_code=on_device_code)
         with _outlook_lock:
             _outlook_state.update(phase="connected")
-    except RuntimeError as e:
+    except Exception as e:  # noqa: BLE001 — any failure must reach a terminal
+        # phase so /outlook/status can report it instead of hanging at
+        # "starting" forever; only the message distinguishes "expired".
         with _outlook_lock:
             state = "expired" if "expired" in str(e) else "error"
             _outlook_state.update(phase=state, error=str(e))
@@ -95,6 +97,8 @@ def create_app(testing: bool = False) -> Flask:
     @flask_app.post("/outlook/connect")
     def outlook_connect():
         with _outlook_lock:
+            if _outlook_state.get("phase") in ("starting", "pending"):
+                return jsonify({"status": "already_in_progress"})
             _outlook_state.clear()
             _outlook_state["phase"] = "starting"
         threading.Thread(target=_outlook_connect_worker, daemon=True).start()
@@ -106,6 +110,7 @@ def create_app(testing: bool = False) -> Flask:
             phase = _outlook_state.get("phase", "not_connected")
             code = _outlook_state.get("code")
             url = _outlook_state.get("url")
+            error = _outlook_state.get("error")
 
         if phase in ("not_connected", "starting"):
             return jsonify({"state": phase, "code": None, "url": None, "mailbox": None})
@@ -114,7 +119,9 @@ def create_app(testing: bool = False) -> Flask:
         if phase == "connected":
             mailbox = os.environ.get("OUTLOOK_MAILBOX")
             return jsonify({"state": "connected", "code": None, "url": None, "mailbox": mailbox})
-        return jsonify({"state": phase, "code": None, "url": None, "mailbox": None})
+        # terminal failure states ("error", "expired") carry the message
+        # from _outlook_connect_worker's except clause
+        return jsonify({"state": phase, "code": None, "url": None, "mailbox": None, "error": error})
 
     if not testing:
         thread = threading.Thread(target=_background_monitor_loop, daemon=True)
