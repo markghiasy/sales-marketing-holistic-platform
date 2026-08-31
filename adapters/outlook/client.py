@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Callable
 
 import requests
 
@@ -86,9 +87,15 @@ def _refresh_access_token(refresh_token: str) -> dict | None:
     return result
 
 
-def get_access_token() -> str:
+def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> str:
     """Cached token if valid; silently refreshed if expired but a refresh
-    token is on hand; device-code prompt only as a last resort."""
+    token is on hand; device-code prompt only as a last resort.
+
+    on_device_code, if given, is called with the raw device-code flow dict
+    right after it's obtained, before the blocking poll loop starts — lets
+    a caller (the onboarding dashboard) surface the code/URL to a page
+    instead of only the console `print` below.
+    """
     cached = None
     if TOKEN_CACHE_PATH.exists():
         cached = json.loads(TOKEN_CACHE_PATH.read_text())
@@ -111,6 +118,8 @@ def get_access_token() -> str:
     resp.raise_for_status()
     flow = resp.json()
     print(flow["message"])
+    if on_device_code is not None:
+        on_device_code(flow)
 
     # Polling by hand, straight against the token endpoint (RFC 8628) —
     # msal's own device-flow helpers (both initiate_device_flow +
