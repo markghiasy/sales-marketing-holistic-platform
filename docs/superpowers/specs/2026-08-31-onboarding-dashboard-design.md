@@ -83,6 +83,14 @@ Flask app (scripts/onboarding/app.py)      │ whether the browser is open
 
 ## Components
 
+**UI copy tone.** The end users of this page are Mark's own team, up to
+and including people above him — this reads as an internal ops tool to
+Eva, but to them it's a product interface. Wording throughout should be
+written from their side of the screen ("for your convenience, connect
+each account below") rather than leaking the internal reason it exists
+("so you don't need to ask Eva every time") — same principle as any
+other user-facing product copy, not an ops-tool afterthought.
+
 **Outlook panel.** "Connect" triggers the existing device-code flow
 server-side; the code and verification URL are returned to the page
 immediately and shown as plain text (the user reads it, opens
