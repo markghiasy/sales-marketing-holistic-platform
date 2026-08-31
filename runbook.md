@@ -532,6 +532,37 @@ now leaves evidence: `.connection_log.txt` and the `uncaughtException`/
 `unhandledRejection` handlers exist specifically so the next one doesn't
 end the same way.
 
+## Ops dashboard (onboarding + live status)
+
+Replaces the standalone `CommsPlatformMonitor` scheduled task —
+`scripts/onboarding/app.py` runs the same checks in a background thread
+every 15 minutes, whether or not the page is open, alongside a web page
+for connecting Outlook/LinkedIn/WhatsApp without the CLI. See
+`docs/superpowers/specs/2026-08-31-onboarding-dashboard-design.md` for
+the full design.
+
+Run: `python scripts/onboarding/app.py`, then open `http://localhost:5000`.
+
+`ONBOARDING_BASE_URL` (default `http://localhost:5000`) is embedded into
+the downloaded LinkedIn helper script so it knows where to upload the
+session back to — set this to wherever the dashboard is actually
+reachable if it's not on the same machine as whoever's connecting
+LinkedIn.
+
+**Where this runs long-term is still an open decision** (see the design
+doc's Scope section) — it needs to stay running the same way WhatsApp's
+`ingest.js` connector does, so a laptop that gets closed takes the whole
+thing down with it.
+
+**Retiring the old monitor task (deployment step):** once this is deployed
+and confirmed running in production, retire the old `CommsPlatformMonitor`
+scheduled task with:
+```powershell
+Unregister-ScheduledTask -TaskName "CommsPlatformMonitor" -Confirm:$false
+```
+This should only be done after verifying the dashboard's background thread
+is actively running and alerting as expected.
+
 ## Known gaps at the end of Block A
 
 - **Quoted-reply-chain stripping — done 2026-08-28.** `_strip_html` in
