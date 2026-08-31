@@ -364,3 +364,46 @@ def test_linkedin_upload_session_accepts_valid_token_then_rejects_reuse(tmp_path
         headers={"X-Onboarding-Token": token},
     )
     assert reuse_resp.status_code == 403
+
+
+def test_linkedin_upload_session_concurrent_requests_only_one_accepted(tmp_path, monkeypatch):
+    # proves _linkedin_tokens_lock actually serializes the check-then-mark
+    # sequence in linkedin_upload_session(): fire many genuinely concurrent
+    # requests with the same valid, single-use token (synchronized with a
+    # Barrier so they all reach the endpoint at once) and assert exactly one
+    # is accepted. Without the lock around the "token not yet used?" check
+    # and the "mark it used" write, multiple threads can each observe the
+    # token as unused before any of them marks it, so more than one would
+    # be accepted here — this test would be flaky-but-sometimes-failing on
+    # the old code and is deterministic on the fixed code, where the lock
+    # makes the check-and-mark atomic.
+    storage_path = tmp_path / ".storage_state.json"
+    monkeypatch.setattr(onboarding_app.linkedin_login, "STORAGE_STATE_PATH", storage_path)
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    download_resp = client.get("/linkedin/download-helper")
+    body = download_resp.get_data(as_text=True)
+    token = body.split('TOKEN = "')[1].split('"')[0]
+
+    n_threads = 25
+    barrier = threading.Barrier(n_threads)
+    results = [None] * n_threads
+
+    def worker(i):
+        barrier.wait(timeout=5)
+        resp = client.post(
+            "/linkedin/upload-session",
+            json={"cookies": ["fake"]},
+            headers={"X-Onboarding-Token": token},
+        )
+        results[i] = resp.status_code
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert results.count(200) == 1
+    assert results.count(403) == n_threads - 1

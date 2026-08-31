@@ -52,7 +52,17 @@ _outlook_lock = threading.Lock()
 # /linkedin/upload-session (single-use, in-memory only — same rationale as
 # _outlook_state above: this app has no other persistent store, and a
 # restart simply means "download the helper again").
+#
+# _linkedin_tokens_lock guards this dict the same way _outlook_lock guards
+# _outlook_state above: linkedin_upload_session() does a check-then-mark
+# (is the token unused? then mark it used) that must be atomic, or two
+# near-simultaneous uploads with the same valid token could both pass the
+# check before either marks it used — the same race Tasks 4/5 closed for
+# _outlook_state/_whatsapp spawn tracking. Flask's dev server is
+# single-threaded today, but nothing enforces that, so this is guarded
+# regardless.
 _linkedin_tokens: dict[str, bool] = {}
+_linkedin_tokens_lock = threading.Lock()
 _LINKEDIN_HELPER_TEMPLATE_PATH = Path(__file__).parent / "linkedin_helper.py.tmpl"
 
 
@@ -256,7 +266,8 @@ def create_app(testing: bool = False) -> Flask:
     @flask_app.get("/linkedin/download-helper")
     def linkedin_download_helper():
         token = secrets.token_urlsafe(24)
-        _linkedin_tokens[token] = False
+        with _linkedin_tokens_lock:
+            _linkedin_tokens[token] = False
         template = _LINKEDIN_HELPER_TEMPLATE_PATH.read_text()
         script = template.replace("{{BASE_URL}}", _onboarding_base_url()).replace("{{TOKEN}}", token)
         return flask_app.response_class(
@@ -268,9 +279,10 @@ def create_app(testing: bool = False) -> Flask:
     @flask_app.post("/linkedin/upload-session")
     def linkedin_upload_session():
         token = request.headers.get("X-Onboarding-Token", "")
-        if token not in _linkedin_tokens or _linkedin_tokens[token]:
-            return jsonify({"error": "invalid or already-used token"}), 403
-        _linkedin_tokens[token] = True
+        with _linkedin_tokens_lock:
+            if token not in _linkedin_tokens or _linkedin_tokens[token]:
+                return jsonify({"error": "invalid or already-used token"}), 403
+            _linkedin_tokens[token] = True
         linkedin_login.STORAGE_STATE_PATH.write_text(json.dumps(request.get_json()))
         return jsonify({"status": "connected"})
 
