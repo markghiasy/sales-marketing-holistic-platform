@@ -183,6 +183,60 @@ def _check_whatsapp_liveness() -> ChannelStatus:
     )
 
 
+_WHATSAPP_AUTO_HEAL_TIMEOUT_SECONDS = 30.0
+_WHATSAPP_AUTO_HEAL_POLL_INTERVAL_SECONDS = 2.0
+
+
+def _start_whatsapp_detached() -> None:
+    """Launches ingest.js independent of this process's own lifetime —
+    monitor.py exits after every check, so a plain subprocess.Popen
+    whose child dies with its parent would defeat the point of
+    auto-healing. DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP is the
+    Windows-specific way to fully decouple the child from its launcher —
+    the same problem hit repeatedly running ingest.js as a Claude Code
+    background task: the child died whenever the launching session did,
+    even though nobody asked for that."""
+    subprocess.Popen(
+        ["node", "ingest.js"],
+        cwd=str(_WHATSAPP_DIR),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
+
+
+def _attempt_whatsapp_auto_heal(status: ChannelStatus) -> tuple[ChannelStatus, bool]:
+    """Only called for DOWN/ZOMBIE — the two states where "restart the
+    process" is the actual, complete fix and needs no human. logged_out
+    and qr_pending are deliberately excluded: no amount of automation can
+    complete a WhatsApp QR pairing, that needs a real phone in a real
+    hand. Returns the post-attempt status and whether healing succeeded,
+    so the caller can pick the right alert (quiet success note vs. an
+    urgent "I tried and it's still broken" push)."""
+    if status.detail.startswith("ZOMBIE"):
+        pid_text = WHATSAPP_PID_PATH.read_text().strip() if WHATSAPP_PID_PATH.exists() else ""
+        if pid_text.isdigit():
+            subprocess.run(
+                ["taskkill", "/PID", pid_text, "/F"], capture_output=True, check=False
+            )
+
+    try:
+        _start_whatsapp_detached()
+    except OSError as e:
+        # e.g. node isn't on PATH — auto-heal genuinely can't proceed;
+        # report this as a failed heal rather than letting the whole
+        # monitor run crash over it
+        return ChannelStatus("whatsapp", False, f"auto-heal couldn't start node: {e}"), False
+
+    deadline = time.time() + _WHATSAPP_AUTO_HEAL_TIMEOUT_SECONDS
+    while time.time() < deadline:
+        time.sleep(_WHATSAPP_AUTO_HEAL_POLL_INTERVAL_SECONDS)
+        recheck = _check_whatsapp_liveness()
+        if recheck.healthy:
+            return recheck, True
+    return _check_whatsapp_liveness(), False
+
+
 def _load_alert_state() -> dict:
     if ALERT_STATE_PATH.exists():
         return json.loads(ALERT_STATE_PATH.read_text())
@@ -193,13 +247,19 @@ def _save_alert_state(state: dict) -> None:
     ALERT_STATE_PATH.write_text(json.dumps(state))
 
 
-def _send_alert(message: str) -> None:
+def _send_alert(message: str, priority: str = "high") -> None:
     """Console output always happens — that's the floor. ntfy.sh is the
     real destination, 2026-08-31: a push straight to phone + desktop, no
     account needed, just a topic name treated as a shared secret (anyone
     who knows it can read and post to it, so it's a long random string,
     not something guessable). A Slack-style webhook is also supported if
-    MONITOR_ALERT_WEBHOOK_URL is ever set, but nothing currently uses it."""
+    MONITOR_ALERT_WEBHOOK_URL is ever set, but nothing currently uses it.
+
+    priority — 2026-09-01, added for auto-heal reporting: a successful
+    self-heal is informational ("default"), a failed one is "urgent" so
+    it's visually distinct from routine alerts and from a heal that
+    quietly worked — the two outcomes need different reactions from a
+    human and shouldn't look the same on a phone lock screen."""
     print(f"ALERT: {message}", file=sys.stderr)
 
     ntfy_topic = os.environ.get("MONITOR_NTFY_TOPIC")
@@ -207,7 +267,7 @@ def _send_alert(message: str) -> None:
         req = urllib.request.Request(
             f"https://ntfy.sh/{ntfy_topic}",
             data=f"[pipe-health] {message}".encode(),
-            headers={"Title": "Comms Platform Alert", "Priority": "high"},
+            headers={"Title": "Comms Platform Alert", "Priority": priority},
             method="POST",
         )
         try:
@@ -252,16 +312,46 @@ def run() -> int:
     now = time.time()
     any_unhealthy = False
     for status in statuses:
+        # Auto-heal only applies to whatsapp's DOWN/ZOMBIE — the two
+        # states where restarting the process is the complete fix and
+        # needs no human. This runs before the healthy/unhealthy branch
+        # below so a successful heal reports OK like any other healthy
+        # check, not as a disguised failure.
+        heal_attempted = False
+        healed = False
+        if (
+            not status.healthy
+            and status.channel == "whatsapp"
+            and (status.detail.startswith("DOWN") or status.detail.startswith("ZOMBIE"))
+        ):
+            print(f"AUTO-HEAL attempting: {status.detail}")
+            heal_attempted = True
+            status, healed = _attempt_whatsapp_auto_heal(status)
+
         if status.healthy:
             print(f"OK   {status.channel}: {status.detail}")
             alert_state.pop(status.channel, None)  # recovered — reset cooldown
+            if healed:
+                # always report a successful self-heal, regardless of
+                # cooldown state — this is a one-off "it broke, I fixed
+                # it" note, not a repeated failure that needs suppressing
+                _send_alert(f"whatsapp auto-healed — {status.detail}", priority="default")
             continue
 
         any_unhealthy = True
         print(f"FAIL {status.channel}: {status.detail}")
         last_alerted = alert_state.get(status.channel, 0)
         if now - last_alerted > _ALERT_COOLDOWN_HOURS * 3600:
-            _send_alert(f"{status.channel} unhealthy — {status.detail}")
+            if heal_attempted:
+                # a self-heal was attempted and failed — escalate above
+                # the normal "high" priority so it's visually distinct
+                # from routine alerts on a phone lock screen
+                _send_alert(
+                    f"whatsapp unhealthy — auto-heal attempted and FAILED — {status.detail}",
+                    priority="urgent",
+                )
+            else:
+                _send_alert(f"{status.channel} unhealthy — {status.detail}")
             alert_state[status.channel] = now
 
     _save_alert_state(alert_state)
