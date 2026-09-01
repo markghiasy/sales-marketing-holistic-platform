@@ -14,6 +14,9 @@
     button { padding: 8px 16px; cursor: pointer; }
     img#qr { width: 240px; height: 240px; display: block; margin-top: 8px; }
     code.big { font-size: 1.4em; }
+    .health { font-size: 0.85em; color: #777; margin: 2px 0 8px; }
+    .health.unhealthy { color: #b1453c; }
+    .error-line { color: #b1453c; font-size: 0.9em; margin: 4px 0; display: none; }
   </style>
 </head>
 <body>
@@ -23,21 +26,27 @@
   <div class="panel" id="outlook-panel">
     <h2>Outlook</h2>
     <p class="state" id="outlook-state">Checking…</p>
+    <p class="health" id="outlook-health"></p>
     <div id="outlook-details"></div>
+    <p class="error-line" id="outlook-error"></p>
     <button id="outlook-connect">Connect Outlook</button>
   </div>
 
   <div class="panel" id="whatsapp-panel">
     <h2>WhatsApp</h2>
     <p class="state" id="whatsapp-state">Checking…</p>
+    <p class="health" id="whatsapp-health"></p>
     <div id="whatsapp-details"></div>
+    <p class="error-line" id="whatsapp-error"></p>
     <button id="whatsapp-connect">Connect WhatsApp</button>
   </div>
 
   <div class="panel" id="linkedin-panel">
     <h2>LinkedIn</h2>
     <p class="state" id="linkedin-state">Checking…</p>
+    <p class="health" id="linkedin-health"></p>
     <p>Requires Python installed on your computer — <a href="https://www.python.org/downloads/">get it here</a> if you don't have it.</p>
+    <p class="error-line" id="linkedin-error"></p>
     <button id="linkedin-connect">Download connection tool</button>
   </div>
 
@@ -54,22 +63,92 @@ function confirmIfConnected(currentStateText, accountLabel) {
   return true;
 }
 
+// Shows a short-lived, visible error near a panel instead of letting a
+// failed connect request go silently unnoticed. `channel` is the id
+// prefix used by that panel's "-error" element (e.g. "outlook").
+function showError(channel, message) {
+  const errorEl = document.getElementById(`${channel}-error`);
+  if (!errorEl) {
+    alert(message);
+    return;
+  }
+  errorEl.textContent = message;
+  errorEl.style.display = "block";
+}
+
+function clearError(channel) {
+  const errorEl = document.getElementById(`${channel}-error`);
+  if (errorEl) {
+    errorEl.style.display = "none";
+    errorEl.textContent = "";
+  }
+}
+
+// Performs a POST connect request, reads the JSON body (so errors don't
+// go silently discarded), and surfaces anything that isn't a clean
+// success via showError(). Returns the parsed body (or null on total
+// failure) in case a caller needs to react to a specific status value.
+async function postConnect(channel, url) {
+  clearError(channel);
+  let resp;
+  try {
+    resp = await fetch(url, { method: "POST" });
+  } catch (e) {
+    showError(channel, `Could not reach the server: ${e.message}`);
+    return null;
+  }
+  let body = null;
+  try {
+    body = await resp.json();
+  } catch (e) {
+    body = null;
+  }
+  if (!resp.ok) {
+    const detail = (body && (body.detail || body.error)) || `HTTP ${resp.status}`;
+    showError(channel, `Connect request failed: ${detail}`);
+    return body;
+  }
+  if (body && body.status === "error") {
+    showError(channel, body.detail || "Connect request failed.");
+  }
+  return body;
+}
+
+// Renders a channel's /status health line (staleness/heartbeat-based —
+// a different signal from the connect-flow state text above it) as a
+// small muted secondary line under the primary connect-state text.
+function renderHealth(channel, statusEntry) {
+  const healthEl = document.getElementById(`${channel}-health`);
+  if (!healthEl || !statusEntry) return;
+  healthEl.textContent = statusEntry.healthy
+    ? `Health: OK${statusEntry.detail ? ` — ${statusEntry.detail}` : ""}`
+    : `Health: ${statusEntry.detail || "unhealthy"}`;
+  healthEl.className = statusEntry.healthy ? "health" : "health unhealthy";
+}
+
 // --- Outlook ---
 document.getElementById("outlook-connect").addEventListener("click", async () => {
   const stateEl = document.getElementById("outlook-state");
   if (!confirmIfConnected(stateEl.textContent, "the connected Outlook account")) return;
-  await fetch("/outlook/connect", { method: "POST" });
+  await postConnect("outlook", "/outlook/connect");
 });
 
 async function refreshOutlook() {
   const data = await pollJSON("/outlook/status");
   const stateEl = document.getElementById("outlook-state");
   const detailsEl = document.getElementById("outlook-details");
+  const connectBtn = document.getElementById("outlook-connect");
   if (data.state === "connected") {
     stateEl.textContent = `Connected as ${data.mailbox}`;
     stateEl.className = "state connected";
     stateEl.title = "";
     detailsEl.textContent = "";
+    // Outlook has no real "disconnect and force a fresh login" capability
+    // — offering a Connect button here would only re-use the cached
+    // token (or, now, just report already_connected), which isn't what
+    // a confirm("This will disconnect...") dialog promises. Simplest
+    // honest fix: don't show a Connect button at all while connected.
+    connectBtn.style.display = "none";
   } else if (data.state === "pending" || data.state === "starting") {
     stateEl.textContent = "Waiting for you to sign in";
     stateEl.className = "state pending";
@@ -77,21 +156,25 @@ async function refreshOutlook() {
     detailsEl.innerHTML = data.code
       ? `Go to <a href="${data.url}" target="_blank">${data.url}</a> and enter code <code class="big">${data.code}</code>`
       : "Starting…";
+    connectBtn.style.display = "";
   } else if (data.state === "expired") {
     stateEl.textContent = "Code expired — click Connect Outlook to get a new one";
     stateEl.className = "state error";
     stateEl.title = "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   } else if (data.state === "error") {
     stateEl.textContent = "Something went wrong — click Connect Outlook to try again";
     stateEl.className = "state error";
     stateEl.title = data.error || "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   } else {
     stateEl.textContent = "Not connected yet";
     stateEl.className = "state";
     stateEl.title = "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   }
 }
 
@@ -99,47 +182,61 @@ async function refreshOutlook() {
 document.getElementById("whatsapp-connect").addEventListener("click", async () => {
   const stateEl = document.getElementById("whatsapp-state");
   if (!confirmIfConnected(stateEl.textContent, "the connected WhatsApp account")) return;
-  await fetch("/whatsapp/connect", { method: "POST" });
+  await postConnect("whatsapp", "/whatsapp/connect");
 });
 
 async function refreshWhatsapp() {
   const data = await pollJSON("/whatsapp/status");
   const stateEl = document.getElementById("whatsapp-state");
   const detailsEl = document.getElementById("whatsapp-details");
+  const connectBtn = document.getElementById("whatsapp-connect");
   if (data.state === "connected") {
     stateEl.textContent = "Connected" + (data.detail ? ` — ${data.detail}` : "");
     stateEl.className = "state connected";
     stateEl.title = "";
     detailsEl.innerHTML = "";
+    // Same rationale as Outlook above: confirming "disconnect" here just
+    // hits already_running server-side and does nothing real, so don't
+    // offer a Connect button (or its disconnect-promising confirm
+    // dialog) while already connected.
+    connectBtn.style.display = "none";
   } else if (data.state === "qr_pending") {
     stateEl.textContent = "Scan this with your phone's WhatsApp";
     stateEl.className = "state qr_pending";
     stateEl.title = "";
     detailsEl.innerHTML = `<img id="qr" src="/whatsapp/qr.png?t=${Date.now()}">`;
+    connectBtn.style.display = "";
   } else if (data.state === "reconnecting") {
     stateEl.textContent = "Reconnecting…";
     stateEl.className = "state pending";
     stateEl.title = data.detail || "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   } else if (data.state === "logged_out") {
     stateEl.textContent = "Your session needs to be reconnected — click Connect WhatsApp below and scan the new code.";
     stateEl.className = "state logged_out";
     stateEl.title = data.detail || "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   } else if (data.state === "crashed") {
     stateEl.textContent = "Something went wrong — click Connect WhatsApp below to try again.";
     stateEl.className = "state crashed";
     stateEl.title = data.detail || "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   } else {
     stateEl.textContent = "Not connected yet";
     stateEl.className = "state";
     stateEl.title = "";
     detailsEl.textContent = "";
+    connectBtn.style.display = "";
   }
 }
 
 // --- LinkedIn ---
+// LinkedIn genuinely does replace the stored session on re-upload, so its
+// confirm-before-download dialog stays — it accurately describes what
+// clicking through actually does.
 document.getElementById("linkedin-connect").addEventListener("click", async () => {
   const stateEl = document.getElementById("linkedin-state");
   if (!confirmIfConnected(stateEl.textContent, "the connected LinkedIn account")) return;
@@ -153,8 +250,20 @@ async function refreshLinkedin() {
   stateEl.className = data.connected ? "state connected" : "state";
 }
 
+async function refreshHealth() {
+  let data;
+  try {
+    data = await pollJSON("/status");
+  } catch (e) {
+    return;
+  }
+  renderHealth("outlook", data.outlook);
+  renderHealth("whatsapp", data.whatsapp);
+  renderHealth("linkedin", data.linkedin);
+}
+
 async function refreshAll() {
-  await Promise.all([refreshOutlook(), refreshWhatsapp(), refreshLinkedin()]);
+  await Promise.all([refreshOutlook(), refreshWhatsapp(), refreshLinkedin(), refreshHealth()]);
 }
 
 refreshAll();
