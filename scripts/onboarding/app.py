@@ -58,9 +58,10 @@ _outlook_lock = threading.Lock()
 # (is the token unused? then mark it used) that must be atomic, or two
 # near-simultaneous uploads with the same valid token could both pass the
 # check before either marks it used — the same race Tasks 4/5 closed for
-# _outlook_state/_whatsapp spawn tracking. Flask's dev server is
-# single-threaded today, but nothing enforces that, so this is guarded
-# regardless.
+# _outlook_state/_whatsapp spawn tracking. Flask's dev server (app.run())
+# defaults to threaded=True as of Flask 3.x, so concurrent requests really
+# do run on separate threads here — this lock is load-bearing, not merely
+# defensive.
 _linkedin_tokens: dict[str, bool] = {}
 _linkedin_tokens_lock = threading.Lock()
 _LINKEDIN_HELPER_TEMPLATE_PATH = Path(__file__).parent / "linkedin_helper.py.tmpl"
@@ -185,6 +186,17 @@ def create_app(testing: bool = False) -> Flask:
         with _outlook_lock:
             if _outlook_state.get("phase") in ("starting", "pending"):
                 return jsonify({"status": "already_in_progress"})
+            # nothing attempted yet this process lifetime (or a prior
+            # attempt already reached a terminal state) — before starting
+            # a brand-new device-code flow, check whether a still-valid
+            # token is already sitting on disk from a previous run of this
+            # app. _outlook_state is in-memory only and resets to
+            # not_connected on every restart, but the token cache survives
+            # restarts, so without this check a restart would force a
+            # needless re-login even though the mailbox is already
+            # connected.
+            if _outlook_state.get("phase", "not_connected") == "not_connected" and outlook_client.has_valid_cached_token():
+                return jsonify({"status": "already_connected"})
             _outlook_state.clear()
             _outlook_state["phase"] = "starting"
         threading.Thread(target=_outlook_connect_worker, daemon=True).start()
@@ -197,6 +209,15 @@ def create_app(testing: bool = False) -> Flask:
             code = _outlook_state.get("code")
             url = _outlook_state.get("url")
             error = _outlook_state.get("error")
+
+        if phase == "not_connected" and outlook_client.has_valid_cached_token():
+            # nothing attempted yet this process lifetime, but a valid
+            # token is already on disk from a previous run — report the
+            # same "connected" state a freshly-completed flow would,
+            # rather than "not connected" just because this process
+            # hasn't itself run the flow since it started.
+            mailbox = os.environ.get("OUTLOOK_MAILBOX")
+            return jsonify({"state": "connected", "code": None, "url": None, "mailbox": mailbox})
 
         if phase in ("not_connected", "starting"):
             return jsonify({"state": phase, "code": None, "url": None, "mailbox": None})

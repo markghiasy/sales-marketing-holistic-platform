@@ -87,6 +87,22 @@ def _refresh_access_token(refresh_token: str) -> dict | None:
     return result
 
 
+def has_valid_cached_token() -> bool:
+    """True if TOKEN_CACHE_PATH holds a token that get_access_token() would
+    return without needing a refresh or a fresh device-code login — i.e.
+    the same "cached and not yet expired" check get_access_token() does
+    internally, factored out so callers (the onboarding dashboard) can ask
+    "are we already connected?" without triggering any network call or
+    mutating the cache."""
+    if not TOKEN_CACHE_PATH.exists():
+        return False
+    try:
+        cached = json.loads(TOKEN_CACHE_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    return cached.get("scopes") == SCOPES and cached.get("expires_at", 0) > time.time() + 60
+
+
 def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> str:
     """Cached token if valid; silently refreshed if expired but a refresh
     token is on hand; device-code prompt only as a last resort.

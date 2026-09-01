@@ -186,6 +186,65 @@ def test_outlook_connect_handles_generic_exception(monkeypatch):
     assert body["error"]
 
 
+def test_outlook_status_reports_connected_from_disk_cache_after_restart(monkeypatch, tmp_path):
+    # simulates the process restarting: _outlook_state is back to its
+    # in-memory default (not_connected, reset by the autouse fixture), but
+    # a valid, unexpired token is already sitting in the on-disk cache from
+    # a previous run — /outlook/status must derive "connected" from that
+    # instead of reporting not_connected just because nothing has happened
+    # in *this* process yet.
+    cache_path = tmp_path / ".token_cache.bin"
+    cache_path.write_text(json.dumps({
+        "access_token": "cached-tok",
+        "scopes": onboarding_app.outlook_client.SCOPES,
+        "expires_at": time.time() + 3600,
+    }))
+    monkeypatch.setattr(onboarding_app.outlook_client, "TOKEN_CACHE_PATH", cache_path)
+    monkeypatch.setenv("OUTLOOK_MAILBOX", "eva@example.com")
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.get("/outlook/status")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["state"] == "connected"
+    assert body["mailbox"] == "eva@example.com"
+
+
+def test_outlook_connect_with_valid_cached_token_returns_already_connected_without_starting_flow(monkeypatch, tmp_path):
+    # same "process just restarted, valid token already on disk" scenario
+    # as above, but hitting /outlook/connect: it must short-circuit to
+    # already_connected and must NOT kick off a brand-new device-code
+    # flow — proven here by asserting get_access_token() (the thing that
+    # would start a real device-code login) is never called.
+    cache_path = tmp_path / ".token_cache.bin"
+    cache_path.write_text(json.dumps({
+        "access_token": "cached-tok",
+        "scopes": onboarding_app.outlook_client.SCOPES,
+        "expires_at": time.time() + 3600,
+    }))
+    monkeypatch.setattr(onboarding_app.outlook_client, "TOKEN_CACHE_PATH", cache_path)
+
+    get_access_token_mock = MagicMock(side_effect=AssertionError("should not be called"))
+    monkeypatch.setattr(onboarding_app.outlook_client, "get_access_token", get_access_token_mock)
+
+    flask_app = onboarding_app.create_app(testing=True)
+    client = flask_app.test_client()
+
+    resp = client.post("/outlook/connect")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"status": "already_connected"}
+
+    # give any (incorrectly) spawned worker thread a moment to run, so a
+    # regression that does start the flow would actually invoke the mock
+    # before this test asserts on it
+    time.sleep(0.05)
+    get_access_token_mock.assert_not_called()
+
+
 def test_whatsapp_status_reads_status_json(monkeypatch, tmp_path):
     status_path = tmp_path / ".status.json"
     status_path.write_text(json.dumps({"state": "connected", "detail": "connected as 123", "at": "now"}))
