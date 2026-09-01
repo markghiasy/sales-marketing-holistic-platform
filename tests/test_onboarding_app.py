@@ -18,7 +18,7 @@ import monitor
 
 
 @pytest.fixture(autouse=True)
-def _reset_outlook_state():
+def _reset_outlook_state(monkeypatch, tmp_path):
     # _outlook_state is a module-level global shared by every test in this
     # file (the Flask app doesn't scope it per-instance), so a background
     # worker thread left over from one test's fake device-code flow can
@@ -27,6 +27,18 @@ def _reset_outlook_state():
     with onboarding_app._outlook_lock:
         onboarding_app._outlook_state.clear()
         onboarding_app._outlook_state["phase"] = "not_connected"
+
+    # /outlook/connect and /outlook/status both check the on-disk token
+    # cache (has_valid_cached_token) before falling back to in-memory
+    # state — found the hard way: this whole file's suite passed cleanly
+    # against a fresh checkout, then failed against the real repo, where
+    # .token_cache.bin genuinely held a valid token from actual Outlook
+    # use. Point every test at an empty tmp path by default so "not
+    # connected yet" tests don't silently depend on whatever real cache
+    # happens to exist on the machine running the suite; tests that
+    # specifically exercise the cached-token path set their own valid
+    # cache file and can override this via their own monkeypatch call.
+    monkeypatch.setattr(onboarding_app.outlook_client, "TOKEN_CACHE_PATH", tmp_path / ".token_cache.bin")
     yield
 
 
