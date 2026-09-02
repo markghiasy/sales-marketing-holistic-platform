@@ -13,7 +13,7 @@ zero network traffic, before a browser ever opens.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 STATE_PATH = Path(__file__).parent / ".session_count.json"
@@ -24,7 +24,18 @@ class SessionLimitExceeded(RuntimeError):
 
 
 def _today() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%d")
+    # Local time, not UTC — found 2026-09-03: the 4 scheduled sync slots
+    # (~9am/12:30/3:30/7pm) are chosen on local clock time, but UTC
+    # midnight falls mid-morning in AEST/AEDT (UTC+10/+11). That mismatch
+    # meant the local morning slot could land in the same UTC calendar
+    # day as the previous evening's slots, silently pre-spending the
+    # next morning's quota before local midnight ever happened. Local
+    # time keeps the quota's "today" aligned with the schedule it's
+    # actually budgeting for.
+    return datetime.now().strftime("%Y-%m-%d")  # noqa: DTZ005 — deliberately naive/local,
+    # see the comment above: this must match the machine's own wall
+    # clock (what Task Scheduler's local-time triggers fire against),
+    # not a fixed timezone
 
 
 def _load_state() -> dict:
@@ -47,8 +58,8 @@ def record_session(max_sessions_per_day: int) -> None:
     if state["count"] >= max_sessions_per_day:
         raise SessionLimitExceeded(
             f"LinkedIn daily session limit reached ({state['count']}/{max_sessions_per_day} "
-            f"today, UTC). Locked by Mark per §13 rule 2 — no loosening without his "
-            f"written sign-off. Resets at UTC midnight."
+            f"today, local time). Locked by Mark per §13 rule 2 — no loosening without his "
+            f"written sign-off. Resets at local midnight."
         )
 
     state["count"] += 1

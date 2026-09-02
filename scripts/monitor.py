@@ -3,16 +3,25 @@ monitoring). Supersedes pipe_health.py's single "is anything reachable"
 check with a per-channel staleness check and an actual alert, meant to run
 on a schedule rather than by hand.
 
-Two different kinds of signal, deliberately not conflated:
+Three different kinds of signal, deliberately not conflated:
 
-- Outlook / LinkedIn run as one-shot sync scripts, not long-lived
-  processes — for these, "healthy" can only mean "the last sync ran
-  recently and it wrote something," approximated here by
-  max(message.ingested_at) per channel. This is a real limitation, not
-  a placeholder: as of this script, nothing schedules those syncs to run
-  automatically yet, so in practice this will report STALE once the
-  threshold passes, correctly, because nothing scheduled a new run — see
-  "Known gap" below.
+- Outlook runs as a one-shot sync script on a 10-minute schedule — for
+  this, "healthy" still means "the last sync ran recently and wrote
+  something," approximated by max(message.ingested_at). That's a
+  reasonable proxy at a 10-minute cadence: a real mailbox is rarely
+  quiet that long, so staleness is a fair stand-in for "did the last
+  run work."
+- LinkedIn runs 4x/day — quiet for a day or two is completely normal
+  (nobody messaged), so the same message-staleness proxy used for
+  Outlook produces false alarms here. Found 2026-09-02: a real,
+  successfully-completed sync reported "unhealthy" for over two days
+  straight because the inbox genuinely had no new messages, not because
+  anything was broken. Fixed by checking a different signal entirely:
+  adapters/linkedin/sync.py now writes its own .sync_status.json after
+  every run (ok/capped/error, with the real detail), independent of
+  whether anything new was found — this checks "did the mechanism run"
+  the same way the WhatsApp heartbeat checks "is the connector alive,"
+  instead of asking a question a quiet inbox can't answer.
 - WhatsApp is a long-running connector (ingest.js). Message staleness
   alone can't tell "the socket died" apart from "nobody happened to
   message for a while" — a quiet chat looks identical to a dead
@@ -53,16 +62,23 @@ _WHATSAPP_DIR = Path(__file__).parent.parent / "adapters" / "whatsapp" / "node"
 WHATSAPP_HEARTBEAT_PATH = _WHATSAPP_DIR / ".heartbeat.txt"
 WHATSAPP_STATUS_PATH = _WHATSAPP_DIR / ".status.json"
 WHATSAPP_PID_PATH = _WHATSAPP_DIR / ".pid"
+_LINKEDIN_DIR = Path(__file__).parent.parent / "adapters" / "linkedin"
+LINKEDIN_SYNC_STATUS_PATH = _LINKEDIN_DIR / ".sync_status.json"
 ALERT_STATE_PATH = Path(__file__).parent / ".monitor_alert_state.json"
 
 # Staleness thresholds per channel, in hours — overridable via env so
-# these can tighten once real sync scheduling exists without a code
-# change. Current defaults are deliberately generous (matched to how
-# infrequently these currently run by hand) rather than a tuned SLA —
-# tightening these is part of "Known gap" below, not done yet.
+# these can tighten without a code change. Outlook's is generous
+# relative to its 10-minute cadence on purpose (catches "scheduling
+# stopped entirely," not "one run was a few minutes late"). LinkedIn's
+# is no longer message-based (see module docstring) — this is instead
+# "how long since the sync mechanism itself last ran," sized to the
+# 4x/day schedule (~9am/12:30/3:30/7pm): the longest normal gap is the
+# overnight one (~7pm to ~9am, ~14h), so 20h gives room for jitter and
+# one missed slot before flagging without also masking a genuinely
+# stopped scheduler for days.
 _DEFAULT_THRESHOLDS_HOURS = {
     "outlook": 24.0,
-    "linkedin": 48.0,
+    "linkedin_run": 20.0,
 }
 _WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES = 5.0  # ingest.js heartbeats every 60s
 # don't re-send the same alert every run — only once per this many hours
@@ -97,6 +113,55 @@ def _check_message_staleness(cur, channel: str) -> ChannelStatus:
             f"(last: {last_ingest.isoformat()})",
         )
     return ChannelStatus(channel, True, f"last ingest {age_hours:.1f}h ago")
+
+
+def _check_linkedin_liveness() -> ChannelStatus:
+    """Checks whether the sync mechanism itself last ran successfully —
+    a separate question from whether any new messages showed up, which
+    a quiet LinkedIn inbox can go days without answering "yes" to even
+    when nothing is broken. See adapters/linkedin/sync.py's
+    _write_status for the write side of this file."""
+    if not LINKEDIN_SYNC_STATUS_PATH.exists():
+        return ChannelStatus(
+            "linkedin", False,
+            "never run yet, or ran before this status file existed — "
+            "run it: `python -m adapters.linkedin.sync`",
+        )
+
+    try:
+        status = json.loads(LINKEDIN_SYNC_STATUS_PATH.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        return ChannelStatus("linkedin", False, f"couldn't read sync status: {e}")
+
+    state = status.get("state")
+    detail = status.get("detail", "no detail")
+    at_text = status.get("at")
+
+    if state == "error":
+        return ChannelStatus("linkedin", False, f"last sync failed — {detail}")
+
+    if not at_text:
+        return ChannelStatus("linkedin", False, "sync status file missing a timestamp")
+
+    try:
+        at = datetime.fromisoformat(at_text)
+    except ValueError:
+        return ChannelStatus("linkedin", False, f"sync status has an unparseable timestamp: {at_text}")
+
+    age_hours = (datetime.now(UTC) - at).total_seconds() / 3600
+    threshold = _threshold_hours("linkedin_run")
+    if age_hours > threshold:
+        return ChannelStatus(
+            "linkedin", False,
+            f"last successful run {age_hours:.1f}h ago, threshold is "
+            f"{threshold:.0f}h — the schedule may have stopped firing "
+            f"(last: {detail})",
+        )
+
+    # "capped" (hit the daily session limit) is still a healthy sign —
+    # the mechanism ran, made a deliberate choice, and exited clean; see
+    # sync.py's own comment on why that's not a failure.
+    return ChannelStatus("linkedin", True, f"last run {age_hours:.1f}h ago — {detail}")
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -288,10 +353,8 @@ def _send_alert(message: str, priority: str = "high") -> None:
 
 
 def check_all(cur) -> list[ChannelStatus]:
-    statuses: list[ChannelStatus] = [
-        _check_message_staleness(cur, "outlook"),
-        _check_message_staleness(cur, "linkedin"),
-    ]
+    statuses: list[ChannelStatus] = [_check_message_staleness(cur, "outlook")]
+    statuses.append(_check_linkedin_liveness())
     statuses.append(_check_whatsapp_liveness())
     return statuses
 

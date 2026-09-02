@@ -23,6 +23,7 @@ adapters/whatsapp/node/.pid
 adapters/whatsapp/node/.connection_log.txt
 scripts/.monitor_alert_state.json
 adapters/linkedin/.session_count.json
+adapters/linkedin/.sync_status.json
 adapters/whatsapp/node/*.log
 adapters/whatsapp/node/qr.png
 __pycache__/
