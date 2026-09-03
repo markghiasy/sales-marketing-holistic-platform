@@ -40,8 +40,8 @@ everything is worse than one that resolves half and tells you honestly
 which half it wasn't sure about." The same standard applies to
 knowledge-graph facts: a wrong "reports to" guess is exactly the kind
 of error this project has already built a correction mechanism for
-elsewhere (see `action`'s `verdict` column) — facts get the same
-treatment, not a lighter one just because they're new.
+elsewhere (see `action`'s human-judgement fields) — facts get the same
+kind of correction path, not a lighter one just because they're new.
 
 ## Scope
 
@@ -247,12 +247,13 @@ deliberation.
 
 ## Safety checks that apply across every identity rule
 
-Three ideas taken from an externally-sourced architecture proposal
-Eva reviewed and largely declined (it also proposed Splink probabilistic
-matching, a separate evidence-graph system, and Neo4j — all declined;
-see "The Neo4j question" above and the Splink note below). These three
-are genuinely cheap and apply across every rule, so they're specified
-once here rather than repeated per rule:
+These safeguards started as ideas taken from an externally-sourced
+architecture proposal Eva reviewed and largely declined (it also
+proposed Splink probabilistic matching, a separate evidence-graph
+system, and Neo4j — all declined; see "The Neo4j question" above and
+the Splink note below), plus one more (#5) added after a later review
+pass. All are genuinely cheap and apply across every rule, so they're
+specified once here rather than repeated per rule:
 
 **1. Shared/generic identifiers never auto-merge.** An exact match on a
 role address (`support@`, `info@`, `admin@`, `sales@`, `team@`,
@@ -342,26 +343,53 @@ recording the concrete evidence in human-readable form:
 
 The new `fact` table (Phase 1 schema, populated by Phase 1's
 structured-source facts immediately and by Phase 2's extraction later)
-follows the same provenance pattern this project already uses for
-`action`/`outreach` — `confidence`, `model`, `prompt_version`,
-`verdict`, `verdict_at` — because a wrong extracted fact needs the same
-correction path a wrong extracted task already has, not a new one:
+follows the same provenance spirit this project already uses for
+`action`/`outreach` — a wrong extracted fact needs the same correction
+path a wrong extracted task already has, not a new one — but its own
+fields, not a copy-paste of `action`'s column names (see "Provenance
+field names" below for why `verdict`/`verdict_at` specifically don't
+carry over):
+
+**The subject is an identity, not a person — fixed 2026-09-03, a real
+gap.** Phase 1's structured facts come directly from
+`linkedin_connection`, which is read *before* identity resolution has
+necessarily run against that row — a freshly-ingested LinkedIn identity
+sitting at `person_id = NULL` has nothing valid for a bare
+`subject_person_id` to reference. `fact.subject_identity_id` (always
+set, references `identity`) is the real subject; the person it belongs
+to, once known, is `coalesce(identity.person_id, identity.id)` — the
+exact same pattern §10's own graph views already use for precisely this
+reason, so a fact attached to an unresolved identity today
+automatically reads as attached to the right person the moment that
+identity resolves, with no separate "materialise the fact" step needed:
 
 ```
 fact
-  id, subject_person_id, fact_type
+  id, subject_identity_id, fact_type
   object_text                      -- fallback for object values with no canonical entity yet
-  object_person_id                 -- set when the object is also a resolved person (e.g. reports_to)
+  object_identity_id               -- set when the object is also an identity (e.g. reports_to)
   object_org_id                    -- set when the object is an organisation (e.g. works_at)
   confidence, source, source_message_id
   status                -- 'pending' | 'confirmed' | 'rejected', same states as link_candidate
   reason                -- human-readable evidence, same spirit as link_candidate.reason
   model, prompt_version  -- null for Phase 1's structured-source facts, populated once Phase 2 exists
-  extracted_at
+  extracted_at, reviewed_at  -- reviewed_at null while pending, set when a human confirms/rejects
 
 organization
   id, canonical_name
 ```
+
+**Provenance field names, clarified 2026-09-03.** `fact` does not
+reuse `action`'s exact `verdict`/`verdict_at` columns, on reflection —
+`action` needs both because it tracks two independent things (a
+workflow `status` like open/closed, separate from the human's
+correctness judgement). `fact` and `link_candidate` don't have that
+second dimension: `status` (`pending`/`confirmed`/`rejected`) already
+*is* the human's judgement, there's no separate workflow state to track
+alongside it. `extracted_at` (when the model or structured source
+produced it) and `reviewed_at` (when a human acted on it, null while
+pending) are the two timestamps that actually matter here — simpler
+than carrying over a field pair this table has no use for.
 
 **Canonical organisations, not free text.** Added after review:
 `fact.object_text` alone would let "Acme Inc" and "Acme" (both real
@@ -550,8 +578,12 @@ must not be merged:
   instead, asserting the opposite: "Acme Inc" and "Acme" *do* land as
   the same `organization` row.
 
-A passing implementation is one where these all stay unmerged, not one
-that resolves the most identities.
+A passing implementation keeps every adversarial identity case above
+unmerged, and handles the organisation normalisation cases exactly as
+specified — the "Acme Inc"/"Acme" pair collapsing into one row is a
+pass, not a failure; it's the un-normalisable pair (Commonwealth
+Bank/CBA) that must stay separate. Not "resolves the most identities,"
+either way.
 
 After Phase 1's automatic rules are built, run `python -m
 adapters.resolution.run` against this project's real (if currently
