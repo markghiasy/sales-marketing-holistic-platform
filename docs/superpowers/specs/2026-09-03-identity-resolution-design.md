@@ -194,13 +194,25 @@ directly — see "Facts require provenance" below.
 noise parser already states the policy this should follow: "classifying
 a thread that closed in 2019 costs real money and tells us nothing...
 run tier 3 only on recent mail and forward." Phase 2 extraction applies
-the same rule — only threads not yet processed (tracked via a new
-`extraction_run` table keyed on thread id, so re-running the pipeline
-never re-bills for a thread already looked at), and only recent/active
-threads, not the full historical backfill. One call per thread, not
-per message, matching §11's own reasoning for why task extraction runs
-at thread level ("a commitment usually spans a few messages, and the
-thread is the unit that carries enough context").
+the same rule — only recent/active threads, not the full historical
+backfill.
+
+Tracked via a new `extraction_run` table keyed on thread id, storing
+`last_extracted_message_id` (or the count of messages seen at
+extraction time) rather than a bare "done" flag — **corrected after
+review**: a flat processed/not-processed marker would permanently skip
+a thread the moment it's extracted once, silently missing every fact in
+whatever gets said in that thread afterward, which for an ongoing
+relationship is most of the useful content. Re-extraction triggers
+whenever a thread's current message count (or latest message id)
+differs from what's recorded, matching §11's own precedent for action
+extraction: "re-runs when a thread gains a message." Never re-bills for
+a thread with no new messages since its last run.
+
+One call per thread, not per message, matching §11's own reasoning for
+why task extraction runs at thread level ("a commitment usually spans
+a few messages, and the thread is the unit that carries enough
+context").
 
 **Closed vocabulary, not open-ended extraction.** The model's output is
 constrained to a fixed, small set of fact types — not free-form
@@ -277,6 +289,21 @@ over the store, not a separate system" framing:
   different handles* under one person where that's implausible (e.g.
   two distinct active LinkedIn profile URLs) — queued, not applied.
 
+**5. Contradictory display names block auto-merge, even on an
+"automatic" rule.** Added after review: exact-identifier matching
+alone doesn't catch a *recycled* identifier — the same phone number
+belonging to a different real person now than whoever's name is on the
+old contact record. There's no reliable timestamp signal to detect
+reassignment directly, but a cheap, real check exists: if both sides of
+a would-be automatic merge have a name-like `display_name` and those
+names are clearly different people (not a formatting difference, an
+actually different name), that contradicts the identifier match and the
+merge is queued for review instead of applied. This is a genuine gap
+this design didn't originally close — an exact match with no name
+signal at all (nothing to contradict) still merges automatically, same
+as before; this only stops a match that has an *available and
+conflicting* name.
+
 **No Splink.** It's a real, capable tool for probabilistic record
 linkage, but it earns its complexity at a scale (tens of thousands to
 millions of records with no shared key) this project doesn't have —
@@ -286,6 +313,19 @@ trustworthy than the explicit rules above, while being much harder to
 explain to Mark than "this rule matched because X."
 
 ## Evidence provenance on every candidate and fact
+
+**"Automatic" means no approval required, not no record kept.**
+Corrected after review: the original draft had Rules 1-3 write
+`identity.person_id` directly with no `link_candidate` row at all,
+reasoning that an exact match is unambiguous. That loses the audit
+trail — every merge, automatic or not, should be inspectable later.
+Every rule, including the automatic ones, now writes a `link_candidate`
+row; automatic rules set `status = 'confirmed'` immediately (no human
+action needed to reach that state) while Rules 4-5 set `status =
+'pending'`. Both cases apply the merge to `identity.person_id` the same
+way, at the moment `status` becomes `'confirmed'` — automatically for
+Rules 1-3 (subject to safety check 5 above), only on human confirmation
+for Rules 4-5.
 
 `link_candidate` currently records `method` (which rule fired) but not
 *what the rule actually saw*. This build adds a `reason` column (text)
@@ -309,13 +349,38 @@ correction path a wrong extracted task already has, not a new one:
 
 ```
 fact
-  id, subject_person_id, fact_type, object_text, object_person_id (null unless the object is also a person)
+  id, subject_person_id, fact_type
+  object_text                      -- fallback for object values with no canonical entity yet
+  object_person_id                 -- set when the object is also a resolved person (e.g. reports_to)
+  object_org_id                    -- set when the object is an organisation (e.g. works_at)
   confidence, source, source_message_id
   status                -- 'pending' | 'confirmed' | 'rejected', same states as link_candidate
   reason                -- human-readable evidence, same spirit as link_candidate.reason
   model, prompt_version  -- null for Phase 1's structured-source facts, populated once Phase 2 exists
   extracted_at
+
+organization
+  id, canonical_name
 ```
+
+**Canonical organisations, not free text.** Added after review:
+`fact.object_text` alone would let "Acme Inc" and "Acme" (both real
+variants an actual `linkedin_connection.company` value might contain)
+become two different, disconnected facts about the same company —
+undermining the point of having a graph at all. Phase 1 adds a small
+`organization` table and dedupes into it by exact normalised name only
+(lowercase, trimmed, common suffix stripped — "Inc"/"Inc."/"Ltd" etc.)
+— deliberately *not* attempting fuzzy variant matching
+("Commonwealth Bank" / "CBA" being the same entity is a real, hard
+problem, and guessing at it wrongly creates exactly the kind of false
+merge §8 warns about, just for organisations instead of people). Two
+spellings that don't normalise to the same string stay two separate
+`organization` rows for now — a human can be given a way to merge
+`organization` rows later if this turns out to matter in practice, but
+it's not this build's problem to solve preemptively. No `project`
+table in Phase 1 — nothing in Phase 1's scope produces project-related
+facts (that's Phase 2, from message content), so it's added when Phase
+2 actually needs it, not speculatively now.
 
 This is also what makes both the naming and the fact decisions
 explainable to Mark later, which §15's delegation explicitly requires.
@@ -346,21 +411,40 @@ real-data limitation above).
 Scans `message.body_text` for phone-number-shaped substrings in
 messages sent by each Outlook identity (own outbound mail only —
 scanning inbound mail risks picking up someone else's number quoted in
-a reply chain), checks each candidate number against WhatsApp
-identities' handles after the same digits-only normalisation
-`graph_contact.phones[]` uses. Writes a `link_candidate` with a high
-`score` (distinct band from Rule 5's) and `method =
-'email_signature_phone'` — queued, not auto-applied, exactly matching
-§8's own wording.
+a reply chain). Two layers of defence against that risk, not one:
+`body_text` already has quoted-reply chains stripped at ingest per §6's
+envelope contract (`adapters/outlook/sync.py`'s `_strip_html`) — real,
+but not perfect (measured earlier at 423/425 messages, not 425/425).
+Added after review as a second layer: restrict the scan to the last
+few lines of `body_text` (where a signature block actually lives), not
+the whole message — cheap, and catches what stripping alone might
+miss, since a stray quoted number buried mid-body won't be in that
+window even if the quote marker itself wasn't detected. Checks each
+candidate number against WhatsApp identities' handles after the same
+digits-only normalisation `graph_contact.phones[]` uses. Writes a
+`link_candidate` with a high `score` (distinct band from Rule 5's) and
+`method = 'email_signature_phone'` — queued, not auto-applied, exactly
+matching §8's own wording.
 
 **Rule 5 — LinkedIn name + organisation correlation (queued, low
 score in Phase 1, quality-improved in Phase 2).** Phase 1: plain
 string-similarity comparison of `linkedin_connection.first_name`/
 `last_name`/`company` against Outlook and WhatsApp identities'
-`display_name`. Phase 2: the same comparison, but scored with model
-assistance for nickname/company-variant handling — still always
-queued, never automatic, at either phase. `method =
-'linkedin_name_company'`, score always below Rule 4's band.
+`display_name`. **Where the "organisation" side of the comparison
+comes from, clarified after review:** Outlook/WhatsApp identities carry
+no structured company field at all in Phase 1 — `identity.display_name`
+is just a name. So for most pairs, Rule 5 in Phase 1 is really a
+*name*-similarity rule; organisation correlation only strengthens a
+candidate when company evidence happens to also be available for the
+non-LinkedIn side — concretely, if Rule 4's signature scan (or a
+future signature-scan extension) also captured a company name from the
+same signature block. Company evidence is optional in Phase 1, not a
+requirement to produce a candidate — a name-only match still queues,
+just at a lower score than a name+company match would. Phase 2: the
+same comparison, but scored with model assistance for nickname/
+company-variant handling — still always queued, never automatic, at
+either phase. `method = 'linkedin_name_company'`, score always below
+Rule 4's band.
 
 **Rule 6 — everything else.** Not code — the natural result of nothing
 above matching. `identity.person_id` stays null, which the schema and
@@ -412,10 +496,10 @@ one page, both candidate types, not two separate review surfaces:
 
 ## Data flow
 
-No new tables in Phase 1 beyond `fact` (which exists from Phase 1 to
-carry the structured-source facts, ready for Phase 2 to populate
-further) — plus two added columns (`person.preferred_name`,
-`link_candidate.reason`), in one migration,
+Phase 1 adds two new tables (`fact`, `organization` — both exist from
+Phase 1 to carry the structured-source facts, ready for Phase 2 to
+populate further) and two added columns (`person.preferred_name`,
+`link_candidate.reason`), all in one migration,
 `db/migrations/0005_identity_resolution.sql`. Every Phase 1 rule reads
 from tables that already exist and are already populated by Block A's
 adapters (`identity`, `graph_contact`, `linkedin_connection`,
@@ -441,11 +525,17 @@ must not be merged:
 - Two different people with the same full name at the same company
 - Two different people sharing a corporate role address
 - Two different people sharing an office switchboard number
-- A recycled phone number now belonging to someone else
+- A recycled phone number now belonging to someone else, where the
+  contact record's name and the WhatsApp identity's display name
+  visibly disagree — must queue for review (safety check 5), not
+  auto-merge
 - Two similarly-named LinkedIn profiles at the same company
 - One weak bridge connecting two otherwise-distinct clusters
 - Transitive over-merge: A matches B, B matches C, but A and C are
   demonstrably different people — the merge must not chain through
+- Two `organization` rows for genuine spelling variants of the same
+  real company (e.g. "Acme Inc" vs "Acme") — must stay two separate
+  rows, not silently merged by a fuzzy match that isn't there
 
 A passing implementation is one where these all stay unmerged, not one
 that resolves the most identities.
