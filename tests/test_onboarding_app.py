@@ -494,3 +494,160 @@ def test_linkedin_upload_session_concurrent_requests_only_one_accepted(tmp_path,
 
     assert results.count(200) == 1
     assert results.count(403) == n_threads - 1
+
+
+import uuid as _uuid
+
+# same local Postgres URL tests/conftest.py's db_conn fixture uses,
+# deliberately hardcoded there (not read from .env) because .env's
+# DATABASE_URL points at the real hosted Supabase project — this file's
+# resolution routes each open their OWN fresh connection via
+# _get_status_cursor(), which reads os.environ["DATABASE_URL"] directly.
+# Without redirecting that env var for the duration of these tests, every
+# route call below would silently connect to and mutate the real
+# production database instead of the local db_conn fixture's Postgres,
+# while the test's own seeded rows (via db_conn) would sit in a
+# completely separate database the route never sees. Caught by hand-
+# tracing this exact mismatch before dispatch — not a hypothetical.
+_RESOLUTION_TEST_DATABASE_URL = "postgresql://comms:comms@localhost:5432/comms"
+
+
+class TestResolutionReviewQueue:
+    @pytest.fixture(autouse=True)
+    def _routes_use_local_db(self, monkeypatch):
+        # autouse + defined inside the class, so this only wraps tests in
+        # THIS class — every other test in the file is unaffected.
+        monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
+
+    @pytest.fixture
+    def _created_identity_ids(self, db_conn):
+        # Every test in this class calls db_conn.commit() (needed so the
+        # route's OWN, separate connection — opened fresh by
+        # _get_status_cursor() — can see the rows this test just inserted;
+        # a plain uncommitted transaction is invisible across connections).
+        # That means, unlike every other test in this plan, these tests
+        # cannot rely on db_conn's own rollback-on-teardown for isolation
+        # — a committed row stays in the local test database forever.
+        # Found the hard way: rule_linkedin_correlation's tests
+        # (tests/test_resolution_linkedin_correlation.py) do an unscoped
+        # `select ... from identity where channel in ('outlook',
+        # 'whatsapp')` scan — exactly matching that rule's real production
+        # behaviour — so a leftover "Eric Tham"/"Eric" identity pair
+        # committed here and never cleaned up collides with that other
+        # file's fixed test names the next time the whole suite runs.
+        # Tests append the ids they create to this list; this fixture
+        # deletes them (and any link_candidate row referencing them) after
+        # the test body runs, restoring real isolation despite the commit.
+        ids: list = []
+        yield ids
+        if ids:
+            cur = db_conn.cursor()
+            cur.execute(
+                "delete from link_candidate where identity_a_id = any(%s) or identity_b_id = any(%s)",
+                (ids, ids),
+            )
+            cur.execute("delete from identity where id = any(%s)", (ids,))
+            db_conn.commit()
+
+    def test_get_resolution_candidates_json_lists_pending(self, db_conn, _created_identity_ids):
+        # the /resolution page itself renders client-side (fetches
+        # candidates.json via JS, see the template in Step 3) — assert on
+        # the JSON endpoint directly rather than the initial HTML, which
+        # never contains "test reason" verbatim
+        cur = db_conn.cursor()
+        a_email = f"a-{_uuid.uuid4().hex}@example.com"
+        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
+        cur.execute("insert into identity (channel, handle, display_name) values ('outlook', %s, 'Eric Tham') returning id", (a_email,))
+        a = cur.fetchone()[0]
+        cur.execute("insert into identity (channel, handle, display_name) values ('whatsapp', %s, 'Eric') returning id", (b_handle,))
+        b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason) values (%s, %s, 0.5, 'test', 'pending', 'test reason')",
+            (a, b),
+        )
+        db_conn.commit()
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.get("/resolution/candidates.json")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert any(item["reason"] == "test reason" for item in body)
+
+    def test_confirm_candidate_applies_the_merge(self, db_conn, _created_identity_ids):
+        cur = db_conn.cursor()
+        a_email = f"a-{_uuid.uuid4().hex}@example.com"
+        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
+        cur.execute("insert into identity (channel, handle, display_name) values ('outlook', %s, 'Eric Tham') returning id", (a_email,))
+        a = cur.fetchone()[0]
+        cur.execute("insert into identity (channel, handle, display_name) values ('whatsapp', %s, 'Eric') returning id", (b_handle,))
+        b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'pending') returning id",
+            (a, b),
+        )
+        candidate_id = cur.fetchone()[0]
+        db_conn.commit()
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.post(f"/resolution/candidate/{candidate_id}/confirm")
+
+        assert resp.status_code == 200
+        cur.execute("select person_id from identity where id = %s", (a,))
+        assert cur.fetchone()[0] is not None
+        cur.execute("select status from link_candidate where id = %s", (candidate_id,))
+        assert cur.fetchone()[0] == "confirmed"
+
+    def test_reject_candidate_does_not_merge(self, db_conn, _created_identity_ids):
+        cur = db_conn.cursor()
+        a_email = f"a-{_uuid.uuid4().hex}@example.com"
+        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
+        cur.execute("insert into identity (channel, handle) values ('outlook', %s) returning id", (a_email,))
+        a = cur.fetchone()[0]
+        cur.execute("insert into identity (channel, handle) values ('whatsapp', %s) returning id", (b_handle,))
+        b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'pending') returning id",
+            (a, b),
+        )
+        candidate_id = cur.fetchone()[0]
+        db_conn.commit()
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.post(f"/resolution/candidate/{candidate_id}/reject")
+
+        assert resp.status_code == 200
+        cur.execute("select status from link_candidate where id = %s", (candidate_id,))
+        assert cur.fetchone()[0] == "rejected"
+        cur.execute("select person_id from identity where id = %s", (a,))
+        assert cur.fetchone()[0] is None
+
+    def test_confirm_is_a_no_op_on_a_non_pending_candidate(self, db_conn, _created_identity_ids):
+        cur = db_conn.cursor()
+        a_email = f"a-{_uuid.uuid4().hex}@example.com"
+        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
+        cur.execute("insert into identity (channel, handle) values ('outlook', %s) returning id", (a_email,))
+        a = cur.fetchone()[0]
+        cur.execute("insert into identity (channel, handle) values ('whatsapp', %s) returning id", (b_handle,))
+        b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'rejected') returning id",
+            (a, b),
+        )
+        candidate_id = cur.fetchone()[0]
+        db_conn.commit()
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.post(f"/resolution/candidate/{candidate_id}/confirm")
+
+        assert resp.status_code == 200
+        cur.execute("select status from link_candidate where id = %s", (candidate_id,))
+        assert cur.fetchone()[0] == "rejected"  # unchanged, not flipped to confirmed

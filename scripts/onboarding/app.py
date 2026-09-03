@@ -23,6 +23,7 @@ from flask import Flask, jsonify, render_template, request, send_file
 
 from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
+from adapters.resolution.merge import apply_merge
 
 # scripts/ isn't an installed package (only adapters* is, see
 # pyproject.toml), so import its sibling monitor.py by path — same
@@ -326,6 +327,114 @@ def create_app(testing: bool = False) -> Flask:
     @flask_app.get("/linkedin/status")
     def linkedin_status():
         return jsonify({"connected": linkedin_login.STORAGE_STATE_PATH.exists()})
+
+    @flask_app.get("/resolution")
+    def resolution_page():
+        return render_template("resolution.html")
+
+    @flask_app.get("/resolution/candidates.json")
+    def resolution_candidates_json():
+        cur = _get_status_cursor()
+        try:
+            cur.execute(
+                """
+                select lc.id, lc.score, lc.method, lc.reason,
+                       ia.display_name, ia.channel, ib.display_name, ib.channel
+                from link_candidate lc
+                join identity ia on ia.id = lc.identity_a_id
+                join identity ib on ib.id = lc.identity_b_id
+                where lc.status = 'pending'
+                order by lc.score desc
+                """
+            )
+            rows = cur.fetchall()
+        finally:
+            cur.connection.close()
+        return jsonify([
+            {
+                "id": r[0], "score": r[1], "method": r[2], "reason": r[3],
+                "name_a": r[4] or "(no name)", "channel_a": r[5],
+                "name_b": r[6] or "(no name)", "channel_b": r[7],
+            }
+            for r in rows
+        ])
+
+    @flask_app.post("/resolution/candidate/<candidate_id>/confirm")
+    def resolution_candidate_confirm(candidate_id):
+        cur = _get_status_cursor()
+        try:
+            cur.execute("select identity_a_id, identity_b_id, status from link_candidate where id = %s", (candidate_id,))
+            row = cur.fetchone()
+            if row is None or row[2] != "pending":
+                return jsonify({"status": "no_op"})
+            identity_a_id, identity_b_id, _ = row
+            apply_merge(cur, str(identity_a_id), str(identity_b_id))
+            # link_candidate has no reviewed_at column (migration 0005 only
+            # added one to fact, not link_candidate — a real gap found
+            # while implementing this task; link_candidate.reason already
+            # carries the audit trail, so status alone is enough here)
+            cur.execute("update link_candidate set status = 'confirmed' where id = %s", (candidate_id,))
+            cur.connection.commit()
+        finally:
+            cur.connection.close()
+        return jsonify({"status": "confirmed"})
+
+    @flask_app.post("/resolution/candidate/<candidate_id>/reject")
+    def resolution_candidate_reject(candidate_id):
+        cur = _get_status_cursor()
+        try:
+            cur.execute("update link_candidate set status = 'rejected' where id = %s and status = 'pending'", (candidate_id,))
+            cur.connection.commit()
+        finally:
+            cur.connection.close()
+        return jsonify({"status": "rejected"})
+
+    @flask_app.get("/resolution/facts.json")
+    def resolution_facts_json():
+        cur = _get_status_cursor()
+        try:
+            cur.execute(
+                """
+                select f.id, f.fact_type, f.confidence, f.source, f.reason,
+                       i.display_name, f.object_text, o.canonical_name
+                from fact f
+                join identity i on i.id = f.subject_identity_id
+                left join organization o on o.id = f.object_org_id
+                where f.status = 'pending'
+                order by f.confidence desc
+                """
+            )
+            rows = cur.fetchall()
+        finally:
+            cur.connection.close()
+        return jsonify([
+            {
+                "id": r[0], "fact_type": r[1], "confidence": r[2], "source": r[3], "reason": r[4],
+                "subject_name": r[5] or "(no name)",
+                "object_display": r[7] or r[6] or "(unknown)",
+            }
+            for r in rows
+        ])
+
+    @flask_app.post("/resolution/fact/<fact_id>/confirm")
+    def resolution_fact_confirm(fact_id):
+        cur = _get_status_cursor()
+        try:
+            cur.execute("update fact set status = 'confirmed', reviewed_at = now() where id = %s and status = 'pending'", (fact_id,))
+            cur.connection.commit()
+        finally:
+            cur.connection.close()
+        return jsonify({"status": "confirmed"})
+
+    @flask_app.post("/resolution/fact/<fact_id>/reject")
+    def resolution_fact_reject(fact_id):
+        cur = _get_status_cursor()
+        try:
+            cur.execute("update fact set status = 'rejected', reviewed_at = now() where id = %s and status = 'pending'", (fact_id,))
+            cur.connection.commit()
+        finally:
+            cur.connection.close()
+        return jsonify({"status": "rejected"})
 
     if not testing:
         thread = threading.Thread(target=_background_monitor_loop, daemon=True)

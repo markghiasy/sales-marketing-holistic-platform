@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Comms Platform — Review Queue</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    .item { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .item .score { font-weight: 600; color: #a8791f; }
+    .item .reason { color: #4c525d; margin: 8px 0; }
+    .item .names { font-size: 1.1em; margin-bottom: 4px; }
+    button { padding: 6px 14px; margin-right: 8px; cursor: pointer; }
+    .confirm { background: #e2f1e8; border: 1px solid #2f8f5b; }
+    .reject { background: #f7e5e3; border: 1px solid #b1453c; }
+  </style>
+</head>
+<body>
+  <h1>Review queue</h1>
+  <p>Pending identity matches and knowledge-graph facts — confirm the ones that are right, reject the ones that aren't.</p>
+
+  <h2>Identity matches</h2>
+  <div id="candidates">Loading…</div>
+
+  <h2>Facts</h2>
+  <div id="facts">Loading…</div>
+
+<script>
+async function loadCandidates() {
+  const resp = await fetch("/resolution/candidates.json");
+  const items = await resp.json();
+  const container = document.getElementById("candidates");
+  if (items.length === 0) {
+    container.textContent = "Nothing pending.";
+    return;
+  }
+  container.innerHTML = items.map(item => `
+    <div class="item">
+      <div class="names">${item.name_a} (${item.channel_a}) &harr; ${item.name_b} (${item.channel_b})</div>
+      <div class="score">score ${item.score.toFixed(2)} — ${item.method}</div>
+      <div class="reason">${item.reason || ""}</div>
+      <button class="confirm" onclick="act('candidate', ${item.id}, 'confirm')">Confirm — same person</button>
+      <button class="reject" onclick="act('candidate', ${item.id}, 'reject')">Reject — different people</button>
+    </div>
+  `).join("");
+}
+
+async function loadFacts() {
+  const resp = await fetch("/resolution/facts.json");
+  const items = await resp.json();
+  const container = document.getElementById("facts");
+  if (items.length === 0) {
+    container.textContent = "Nothing pending.";
+    return;
+  }
+  container.innerHTML = items.map(item => `
+    <div class="item">
+      <div class="names">${item.subject_name} — ${item.fact_type} — ${item.object_display}</div>
+      <div class="score">confidence ${item.confidence.toFixed(2)} — ${item.source}</div>
+      <div class="reason">${item.reason || ""}</div>
+      <button class="confirm" onclick="act('fact', ${item.id}, 'confirm')">Confirm</button>
+      <button class="reject" onclick="act('fact', ${item.id}, 'reject')">Reject</button>
+    </div>
+  `).join("");
+}
+
+async function act(kind, id, action) {
+  await fetch(`/resolution/${kind}/${id}/${action}`, { method: "POST" });
+  loadCandidates();
+  loadFacts();
+}
+
+loadCandidates();
+loadFacts();
+</script>
+</body>
+</html>
