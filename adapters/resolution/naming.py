@@ -22,11 +22,14 @@ def _looks_name_like(candidate: str) -> bool:
 def select_names(display_names: list[str | None]) -> tuple[str, str | None]:
     """Returns (primary_name, preferred_name). display_names is every
     identity's display_name in the resulting merged cluster, in no
-    particular order. Raises ValueError if given no candidates at all
-    (a merge always involves at least one real identity)."""
+    particular order. Falls back to ("", None) when none of the
+    identities being merged have a display_name at all — real, ordinary
+    data (e.g. a WhatsApp contact with no push name bridged to an
+    Outlook identity with no display name) reaches this path, so it
+    must degrade gracefully rather than raise."""
     candidates = [d.strip() for d in display_names if d and d.strip()]
     if not candidates:
-        raise ValueError("select_names requires at least one non-empty candidate")
+        return "", None
 
     name_like = [c for c in candidates if _looks_name_like(c)]
 

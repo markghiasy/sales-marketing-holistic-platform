@@ -21,10 +21,10 @@ from adapters.outlook.contacts_sync import _normalise_phone
 from .merge import apply_merge
 from .safety import (
     MAX_CLUSTER_SIZE,
+    cluster_names_contradict,
     cluster_size_after_merge,
-    has_existing_rejected_candidate,
+    has_existing_candidate,
     is_generic_role_email,
-    names_contradict,
 )
 
 
@@ -49,7 +49,7 @@ def _propose_and_maybe_confirm(
     immediately. Returns True if a row was written (it always is, unless
     a rejected candidate for this pair already exists, in which case
     nothing is written and this returns False)."""
-    if has_existing_rejected_candidate(cur, identity_a_id, identity_b_id):
+    if has_existing_candidate(cur, identity_a_id, identity_b_id):
         return False
 
     full_reason = reason
@@ -58,7 +58,7 @@ def _propose_and_maybe_confirm(
     if blocked_reason:
         status = "pending"
         full_reason = f"{reason} — {blocked_reason}"
-    elif names_contradict(*_display_names(cur, identity_a_id, identity_b_id)):
+    elif cluster_names_contradict(cur, identity_a_id, identity_b_id):
         status = "pending"
         full_reason = f"{reason} — contradicting display names, needs review"
     elif cluster_size_after_merge(cur, identity_a_id, identity_b_id) > MAX_CLUSTER_SIZE:
@@ -77,14 +77,6 @@ def _propose_and_maybe_confirm(
         apply_merge(cur, identity_a_id, identity_b_id)
 
     return True
-
-
-def _display_names(cur, identity_a_id: str, identity_b_id: str) -> tuple[str | None, str | None]:
-    cur.execute("select display_name from identity where id = %s", (identity_a_id,))
-    name_a = cur.fetchone()[0]
-    cur.execute("select display_name from identity where id = %s", (identity_b_id,))
-    name_b = cur.fetchone()[0]
-    return name_a, name_b
 
 
 def rule_exact_email_match(cur) -> int:
@@ -107,7 +99,12 @@ def rule_exact_email_match(cur) -> int:
         # just a test gap)
         linkedin_display_name = f"{first_name or ''} {last_name or ''}".strip() or None
         cur.execute(
-            "insert into identity (channel, handle, display_name) values ('linkedin', %s, %s) on conflict (channel, handle) do nothing",
+            """
+            insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+            on conflict (channel, handle) do update
+                set display_name = excluded.display_name
+                where identity.display_name is null and excluded.display_name is not null
+            """,
             (connection_id, linkedin_display_name),
         )
         cur.execute(
@@ -136,6 +133,7 @@ def rule_contact_bridge(cur) -> int:
         if not emails or not phones:
             continue
         outlook_identity_id = None
+        matched_email = None
         for email in emails:
             cur.execute(
                 "select id from identity where channel = 'outlook' and handle = %s", (email.lower(),)
@@ -143,6 +141,7 @@ def rule_contact_bridge(cur) -> int:
             row = cur.fetchone()
             if row:
                 outlook_identity_id = str(row[0])
+                matched_email = email
                 break
         if outlook_identity_id is None:
             continue
@@ -157,9 +156,14 @@ def rule_contact_bridge(cur) -> int:
         if whatsapp_identity_id is None:
             continue
 
+        blocked_reason = (
+            f"generic role address {matched_email} — not merged automatically"
+            if is_generic_role_email(matched_email)
+            else None
+        )
         reason = f"contact record {contact_display_name or '(no name)'} links this email and phone"
         if _propose_and_maybe_confirm(
-            cur, outlook_identity_id, whatsapp_identity_id, "contact_bridge", reason, None
+            cur, outlook_identity_id, whatsapp_identity_id, "contact_bridge", reason, blocked_reason
         ):
             count += 1
     return count
@@ -199,7 +203,7 @@ def rule_signature_phone(cur) -> int:
             for wa_id, handle in cur.fetchall():
                 wa_digits = _whatsapp_phone_digits(handle)
                 if wa_digits == digits:
-                    if has_existing_rejected_candidate(cur, str(from_identity_id), str(wa_id)):
+                    if has_existing_candidate(cur, str(from_identity_id), str(wa_id)):
                         continue
                     reason = f"phone {digits} found in signature of message {message_id}, matches WhatsApp handle {wa_digits}"
                     cur.execute(

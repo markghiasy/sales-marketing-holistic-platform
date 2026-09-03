@@ -46,18 +46,20 @@ def cluster_size_after_merge(cur, identity_a_id: str, identity_b_id: str) -> int
     return len(identity_ids)
 
 
-def has_existing_rejected_candidate(cur, identity_a_id: str, identity_b_id: str) -> bool:
-    """True if a human has already rejected a link_candidate for this
-    exact pair (in either order) — re-running the rules must not
-    re-propose a pair a human already said no to."""
+def has_existing_candidate(cur, identity_a_id: str, identity_b_id: str) -> bool:
+    """True if ANY link_candidate row already exists for this pair (in
+    either order), regardless of status — makes re-running the rules
+    idempotent: a rule must not re-propose (and the automatic rules must
+    not re-apply) a pair that a previous run already decided, confirmed,
+    or already queued for review. Supersedes the narrower
+    "rejected-only" check this function used to be — a pending or
+    confirmed candidate from a prior run needs exactly the same
+    protection, or every rerun duplicates the review queue forever."""
     cur.execute(
         """
         select 1 from link_candidate
-        where status = 'rejected'
-          and (
-              (identity_a_id = %s and identity_b_id = %s)
-              or (identity_a_id = %s and identity_b_id = %s)
-          )
+        where (identity_a_id = %s and identity_b_id = %s)
+           or (identity_a_id = %s and identity_b_id = %s)
         limit 1
         """,
         (identity_a_id, identity_b_id, identity_b_id, identity_a_id),
@@ -82,3 +84,30 @@ def names_contradict(name_a: str | None, name_b: str | None) -> bool:
     if not tokens_a or not tokens_b:
         return False
     return tokens_a.isdisjoint(tokens_b)
+
+
+def _cluster_display_names(cur, identity_id: str) -> list[str | None]:
+    """Every display_name already in identity_id's cluster — the whole
+    person's worth of identities if it's already resolved, or just
+    itself if not."""
+    cur.execute("select person_id from identity where id = %s", (identity_id,))
+    (person_id,) = cur.fetchone()
+    if person_id is None:
+        cur.execute("select display_name from identity where id = %s", (identity_id,))
+        return [cur.fetchone()[0]]
+    cur.execute("select display_name from identity where person_id = %s", (person_id,))
+    return [row[0] for row in cur.fetchall()]
+
+
+def cluster_names_contradict(cur, identity_a_id: str, identity_b_id: str) -> bool:
+    """Like names_contradict, but checks every display_name already in
+    EITHER identity's existing cluster against every display_name in the
+    other's — not just the two identities named in this call. Without
+    this, a transitive merge (A-B already merged because B has no name
+    to contradict with, then B-C proposed) never catches a contradiction
+    between A and C, since C is only ever compared against B directly.
+    See docs/superpowers/plans/2026-09-03-identity-resolution-phase1.md,
+    Fix 12.3."""
+    names_a = _cluster_display_names(cur, identity_a_id)
+    names_b = _cluster_display_names(cur, identity_b_id)
+    return any(names_contradict(na, nb) for na in names_a for nb in names_b)

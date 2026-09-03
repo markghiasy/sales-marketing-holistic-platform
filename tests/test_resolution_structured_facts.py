@@ -79,3 +79,14 @@ class TestExtractStructuredFacts:
         cur.execute("select object_org_id from fact where fact_type = 'works_at'")
         org_ids = {row[0] for row in cur.fetchall()}
         assert len(org_ids) == 1
+
+
+class TestExtractStructuredFactsBackfill:
+    def test_sets_display_name_from_connection_name(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        conn_id = _make_linkedin_connection(cur, first_name="Eric", last_name="Tham", company="Acme")
+
+        extract_structured_facts(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
+        assert cur.fetchone()[0] == "Eric Tham"

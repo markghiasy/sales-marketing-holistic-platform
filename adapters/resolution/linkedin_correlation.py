@@ -7,7 +7,7 @@ with model assistance instead, still always queued.
 
 from __future__ import annotations
 
-from .safety import has_existing_rejected_candidate
+from .safety import has_existing_candidate
 
 _NAME_MATCH_SCORE = 0.5
 _NO_COMPANY_SCORE = 0.3
@@ -36,14 +36,19 @@ def rule_linkedin_correlation(cur) -> int:
                 continue
 
             cur.execute(
-                "insert into identity (channel, handle, display_name) values ('linkedin', %s, %s) on conflict (channel, handle) do nothing",
+                """
+                insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+                on conflict (channel, handle) do update
+                    set display_name = excluded.display_name
+                    where identity.display_name is null and excluded.display_name is not null
+                """,
                 (connection_id, f"{first_name} {last_name}".strip()),
             )
             cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (connection_id,))
             linkedin_identity_id = str(cur.fetchone()[0])
             other_identity_id = str(other_id)
 
-            if has_existing_rejected_candidate(cur, linkedin_identity_id, other_identity_id):
+            if has_existing_candidate(cur, linkedin_identity_id, other_identity_id):
                 continue
 
             score = _NAME_MATCH_SCORE if company else _NO_COMPANY_SCORE

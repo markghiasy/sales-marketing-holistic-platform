@@ -24,6 +24,12 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
         # silently stranding the rest of person_b's cluster under a now-
         # orphaned, stale-named person row
         cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
+        # person.merged_into is exactly this schema's soft-merge pointer
+        # (0001_init.sql: "reversible, never delete rows") — set it so
+        # the losing person row still forwards to the survivor, rather
+        # than leaving action/outreach rows (both FK to person) stranded
+        # at a person with no identities and no way to follow the merge
+        cur.execute("update person set merged_into = %s where id = %s", (person_a, person_b))
         person_id = person_a
     else:
         person_id = person_a or person_b

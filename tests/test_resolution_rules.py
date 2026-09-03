@@ -226,3 +226,103 @@ class TestRuleSignaturePhone:
         count = rule_signature_phone(cur)
 
         assert count == 0
+
+
+class TestRuleExactEmailMatchBackfill:
+    def test_backfills_display_name_on_a_previously_nameless_linkedin_identity(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        # simulate extract_structured_facts having created this identity
+        # first, with no display_name — handle must be the linkedin_connection's
+        # id (a profile URL), not the email, since that's what the rule
+        # actually keys the linkedin identity's handle on
+        conn_id = _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
+        cur.execute("insert into identity (channel, handle) values ('linkedin', %s)", (conn_id,))
+        outlook_id = _make_identity(cur, "outlook", email, "Sarah Chen")
+
+        rule_exact_email_match(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
+        assert cur.fetchone()[0] == "Eric Tham"
+        # and now that the name is backfilled, the contradiction check
+        # actually fires — the whole point of the fix
+        cur.execute("select person_id from identity where id = %s", (outlook_id,))
+        assert cur.fetchone()[0] is None
+
+    def test_does_not_overwrite_an_existing_display_name(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        conn_id = _make_linkedin_connection(cur, email=email, first_name="Different", last_name="Person")
+        cur.execute("insert into identity (channel, handle, display_name) values ('linkedin', %s, 'Original Name')", (conn_id,))
+        _make_identity(cur, "outlook", email, "Original Name")
+
+        rule_exact_email_match(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
+        assert cur.fetchone()[0] == "Original Name"
+
+
+class TestRuleContactBridgeGenericEmail:
+    def test_generic_role_email_does_not_auto_confirm_the_bridge(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        digits = "1580" + str(uuid.uuid4().int)[:6]
+        outlook_id = _make_identity(cur, "outlook", "support@acme.com", "Eric Tham")
+        wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
+        _make_graph_contact(cur, emails=["support@acme.com"], phones=[digits], display_name="Eric Tham")
+
+        rule_contact_bridge(cur)
+
+        cur.execute("select person_id from identity where id = %s", (outlook_id,))
+        assert cur.fetchone()[0] is None
+        cur.execute("select status from link_candidate where identity_a_id = %s or identity_b_id = %s", (wa_id, wa_id))
+        assert cur.fetchone()[0] == "pending"
+
+
+class TestTransitiveOverMerge:
+    def test_a_b_c_chain_does_not_over_merge_through_an_unnamed_bridge(self, db_conn: psycopg.Connection):
+        # the design doc's own adversarial case: A-B auto-confirms (B has
+        # no contradicting name to catch), then B-C is proposed — this
+        # must now be blocked, not silently auto-confirmed, because C's
+        # name contradicts A's, which is already in B's cluster
+        cur = db_conn.cursor()
+        email_a = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        _make_identity(cur, "outlook", email_a, "Eric Tham")
+        # this LinkedIn connection has no name at all (first_name/last_name
+        # both None), so rule_exact_email_match's own display_name
+        # backfill (fix 12.1) leaves the resulting identity nameless too
+        conn_a = _make_linkedin_connection(cur, email=email_a, first_name=None, last_name=None)
+        rule_exact_email_match(cur)
+        cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (conn_a,))
+        b = str(cur.fetchone()[0])
+
+        email_c = f"sarah-{uuid.uuid4().hex[:8]}@example.com"
+        c = _make_identity(cur, "outlook", email_c, "Sarah Chen")
+        _make_linkedin_connection(cur, email=email_c, first_name="Sarah", last_name="Chen")
+        # propose b (LinkedIn identity, now part of a's cluster) against
+        # a fresh contact bridge to c — reuse rule_exact_email_match's
+        # own mechanism isn't a fit here since b isn't a fresh LinkedIn
+        # connection; call the shared merge proposer directly instead,
+        # simulating whatever rule would have proposed b+c
+        from adapters.resolution.rules import _propose_and_maybe_confirm
+        _propose_and_maybe_confirm(cur, b, c, "test_transitive", "test", None)
+
+        cur.execute("select person_id from identity where id = %s", (c,))
+        assert cur.fetchone()[0] is None
+        cur.execute("select status from link_candidate where identity_a_id = %s or identity_b_id = %s", (c, c))
+        assert cur.fetchone()[0] == "pending"
+
+
+class TestRerunDoesNotDuplicate:
+    def test_running_rule_exact_email_match_twice_does_not_duplicate(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        _make_identity(cur, "outlook", email, "Eric Tham")
+        _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
+
+        first_count = rule_exact_email_match(cur)
+        second_count = rule_exact_email_match(cur)
+
+        assert first_count == 1
+        assert second_count == 0
+        cur.execute("select count(*) from link_candidate where method = 'exact_email'")
+        assert cur.fetchone()[0] == 1

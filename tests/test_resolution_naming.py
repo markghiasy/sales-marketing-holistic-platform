@@ -41,7 +41,16 @@ def test_ignores_none_and_empty_candidates():
     assert preferred == "Eric"
 
 
-def test_empty_input_raises():
-    import pytest
-    with pytest.raises(ValueError):
-        select_names([])
+def test_all_none_or_empty_candidates_falls_back_gracefully():
+    # a merge always involves at least one real identity row, but that
+    # identity may have no display_name at all (e.g. a WhatsApp contact
+    # with no push name) — apply_merge must not crash in that case
+    primary, preferred = select_names([None, "", None])
+    assert primary == ""
+    assert preferred is None
+
+
+def test_truly_empty_list_falls_back_gracefully():
+    primary, preferred = select_names([])
+    assert primary == ""
+    assert preferred is None

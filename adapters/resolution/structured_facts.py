@@ -10,21 +10,27 @@ from __future__ import annotations
 from .organizations import get_or_create_organization
 
 
-def _get_or_create_linkedin_identity(cur, connection_id: str) -> str:
+def _get_or_create_linkedin_identity(cur, connection_id: str, display_name: str | None) -> str:
     cur.execute(
-        "insert into identity (channel, handle) values ('linkedin', %s) on conflict (channel, handle) do nothing",
-        (connection_id,),
+        """
+        insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+        on conflict (channel, handle) do update
+            set display_name = excluded.display_name
+            where identity.display_name is null and excluded.display_name is not null
+        """,
+        (connection_id, display_name),
     )
     cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (connection_id,))
     return str(cur.fetchone()[0])
 
 
 def extract_structured_facts(cur) -> int:
-    cur.execute("select id, company, position from linkedin_connection")
+    cur.execute("select id, first_name, last_name, company, position from linkedin_connection")
     connections = cur.fetchall()
     count = 0
-    for connection_id, company, position in connections:
-        identity_id = _get_or_create_linkedin_identity(cur, connection_id)
+    for connection_id, first_name, last_name, company, position in connections:
+        display_name = f"{first_name or ''} {last_name or ''}".strip() or None
+        identity_id = _get_or_create_linkedin_identity(cur, connection_id, display_name)
 
         if company:
             org_id = get_or_create_organization(cur, company)

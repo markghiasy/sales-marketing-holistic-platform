@@ -7,8 +7,9 @@ import psycopg
 
 from adapters.resolution.safety import (
     MAX_CLUSTER_SIZE,
+    cluster_names_contradict,
     cluster_size_after_merge,
-    has_existing_rejected_candidate,
+    has_existing_candidate,
     is_generic_role_email,
     names_contradict,
 )
@@ -73,13 +74,13 @@ class TestClusterSizeAfterMerge:
         assert result > MAX_CLUSTER_SIZE
 
 
-class TestHasExistingRejectedCandidate:
-    def test_no_rejected_candidate_returns_false(self, db_conn: psycopg.Connection):
+class TestHasExistingCandidate:
+    def test_no_candidate_returns_false(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
 
-        assert has_existing_rejected_candidate(cur, a, b) is False
+        assert has_existing_candidate(cur, a, b) is False
 
     def test_rejected_candidate_found_regardless_of_pair_order(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
@@ -93,10 +94,14 @@ class TestHasExistingRejectedCandidate:
             (a, b),
         )
 
-        assert has_existing_rejected_candidate(cur, a, b) is True
-        assert has_existing_rejected_candidate(cur, b, a) is True  # order-independent
+        assert has_existing_candidate(cur, a, b) is True
+        assert has_existing_candidate(cur, b, a) is True  # order-independent
 
-    def test_pending_candidate_does_not_count_as_rejected(self, db_conn: psycopg.Connection):
+    def test_pending_candidate_also_counts_now(self, db_conn: psycopg.Connection):
+        # this is the behavior change from the old
+        # has_existing_rejected_candidate: a pending row from a previous
+        # run must also block re-proposing, or every rerun duplicates
+        # the human's review queue forever
         cur = db_conn.cursor()
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
@@ -108,7 +113,21 @@ class TestHasExistingRejectedCandidate:
             (a, b),
         )
 
-        assert has_existing_rejected_candidate(cur, a, b) is False
+        assert has_existing_candidate(cur, a, b) is True
+
+    def test_confirmed_candidate_also_counts(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
+        cur.execute(
+            """
+            insert into link_candidate (identity_a_id, identity_b_id, score, method, status)
+            values (%s, %s, 0.5, 'test', 'confirmed')
+            """,
+            (a, b),
+        )
+
+        assert has_existing_candidate(cur, a, b) is True
 
 
 class TestNamesContradict:
@@ -129,3 +148,33 @@ class TestNamesContradict:
     def test_missing_name_never_contradicts(self):
         assert names_contradict(None, "Eric Tham") is False
         assert names_contradict(None, None) is False
+
+
+class TestClusterNamesContradict:
+    def test_contradicts_transitively_through_an_unnamed_bridge(self, db_conn: psycopg.Connection):
+        # A ("Eric Tham") and B (unnamed) are already merged into one
+        # person; proposing B + C ("Sarah Chen") must still catch the
+        # A/C contradiction even though B itself has no name to compare
+        cur = db_conn.cursor()
+        person = _make_person(cur)
+        _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", None, person_id=person)
+        c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Sarah Chen")
+
+        assert cluster_names_contradict(cur, b, c) is True
+
+    def test_does_not_contradict_when_clusters_are_consistent(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        person = _make_person(cur)
+        _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", None, person_id=person)
+        c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham")
+
+        assert cluster_names_contradict(cur, b, c) is False
+
+    def test_single_unresolved_identities_fall_back_to_pairwise(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Sarah Chen")
+
+        assert cluster_names_contradict(cur, a, b) is True
