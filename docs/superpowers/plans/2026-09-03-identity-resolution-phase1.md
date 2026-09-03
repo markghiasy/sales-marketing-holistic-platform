@@ -939,7 +939,7 @@ class TestRuleContactBridge:
     def test_contact_with_both_email_and_phone_bridges_two_identities(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         outlook_id = _make_identity(cur, "outlook", email, "Eric Tham")
         wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
         _make_graph_contact(cur, emails=[email], phones=[digits], display_name="Eric Tham")
@@ -957,7 +957,7 @@ class TestRuleContactBridge:
     def test_group_chat_jids_are_skipped_as_the_phone_side(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         _make_identity(cur, "outlook", email, "Eric Tham")
         _make_identity(cur, "whatsapp", f"{digits}@g.us", "Some Group")
         _make_graph_contact(cur, emails=[email], phones=[digits], display_name="Eric Tham")
@@ -969,7 +969,7 @@ class TestRuleContactBridge:
     def test_recycled_number_with_contradicting_name_does_not_auto_confirm(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         outlook_id = _make_identity(cur, "outlook", email, "Eric Tham")
         wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Sarah Chen")
         _make_graph_contact(cur, emails=[email], phones=[digits], display_name="Eric Tham")
@@ -1015,8 +1015,6 @@ docs/superpowers/specs/2026-09-03-identity-resolution-design.md.
 """
 
 from __future__ import annotations
-
-from adapters.outlook.contacts_sync import _normalise_phone
 
 from .merge import apply_merge
 from .safety import (
@@ -1225,7 +1223,7 @@ class TestRuleSignaturePhone:
     def test_phone_in_signature_queues_a_high_score_candidate(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
         thread = _make_thread(cur)
         body = f"Thanks,\nEric Tham\nMobile: {digits}"
@@ -1246,7 +1244,7 @@ class TestRuleSignaturePhone:
     def test_inbound_messages_are_not_scanned(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
         thread = _make_thread(cur)
         _make_message(cur, thread, outlook_id, f"call me on {digits}", direction="inbound")
@@ -1258,7 +1256,7 @@ class TestRuleSignaturePhone:
     def test_number_outside_the_last_few_lines_is_not_matched(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
-        digits = "1580" + uuid.uuid4().hex[:6]
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
         _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
         thread = _make_thread(cur)
         padding = "\n".join(f"line {n}" for n in range(20))
@@ -1277,11 +1275,42 @@ Expected: FAIL with `ImportError: cannot import name 'rule_signature_phone'`
 
 - [ ] **Step 3: Write the implementation**
 
-Append to `adapters/resolution/rules.py`:
+First, add two new imports to the existing top-of-file import block in
+`adapters/resolution/rules.py` (do not append them at the bottom with the
+rest of this step's code — Python imports belong at the top of the file,
+and `ruff` will flag `E402` otherwise). The file currently starts:
 
 ```python
+from __future__ import annotations
+
+from .merge import apply_merge
+from .safety import (
+    ...
+)
+```
+
+Change it to:
+
+```python
+from __future__ import annotations
+
 import re
 
+from adapters.outlook.contacts_sync import _normalise_phone
+
+from .merge import apply_merge
+from .safety import (
+    ...
+)
+```
+
+(`re` and `_normalise_phone` are new; the `from .merge import` and
+`from .safety import (...)` lines are unchanged — leave them exactly as
+Task 6 wrote them.)
+
+Then append the following to the end of `adapters/resolution/rules.py`:
+
+```python
 _SIGNATURE_LINES = 6  # how many trailing lines of body_text count as
                        # "the signature block" for phone scanning
 _PHONE_CANDIDATE_RE = re.compile(r"[\d][\d\s().-]{6,}\d")
