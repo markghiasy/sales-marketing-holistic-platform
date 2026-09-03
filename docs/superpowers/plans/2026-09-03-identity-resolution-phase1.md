@@ -2401,17 +2401,23 @@ Append to `tests/test_resolution_rules.py`:
 ```python
 class TestRuleExactEmailMatchBackfill:
     def test_backfills_display_name_on_a_previously_nameless_linkedin_identity(self, db_conn: psycopg.Connection):
+        # the identity is looked up/created by handle = linkedin_connection.id
+        # (a profile URL), never by email — email is a separate, sparse
+        # column. Pre-inserting with handle=email (rather than
+        # handle=conn_id) would create a row the rule never touches, making
+        # this test pass vacuously — the mistake this exact test caught
+        # during Task 12's implementation before being fixed here.
         cur = db_conn.cursor()
         email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        conn_id = _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
         # simulate extract_structured_facts having created this identity
         # first, with no display_name
-        cur.execute("insert into identity (channel, handle) values ('linkedin', %s)", (email,))
+        cur.execute("insert into identity (channel, handle) values ('linkedin', %s)", (conn_id,))
         outlook_id = _make_identity(cur, "outlook", email, "Sarah Chen")
-        _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
 
         rule_exact_email_match(cur)
 
-        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (email,))
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
         assert cur.fetchone()[0] == "Eric Tham"
         # and now that the name is backfilled, the contradiction check
         # actually fires — the whole point of the fix
@@ -2421,13 +2427,13 @@ class TestRuleExactEmailMatchBackfill:
     def test_does_not_overwrite_an_existing_display_name(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
-        cur.execute("insert into identity (channel, handle, display_name) values ('linkedin', %s, 'Original Name')", (email,))
+        conn_id = _make_linkedin_connection(cur, email=email, first_name="Different", last_name="Person")
+        cur.execute("insert into identity (channel, handle, display_name) values ('linkedin', %s, 'Original Name')", (conn_id,))
         _make_identity(cur, "outlook", email, "Original Name")
-        _make_linkedin_connection(cur, email=email, first_name="Different", last_name="Person")
 
         rule_exact_email_match(cur)
 
-        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (email,))
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
         assert cur.fetchone()[0] == "Original Name"
 ```
 
