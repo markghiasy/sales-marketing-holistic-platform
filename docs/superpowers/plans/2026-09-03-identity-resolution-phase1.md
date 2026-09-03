@@ -2191,7 +2191,11 @@ Add inside `create_app`, after the LinkedIn routes:
                 return jsonify({"status": "no_op"})
             identity_a_id, identity_b_id, _ = row
             apply_merge(cur, str(identity_a_id), str(identity_b_id))
-            cur.execute("update link_candidate set status = 'confirmed', reviewed_at = now() where id = %s", (candidate_id,))
+            # link_candidate has no reviewed_at column (migration 0005 only
+            # added one to fact, not link_candidate — a real gap found
+            # while implementing this task; link_candidate.reason already
+            # carries the audit trail, so status alone is enough here)
+            cur.execute("update link_candidate set status = 'confirmed' where id = %s", (candidate_id,))
             cur.connection.commit()
         finally:
             cur.connection.close()
