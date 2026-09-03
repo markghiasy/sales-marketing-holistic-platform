@@ -24,6 +24,34 @@
   <div id="facts">Loading…</div>
 
 <script>
+// Candidate/fact fields (display names, reasons, LinkedIn/company names)
+// come from external, uncontrolled parties — anyone who messages or
+// connects with the account being onboarded controls their own display
+// name. Building these onto the page via innerHTML with unescaped
+// interpolation would be stored XSS: a WhatsApp/LinkedIn contact named
+// e.g. "<img src=x onerror=...>" would execute in the browser of
+// whoever opens this page. escapeHtml() below is applied to every
+// dynamic text value before it goes into the template string.
+// Unrelated but equally real: item.id is a UUID *string* (Flask
+// jsonify serialises it that way) — interpolating it unquoted into an
+// inline onclick="..." attribute produces invalid JS (UUIDs contain
+// hyphens, which JS parses as subtraction), silently breaking every
+// confirm/reject button. Using data-* attributes + addEventListener
+// instead of onclick sidesteps both problems at once: no HTML-context
+// interpolation of untrusted text, and no JS-context interpolation of
+// the id at all.
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value ?? "";
+  return div.innerHTML;
+}
+
+function wireActions(container) {
+  container.querySelectorAll("button[data-kind]").forEach(btn => {
+    btn.addEventListener("click", () => act(btn.dataset.kind, btn.dataset.id, btn.dataset.action));
+  });
+}
+
 async function loadCandidates() {
   const resp = await fetch("/resolution/candidates.json");
   const items = await resp.json();
@@ -34,13 +62,14 @@ async function loadCandidates() {
   }
   container.innerHTML = items.map(item => `
     <div class="item">
-      <div class="names">${item.name_a} (${item.channel_a}) &harr; ${item.name_b} (${item.channel_b})</div>
-      <div class="score">score ${item.score.toFixed(2)} — ${item.method}</div>
-      <div class="reason">${item.reason || ""}</div>
-      <button class="confirm" onclick="act('candidate', ${item.id}, 'confirm')">Confirm — same person</button>
-      <button class="reject" onclick="act('candidate', ${item.id}, 'reject')">Reject — different people</button>
+      <div class="names">${escapeHtml(item.name_a)} (${escapeHtml(item.channel_a)}) &harr; ${escapeHtml(item.name_b)} (${escapeHtml(item.channel_b)})</div>
+      <div class="score">score ${item.score.toFixed(2)} — ${escapeHtml(item.method)}</div>
+      <div class="reason">${escapeHtml(item.reason || "")}</div>
+      <button class="confirm" data-kind="candidate" data-id="${item.id}" data-action="confirm">Confirm — same person</button>
+      <button class="reject" data-kind="candidate" data-id="${item.id}" data-action="reject">Reject — different people</button>
     </div>
   `).join("");
+  wireActions(container);
 }
 
 async function loadFacts() {
@@ -53,13 +82,14 @@ async function loadFacts() {
   }
   container.innerHTML = items.map(item => `
     <div class="item">
-      <div class="names">${item.subject_name} — ${item.fact_type} — ${item.object_display}</div>
-      <div class="score">confidence ${item.confidence.toFixed(2)} — ${item.source}</div>
-      <div class="reason">${item.reason || ""}</div>
-      <button class="confirm" onclick="act('fact', ${item.id}, 'confirm')">Confirm</button>
-      <button class="reject" onclick="act('fact', ${item.id}, 'reject')">Reject</button>
+      <div class="names">${escapeHtml(item.subject_name)} — ${escapeHtml(item.fact_type)} — ${escapeHtml(item.object_display)}</div>
+      <div class="score">confidence ${item.confidence.toFixed(2)} — ${escapeHtml(item.source)}</div>
+      <div class="reason">${escapeHtml(item.reason || "")}</div>
+      <button class="confirm" data-kind="fact" data-id="${item.id}" data-action="confirm">Confirm</button>
+      <button class="reject" data-kind="fact" data-id="${item.id}" data-action="reject">Reject</button>
     </div>
   `).join("");
+  wireActions(container);
 }
 
 async function act(kind, id, action) {
