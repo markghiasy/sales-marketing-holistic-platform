@@ -444,13 +444,14 @@ from __future__ import annotations
 
 import re
 
-_NAME_LIKE_RE = re.compile(r"^[A-Za-z][A-Za-z'\-]*(\s+[A-Za-z][A-Za-z'\-]*)+$")
+_NAME_LIKE_RE = re.compile(r"^[A-Za-z][A-Za-z'\-]*(\s+[A-Za-z][A-Za-z'\-]*)*$")
 
 
 def _looks_name_like(candidate: str) -> bool:
-    """Multi-word, alphabetic tokens (allowing apostrophes/hyphens within
-    a token, e.g. "O'Brien") — a single word, anything with digits or
-    underscores, doesn't pass."""
+    """One or more alphabetic tokens separated by spaces (allowing
+    apostrophes/hyphens within a token, e.g. "O'Brien") — a single word
+    like "Eric" passes (it's a plausible short/preferred name), but
+    anything with digits or underscores, like a username, doesn't."""
     return bool(_NAME_LIKE_RE.match(candidate.strip()))
 
 
