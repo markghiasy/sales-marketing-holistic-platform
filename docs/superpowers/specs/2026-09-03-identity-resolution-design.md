@@ -390,22 +390,27 @@ explainable to Mark later, which §15's delegation explicitly requires.
 **Rule 1 — exact email match (automatic).** Compares Outlook
 `identity.handle` (already normalised: lowercased email) against
 `linkedin_connection.email` (populated on ~2.7% of rows — sparse by
-LinkedIn's own design, not a bug). A match sets `identity.person_id` on
-both the Outlook and the matching LinkedIn identity directly — no
-`link_candidate` row, because an exact email match is unambiguous by
-construction (this is what "automatic" means throughout this ladder).
+LinkedIn's own design, not a bug). **Fixed 2026-09-03 — this
+description previously contradicted the "Evidence provenance" section
+above after that section was corrected and this one wasn't updated to
+match; there is exactly one mechanism, this is it.** A match creates a
+`link_candidate` row (`method = 'exact_email'`, `reason` naming the
+matched address) with `status = 'confirmed'` immediately — no human
+action needed to reach that state — subject to safety check 5 (a
+contradicting display name blocks it). Reaching `status = 'confirmed'`
+is what applies the merge to `identity.person_id` on both sides; it
+just happens automatically here instead of waiting on a click.
 
-**Rule 2 — exact phone match (automatic).** Compares WhatsApp
-`identity.handle` (E.164 phone) against `graph_contact.phones[]`
-(digits-only, per that table's own normalisation). Zero matches
-expected today (see Known real-data limitation above).
-
-**Rule 3 — the contact bridge (automatic).** A single `graph_contact`
-row whose `emails[]` contains an Outlook identity's handle *and* whose
-`phones[]` contains a WhatsApp identity's handle resolves both
-identities to the same person immediately — direct, first-party
-evidence, no fuzzy matching. Zero matches expected today (see Known
-real-data limitation above).
+**Rule 2 — exact phone match (automatic)** and **Rule 3 — the contact
+bridge (automatic).** Same mechanism as Rule 1 — a `link_candidate` row
+auto-confirmed subject to safety check 5, not a bare `person_id` write.
+Rule 2 compares WhatsApp `identity.handle` (E.164 phone) against
+`graph_contact.phones[]` (digits-only, per that table's own
+normalisation). Rule 3 is the strongest signal in the ladder: a single
+`graph_contact` row whose `emails[]` contains an Outlook identity's
+handle *and* whose `phones[]` contains a WhatsApp identity's handle —
+direct, first-party evidence, no fuzzy matching. Zero matches expected
+from either today (see Known real-data limitation above).
 
 **Rule 4 — phone number in an email signature (queued, high score).**
 Scans `message.body_text` for phone-number-shaped substrings in
@@ -533,9 +538,17 @@ must not be merged:
 - One weak bridge connecting two otherwise-distinct clusters
 - Transitive over-merge: A matches B, B matches C, but A and C are
   demonstrably different people — the merge must not chain through
-- Two `organization` rows for genuine spelling variants of the same
-  real company (e.g. "Acme Inc" vs "Acme") — must stay two separate
-  rows, not silently merged by a fuzzy match that isn't there
+- Two `organization` rows for a real variant pair the normalisation
+  rule *doesn't* cover — a real entity, not a suffix difference (e.g.
+  "Commonwealth Bank" vs "CBA", or "Alphabet" vs "Google") — must stay
+  two separate rows; there's no fuzzy step to accidentally merge them.
+  **Correction 2026-09-03: "Acme Inc" vs "Acme" was the wrong example
+  here** — that pair *should* collapse into one row under the
+  suffix-stripping normalisation already specified above ("Inc"/"Ltd"
+  etc. stripped), so asserting they stay separate would directly
+  contradict that rule. The suffix-stripping case gets its own test
+  instead, asserting the opposite: "Acme Inc" and "Acme" *do* land as
+  the same `organization` row.
 
 A passing implementation is one where these all stay unmerged, not one
 that resolves the most identities.
