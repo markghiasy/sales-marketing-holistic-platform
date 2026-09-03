@@ -1953,7 +1953,37 @@ class TestResolutionReviewQueue:
         # THIS class — every other test in the file is unaffected.
         monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
 
-    def test_get_resolution_candidates_json_lists_pending(self, db_conn):
+    @pytest.fixture
+    def _created_identity_ids(self, db_conn):
+        # Every test in this class calls db_conn.commit() (needed so the
+        # route's OWN, separate connection — opened fresh by
+        # _get_status_cursor() — can see the rows this test just inserted;
+        # a plain uncommitted transaction is invisible across connections).
+        # That means, unlike every other test in this plan, these tests
+        # cannot rely on db_conn's own rollback-on-teardown for isolation
+        # — a committed row stays in the local test database forever.
+        # Found the hard way: rule_linkedin_correlation's tests
+        # (tests/test_resolution_linkedin_correlation.py) do an unscoped
+        # `select ... from identity where channel in ('outlook',
+        # 'whatsapp')` scan — exactly matching that rule's real production
+        # behaviour — so a leftover "Eric Tham"/"Eric" identity pair
+        # committed here and never cleaned up collides with that other
+        # file's fixed test names the next time the whole suite runs.
+        # Tests append the ids they create to this list; this fixture
+        # deletes them (and any link_candidate row referencing them) after
+        # the test body runs, restoring real isolation despite the commit.
+        ids: list = []
+        yield ids
+        if ids:
+            cur = db_conn.cursor()
+            cur.execute(
+                "delete from link_candidate where identity_a_id = any(%s) or identity_b_id = any(%s)",
+                (ids, ids),
+            )
+            cur.execute("delete from identity where id = any(%s)", (ids,))
+            db_conn.commit()
+
+    def test_get_resolution_candidates_json_lists_pending(self, db_conn, _created_identity_ids):
         # the /resolution page itself renders client-side (fetches
         # candidates.json via JS, see the template in Step 3) — assert on
         # the JSON endpoint directly rather than the initial HTML, which
@@ -1965,6 +1995,7 @@ class TestResolutionReviewQueue:
         a = cur.fetchone()[0]
         cur.execute("insert into identity (channel, handle, display_name) values ('whatsapp', %s, 'Eric') returning id", (b_handle,))
         b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
         cur.execute(
             "insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason) values (%s, %s, 0.5, 'test', 'pending', 'test reason')",
             (a, b),
@@ -1979,7 +2010,7 @@ class TestResolutionReviewQueue:
         body = resp.get_json()
         assert any(item["reason"] == "test reason" for item in body)
 
-    def test_confirm_candidate_applies_the_merge(self, db_conn):
+    def test_confirm_candidate_applies_the_merge(self, db_conn, _created_identity_ids):
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"
         b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
@@ -1987,6 +2018,7 @@ class TestResolutionReviewQueue:
         a = cur.fetchone()[0]
         cur.execute("insert into identity (channel, handle, display_name) values ('whatsapp', %s, 'Eric') returning id", (b_handle,))
         b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
         cur.execute(
             "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'pending') returning id",
             (a, b),
@@ -2004,7 +2036,7 @@ class TestResolutionReviewQueue:
         cur.execute("select status from link_candidate where id = %s", (candidate_id,))
         assert cur.fetchone()[0] == "confirmed"
 
-    def test_reject_candidate_does_not_merge(self, db_conn):
+    def test_reject_candidate_does_not_merge(self, db_conn, _created_identity_ids):
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"
         b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
@@ -2012,6 +2044,7 @@ class TestResolutionReviewQueue:
         a = cur.fetchone()[0]
         cur.execute("insert into identity (channel, handle) values ('whatsapp', %s) returning id", (b_handle,))
         b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
         cur.execute(
             "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'pending') returning id",
             (a, b),
@@ -2029,7 +2062,7 @@ class TestResolutionReviewQueue:
         cur.execute("select person_id from identity where id = %s", (a,))
         assert cur.fetchone()[0] is None
 
-    def test_confirm_is_a_no_op_on_a_non_pending_candidate(self, db_conn):
+    def test_confirm_is_a_no_op_on_a_non_pending_candidate(self, db_conn, _created_identity_ids):
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"
         b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
@@ -2037,6 +2070,7 @@ class TestResolutionReviewQueue:
         a = cur.fetchone()[0]
         cur.execute("insert into identity (channel, handle) values ('whatsapp', %s) returning id", (b_handle,))
         b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
         cur.execute(
             "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'rejected') returning id",
             (a, b),
