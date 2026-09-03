@@ -154,3 +154,75 @@ class TestRuleContactBridge:
         count = rule_contact_bridge(cur)
 
         assert count == 0
+
+
+from adapters.resolution.rules import rule_signature_phone
+
+
+def _make_message(cur, thread_id: str, from_identity_id: str, body_text: str, direction: str = "outbound") -> str:
+    cur.execute(
+        """
+        insert into message (thread_id, channel, external_id, direction, sent_at, from_identity_id, body_text, raw)
+        values (%s, 'outlook', %s, %s, now(), %s, %s, '{}')
+        returning id
+        """,
+        (thread_id, f"msg-{uuid.uuid4().hex}", direction, from_identity_id, body_text),
+    )
+    return str(cur.fetchone()[0])
+
+
+def _make_thread(cur) -> str:
+    cur.execute(
+        "insert into thread (channel, external_id) values ('outlook', %s) returning id",
+        (f"thread-{uuid.uuid4().hex}",),
+    )
+    return str(cur.fetchone()[0])
+
+
+class TestRuleSignaturePhone:
+    def test_phone_in_signature_queues_a_high_score_candidate(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
+        _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
+        thread = _make_thread(cur)
+        body = f"Thanks,\nEric Tham\nMobile: {digits}"
+        _make_message(cur, thread, outlook_id, body, direction="outbound")
+
+        count = rule_signature_phone(cur)
+
+        assert count == 1
+        cur.execute(
+            "select status, score, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (outlook_id, outlook_id),
+        )
+        status, score, method = cur.fetchone()
+        assert status == "pending"
+        assert score == 0.8
+        assert method == "email_signature_phone"
+
+    def test_inbound_messages_are_not_scanned(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
+        _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
+        thread = _make_thread(cur)
+        _make_message(cur, thread, outlook_id, f"call me on {digits}", direction="inbound")
+
+        count = rule_signature_phone(cur)
+
+        assert count == 0
+
+    def test_number_outside_the_last_few_lines_is_not_matched(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
+        _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
+        thread = _make_thread(cur)
+        padding = "\n".join(f"line {n}" for n in range(20))
+        body = f"By the way my number is {digits}\n{padding}\nThanks,\nEric"
+        _make_message(cur, thread, outlook_id, body, direction="outbound")
+
+        count = rule_signature_phone(cur)
+
+        assert count == 0

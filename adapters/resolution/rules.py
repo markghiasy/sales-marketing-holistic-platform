@@ -14,6 +14,10 @@ docs/superpowers/specs/2026-09-03-identity-resolution-design.md.
 
 from __future__ import annotations
 
+import re
+
+from adapters.outlook.contacts_sync import _normalise_phone
+
 from .merge import apply_merge
 from .safety import (
     MAX_CLUSTER_SIZE,
@@ -158,4 +162,52 @@ def rule_contact_bridge(cur) -> int:
             cur, outlook_identity_id, whatsapp_identity_id, "contact_bridge", reason, None
         ):
             count += 1
+    return count
+
+
+_SIGNATURE_LINES = 6  # how many trailing lines of body_text count as
+                       # "the signature block" for phone scanning
+_PHONE_CANDIDATE_RE = re.compile(r"[\d][\d\s().-]{6,}\d")
+
+
+def _extract_signature_phone_digits(body_text: str) -> list[str]:
+    lines = [line for line in body_text.strip().splitlines() if line.strip()]
+    signature_region = "\n".join(lines[-_SIGNATURE_LINES:])
+    candidates = []
+    for match in _PHONE_CANDIDATE_RE.finditer(signature_region):
+        digits = _normalise_phone(match.group())
+        if len(digits) >= 7:  # shorter than this isn't a plausible phone number
+            candidates.append(digits)
+    return candidates
+
+
+def rule_signature_phone(cur) -> int:
+    cur.execute(
+        """
+        select id, from_identity_id, body_text
+        from message
+        where channel = 'outlook' and direction = 'outbound'
+        """
+    )
+    messages = cur.fetchall()
+    count = 0
+    for message_id, from_identity_id, body_text in messages:
+        if from_identity_id is None or not body_text:
+            continue
+        for digits in _extract_signature_phone_digits(body_text):
+            cur.execute("select id, handle from identity where channel = 'whatsapp'")
+            for wa_id, handle in cur.fetchall():
+                wa_digits = _whatsapp_phone_digits(handle)
+                if wa_digits == digits:
+                    if has_existing_rejected_candidate(cur, str(from_identity_id), str(wa_id)):
+                        continue
+                    reason = f"phone {digits} found in signature of message {message_id}, matches WhatsApp handle {wa_digits}"
+                    cur.execute(
+                        """
+                        insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
+                        values (%s, %s, 0.8, 'email_signature_phone', 'pending', %s)
+                        """,
+                        (str(from_identity_id), str(wa_id), reason),
+                    )
+                    count += 1
     return count
