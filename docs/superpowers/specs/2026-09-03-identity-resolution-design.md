@@ -99,6 +99,76 @@ rather than standing up something separate for one more page:
   was proposed and rejected" is itself useful (stops the same wrong
   candidate from silently resurfacing if the rule runs again).
 
+## Safety checks that apply across every rule
+
+Added 2026-09-03 after Eva reviewed an externally-sourced proposal for a
+much larger identity-resolution architecture (evidence graph, Splink
+probabilistic matching, employment-history modelling, LLM adjudication,
+merge ledger). That proposal was declined as a whole — its scale doesn't
+match either this project's data volume (hundreds of identities, not
+hundreds of thousands) or §8's own stated approach, and Splink in
+particular still needs m/u parameters estimated from data this dataset
+is far too small to estimate meaningfully. Three ideas from it are
+genuinely cheap and worth taking, and are specified here rather than
+buried in individual rules, because they apply to all of them:
+
+**1. Shared/generic identifiers never auto-merge.** An exact match on a
+role address (`support@`, `info@`, `admin@`, `sales@`, `team@`,
+`reception@`, `noreply@`, `contact@`, `hello@`, `office@`) or on a
+switchboard/shared phone is not evidence that two identities are the
+same person — several different humans legitimately sit behind one. Any
+rule matching on such an identifier writes a `link_candidate` for
+review instead of merging, regardless of how exact the match is.
+
+**2. Implausible cluster size blocks the merge.** If applying a
+candidate merge would attach an unreasonable number of distinct
+identities to one person (e.g. a shared office number bridging a dozen
+separate people), that's a signal the identifier itself is shared
+rather than personal. Detected by counting how many identities a merge
+would place under one `person_id`; above a configurable threshold, the
+merge is refused and queued for review rather than applied.
+
+**3. A human rejection is durable.** `link_candidate.status =
+'rejected'` means "a human looked at this and said no" — re-running the
+rules must not re-propose the same identity pair. Every rule checks for
+an existing rejected candidate on the same pair before writing a new
+one, and never auto-merges a pair a human has already rejected.
+
+**4. Conflict detection, using the tables that already exist.** Some
+contradictions are worth catching before merging, and all of them are
+answerable with SQL over `identity`/`link_candidate` — no separate
+evidence-graph system, consistent with §10's own "the graph is a view
+over the store, not a separate system" framing:
+- The same identity being pointed at two different `person_id`s by two
+  different rules in one run — a genuine contradiction; neither merge
+  is applied automatically, both go to review.
+- A merge that would place two identities on the *same channel with
+  different handles* under one person where that's implausible (e.g.
+  two distinct active LinkedIn profile URLs) — queued, not applied.
+
+## Evidence provenance on every candidate
+
+`link_candidate` currently records `method` (which rule fired) but not
+*what the rule actually saw*. This build adds a `reason` column (text,
+nullable for backward compatibility with the empty existing table) that
+records the concrete evidence in human-readable form, so the review
+queue shows why the system thinks two identities are the same person
+rather than asking a human to re-derive it:
+
+- Rule 4: which message the number was found in, and the matched number
+  (e.g. "phone +61400000000 found in signature of message sent
+  2026-08-14, matches WhatsApp handle 61400000000")
+- Rule 5: the two names and the company that correlated, plus the
+  similarity that triggered it (e.g. "LinkedIn 'Eric Tham' @ Acme vs
+  Outlook display name 'Eric Tham' — exact normalised name match,
+  same company")
+- Any rule blocked by a safety check above: which check blocked it and
+  why (e.g. "exact email match on support@acme.com — generic role
+  address, not merged automatically")
+
+This is also what makes the naming and merge decisions explainable to
+Mark later, which §15's delegation explicitly requires.
+
 ## Rule-by-rule design
 
 **Rule 1 — exact email match (automatic).** Compares Outlook
@@ -157,8 +227,10 @@ unresolved identity just doesn't merge into anyone else's row).
 ## Naming a merged person
 
 `person.primary_name` and a new nullable `person.preferred_name` column
-(this build's one schema change — a new migration,
-`db/migrations/0005_person_preferred_name.sql`) are chosen from the set
+(one of this build's two schema changes, both in a single new migration
+`db/migrations/0005_identity_resolution.sql` — the other being
+`link_candidate.reason`, see "Evidence provenance" above) are chosen
+from the set
 of `display_name` values across every identity being merged:
 
 - Filter to names that look like real names, not a handle/username —
@@ -186,7 +258,8 @@ slightly-off preferred name is cosmetic, not a data-integrity risk.
 
 ## Data flow
 
-No new tables beyond the one column added to `person`. Every rule
+No new tables — two added columns (`person.preferred_name`,
+`link_candidate.reason`), both nullable, in one migration. Every rule
 reads from tables that already exist and are already populated by
 Block A's adapters (`identity`, `graph_contact`, `linkedin_connection`,
 `message`). `link_candidate` already exists in the schema from the
@@ -211,6 +284,25 @@ TDD throughout, matching this project's existing pattern — every rule
 gets tests against constructed fixture data (fake identities, fake
 contact records, fake message bodies) proving the matching logic itself
 is correct, written and passing before the rule is considered done.
+
+**Adversarial tests are the point, not an extra.** §8's stated failure
+mode is merging two different people, so the tests that matter most are
+the ones where records *look* like a match and must not be merged. Each
+of these gets an explicit test asserting no automatic merge happens:
+- Two different people with the same full name at the same company
+- Two different people sharing a corporate role address
+  (`sales@acme.com`)
+- Two different people sharing an office switchboard number
+- A recycled phone number now belonging to someone else
+- Two similarly-named LinkedIn profiles (e.g. "Sam Lee" vs "Samuel
+  Lee") at the same company
+- One weak bridge connecting two otherwise-distinct clusters
+- Transitive over-merge: A matches B, B matches C, but A and C are
+  demonstrably different people — the merge must not chain through
+
+A passing implementation is one where these all stay unmerged, not one
+that resolves the most identities.
+
 Additionally, after the automatic rules are built, run `python -m
 adapters.resolution.run` against this project's real (if currently
 contact-sparse) database and inspect the actual output by hand — not
