@@ -15,10 +15,21 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
     cur.execute("select person_id from identity where id = %s", (identity_b_id,))
     (person_b,) = cur.fetchone()
 
-    person_id = person_a or person_b
-    if person_id is None:
-        cur.execute("insert into person (primary_name) values ('') returning id")
-        person_id = cur.fetchone()[0]
+    if person_a and person_b and person_a != person_b:
+        # both identities already belong to different, already-merged
+        # clusters (e.g. two separate link_candidate matches converge on
+        # the same underlying person from different directions) — move
+        # every identity in person_b's cluster over to person_a's,
+        # rather than reassigning only identity_a_id/identity_b_id and
+        # silently stranding the rest of person_b's cluster under a now-
+        # orphaned, stale-named person row
+        cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
+        person_id = person_a
+    else:
+        person_id = person_a or person_b
+        if person_id is None:
+            cur.execute("insert into person (primary_name) values ('') returning id")
+            person_id = cur.fetchone()[0]
 
     cur.execute(
         "update identity set person_id = %s where id in (%s, %s)",

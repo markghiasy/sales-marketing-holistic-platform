@@ -67,3 +67,26 @@ class TestApplyMerge:
 
         cur.execute("select primary_name from person where id = %s", (person_id,))
         assert cur.fetchone()[0] == "Eric Tham"
+
+    def test_merging_two_already_linked_clusters_unifies_them(self, db_conn: psycopg.Connection):
+        # a and b each already belong to a DIFFERENT existing person —
+        # this happens when two separate link_candidate matches converge
+        # on the same underlying real person from different directions.
+        # Merging a and b must fold the whole of person_b's cluster into
+        # person_a's, not just move a and b themselves and strand
+        # person_b's other identity under a now-orphaned person row.
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+        stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
+
+        person_id = apply_merge(cur, a, b)
+
+        # the identity that was never passed to apply_merge, but shared
+        # person_b's cluster, must have followed the merge
+        cur.execute("select person_id from identity where id = %s", (stranded,))
+        assert str(cur.fetchone()[0]) == person_id
