@@ -2358,6 +2358,823 @@ git commit -m "Add identity/fact review queue to the ops dashboard"
 
 ---
 
+### Task 12: Fixes from the final whole-branch review
+
+**Context:** Tasks 1-11 were each individually reviewed and approved, but a
+final whole-branch review (2026-09-03) found real bugs that only exist
+in the *interaction* between tasks — invisible to any task-scoped review.
+One is Critical (a false-merge path); four are Important. Confirmed with
+Eva to fix all five, including implementing anti-transitivity now rather
+than deferring it.
+
+**Files:**
+- Modify: `adapters/resolution/safety.py`, `adapters/resolution/rules.py`, `adapters/resolution/linkedin_correlation.py`, `adapters/resolution/structured_facts.py`, `adapters/resolution/merge.py`, `adapters/resolution/naming.py`
+- Modify tests: `tests/test_resolution_safety.py`, `tests/test_resolution_rules.py`, `tests/test_resolution_linkedin_correlation.py`, `tests/test_resolution_structured_facts.py`, `tests/test_resolution_merge.py`, `tests/test_resolution_naming.py`
+
+---
+
+#### Fix 12.1 (Critical): backfill `display_name` on a previously-nameless LinkedIn identity
+
+**Bug:** `rules.py`'s Rule 1 and `linkedin_correlation.py`'s Rule 5 both
+create a LinkedIn identity with `on conflict (channel, handle) do
+nothing` when one doesn't exist yet. `structured_facts.py`'s
+`_get_or_create_linkedin_identity` creates one with **no**
+`display_name` at all (~890 of this project's real LinkedIn connections
+have a company, so `extract_structured_facts` runs at real scale).
+Because `do nothing` never backfills, any LinkedIn identity first
+created by `extract_structured_facts` (which runs last in `run.py`'s
+rule order, but on a LATER invocation of `run.py` — this is a
+re-runnable CLI entrypoint, not a one-shot) stays permanently nameless.
+On that later run, if Rule 1 or Rule 5 matches that same nameless
+identity, `names_contradict(None, x)` returns `False` — the exact
+safety check Task 6 already fixed once for the fresh-create path
+(commit `9ff86ba`) is silently inert for this path. This is a
+false-merge risk in a system whose stated bar is zero false merges.
+
+**Fix:** use the same conditional-backfill pattern
+`adapters/store_writer.py:105-109` already established in this repo:
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_resolution_rules.py`:
+
+```python
+class TestRuleExactEmailMatchBackfill:
+    def test_backfills_display_name_on_a_previously_nameless_linkedin_identity(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        # simulate extract_structured_facts having created this identity
+        # first, with no display_name
+        cur.execute("insert into identity (channel, handle) values ('linkedin', %s)", (email,))
+        outlook_id = _make_identity(cur, "outlook", email, "Sarah Chen")
+        _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
+
+        rule_exact_email_match(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (email,))
+        assert cur.fetchone()[0] == "Eric Tham"
+        # and now that the name is backfilled, the contradiction check
+        # actually fires — the whole point of the fix
+        cur.execute("select person_id from identity where id = %s", (outlook_id,))
+        assert cur.fetchone()[0] is None
+
+    def test_does_not_overwrite_an_existing_display_name(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        cur.execute("insert into identity (channel, handle, display_name) values ('linkedin', %s, 'Original Name')", (email,))
+        _make_identity(cur, "outlook", email, "Original Name")
+        _make_linkedin_connection(cur, email=email, first_name="Different", last_name="Person")
+
+        rule_exact_email_match(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (email,))
+        assert cur.fetchone()[0] == "Original Name"
+```
+
+Append to `tests/test_resolution_structured_facts.py`:
+
+```python
+class TestExtractStructuredFactsBackfill:
+    def test_sets_display_name_from_connection_name(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        conn_id = _make_linkedin_connection(cur, first_name="Eric", last_name="Tham", company="Acme")
+
+        extract_structured_facts(cur)
+
+        cur.execute("select display_name from identity where channel = 'linkedin' and handle = %s", (conn_id,))
+        assert cur.fetchone()[0] == "Eric Tham"
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_rules.py::TestRuleExactEmailMatchBackfill tests/test_resolution_structured_facts.py::TestExtractStructuredFactsBackfill -v`
+Expected: FAIL — the backfill tests fail because `do nothing` never sets `display_name`, and `structured_facts.py`'s created identity never gets one at all.
+
+- [ ] **Step 3: Fix `adapters/resolution/rules.py`**
+
+Change (inside `rule_exact_email_match`):
+
+```python
+        cur.execute(
+            "insert into identity (channel, handle, display_name) values ('linkedin', %s, %s) on conflict (channel, handle) do nothing",
+            (connection_id, linkedin_display_name),
+        )
+```
+
+to:
+
+```python
+        cur.execute(
+            """
+            insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+            on conflict (channel, handle) do update
+                set display_name = excluded.display_name
+                where identity.display_name is null and excluded.display_name is not null
+            """,
+            (connection_id, linkedin_display_name),
+        )
+```
+
+- [ ] **Step 4: Fix `adapters/resolution/linkedin_correlation.py`**
+
+Same change, inside `rule_linkedin_correlation`:
+
+```python
+            cur.execute(
+                "insert into identity (channel, handle, display_name) values ('linkedin', %s, %s) on conflict (channel, handle) do nothing",
+                (connection_id, f"{first_name} {last_name}".strip()),
+            )
+```
+
+to:
+
+```python
+            cur.execute(
+                """
+                insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+                on conflict (channel, handle) do update
+                    set display_name = excluded.display_name
+                    where identity.display_name is null and excluded.display_name is not null
+                """,
+                (connection_id, f"{first_name} {last_name}".strip()),
+            )
+```
+
+- [ ] **Step 5: Fix `adapters/resolution/structured_facts.py`**
+
+Change:
+
+```python
+def _get_or_create_linkedin_identity(cur, connection_id: str) -> str:
+    cur.execute(
+        "insert into identity (channel, handle) values ('linkedin', %s) on conflict (channel, handle) do nothing",
+        (connection_id,),
+    )
+    cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (connection_id,))
+    return str(cur.fetchone()[0])
+
+
+def extract_structured_facts(cur) -> int:
+    cur.execute("select id, company, position from linkedin_connection")
+    connections = cur.fetchall()
+    count = 0
+    for connection_id, company, position in connections:
+        identity_id = _get_or_create_linkedin_identity(cur, connection_id)
+```
+
+to:
+
+```python
+def _get_or_create_linkedin_identity(cur, connection_id: str, display_name: str | None) -> str:
+    cur.execute(
+        """
+        insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
+        on conflict (channel, handle) do update
+            set display_name = excluded.display_name
+            where identity.display_name is null and excluded.display_name is not null
+        """,
+        (connection_id, display_name),
+    )
+    cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (connection_id,))
+    return str(cur.fetchone()[0])
+
+
+def extract_structured_facts(cur) -> int:
+    cur.execute("select id, first_name, last_name, company, position from linkedin_connection")
+    connections = cur.fetchall()
+    count = 0
+    for connection_id, first_name, last_name, company, position in connections:
+        display_name = f"{first_name or ''} {last_name or ''}".strip() or None
+        identity_id = _get_or_create_linkedin_identity(cur, connection_id, display_name)
+```
+
+(the rest of `extract_structured_facts` — the `if company:`/`if position:` blocks — is unchanged, just re-indented under the new loop variables)
+
+- [ ] **Step 6: Run tests to verify they pass, then run the full suite and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_rules.py tests/test_resolution_linkedin_correlation.py tests/test_resolution_structured_facts.py -v`
+Expected: PASS (all tests, including the new backfill ones)
+
+Run: `.venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/`
+Expected: all pass, no lint errors
+
+---
+
+#### Fix 12.2 (Important): Rule 3 must apply the generic-role-email check too
+
+**Bug:** `rule_contact_bridge` passes `blocked_reason=None` unconditionally
+— a `graph_contact` with `emails=['support@acme.com']` and a phone
+would auto-merge that shared mailbox identity, even though Rule 1
+correctly blocks the identical case via `is_generic_role_email`.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/test_resolution_rules.py`:
+
+```python
+class TestRuleContactBridgeGenericEmail:
+    def test_generic_role_email_does_not_auto_confirm_the_bridge(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        digits = "1580" + str(uuid.uuid4().int)[:6]
+        outlook_id = _make_identity(cur, "outlook", "support@acme.com", "Eric Tham")
+        wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
+        _make_graph_contact(cur, emails=["support@acme.com"], phones=[digits], display_name="Eric Tham")
+
+        rule_contact_bridge(cur)
+
+        cur.execute("select person_id from identity where id = %s", (outlook_id,))
+        assert cur.fetchone()[0] is None
+        cur.execute("select status from link_candidate where identity_a_id = %s or identity_b_id = %s", (wa_id, wa_id))
+        assert cur.fetchone()[0] == "pending"
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_rules.py::TestRuleContactBridgeGenericEmail -v`
+Expected: FAIL — the bridge auto-confirms even for `support@acme.com`.
+
+- [ ] **Step 3: Fix `adapters/resolution/rules.py`**
+
+In `rule_contact_bridge`, change:
+
+```python
+        outlook_identity_id = None
+        for email in emails:
+            cur.execute(
+                "select id from identity where channel = 'outlook' and handle = %s", (email.lower(),)
+            )
+            row = cur.fetchone()
+            if row:
+                outlook_identity_id = str(row[0])
+                break
+        if outlook_identity_id is None:
+            continue
+```
+
+to (capture the matched email):
+
+```python
+        outlook_identity_id = None
+        matched_email = None
+        for email in emails:
+            cur.execute(
+                "select id from identity where channel = 'outlook' and handle = %s", (email.lower(),)
+            )
+            row = cur.fetchone()
+            if row:
+                outlook_identity_id = str(row[0])
+                matched_email = email
+                break
+        if outlook_identity_id is None:
+            continue
+```
+
+and change:
+
+```python
+        reason = f"contact record {contact_display_name or '(no name)'} links this email and phone"
+        if _propose_and_maybe_confirm(
+            cur, outlook_identity_id, whatsapp_identity_id, "contact_bridge", reason, None
+        ):
+```
+
+to:
+
+```python
+        blocked_reason = (
+            f"generic role address {matched_email} — not merged automatically"
+            if is_generic_role_email(matched_email)
+            else None
+        )
+        reason = f"contact record {contact_display_name or '(no name)'} links this email and phone"
+        if _propose_and_maybe_confirm(
+            cur, outlook_identity_id, whatsapp_identity_id, "contact_bridge", reason, blocked_reason
+        ):
+```
+
+- [ ] **Step 4: Run tests, full suite, and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_rules.py -v && .venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/rules.py`
+Expected: all pass
+
+---
+
+#### Fix 12.3 (Important): cluster-wide name contradiction (prevents transitive over-merge)
+
+**Bug:** `names_contradict` is applied pairwise only — between the two
+identities named in one rule's proposal — never against the whole
+cluster either side already belongs to. Concretely: A ("Eric Tham") and
+B (no name) auto-merge; a later rule then proposes B and C ("Sarah
+Chen") — B has no name, so the pairwise check against B alone stays
+silent, and A/C end up in the same cluster despite contradicting names.
+The design's own Testing section names this exact adversarial case; it
+was never implemented or tested.
+
+**Fix:** compare every display_name already in *both* clusters against
+each other, not just the two identities named in the call.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_resolution_safety.py`:
+
+```python
+class TestClusterNamesContradict:
+    def test_contradicts_transitively_through_an_unnamed_bridge(self, db_conn: psycopg.Connection):
+        # A ("Eric Tham") and B (unnamed) are already merged into one
+        # person; proposing B + C ("Sarah Chen") must still catch the
+        # A/C contradiction even though B itself has no name to compare
+        cur = db_conn.cursor()
+        person = _make_person(cur)
+        _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", None, person_id=person)
+        c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Sarah Chen")
+
+        assert cluster_names_contradict(cur, b, c) is True
+
+    def test_does_not_contradict_when_clusters_are_consistent(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        person = _make_person(cur)
+        _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", None, person_id=person)
+        c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham")
+
+        assert cluster_names_contradict(cur, b, c) is False
+
+    def test_single_unresolved_identities_fall_back_to_pairwise(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Sarah Chen")
+
+        assert cluster_names_contradict(cur, a, b) is True
+```
+
+Append to `tests/test_resolution_rules.py`:
+
+```python
+class TestTransitiveOverMerge:
+    def test_a_b_c_chain_does_not_over_merge_through_an_unnamed_bridge(self, db_conn: psycopg.Connection):
+        # the design doc's own adversarial case: A-B auto-confirms (B has
+        # no contradicting name to catch), then B-C is proposed — this
+        # must now be blocked, not silently auto-confirmed, because C's
+        # name contradicts A's, which is already in B's cluster
+        cur = db_conn.cursor()
+        email_a = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        a = _make_identity(cur, "outlook", email_a, "Eric Tham")
+        # this LinkedIn connection has no name at all (first_name/last_name
+        # both None), so rule_exact_email_match's own display_name
+        # backfill (fix 12.1) leaves the resulting identity nameless too
+        conn_a = _make_linkedin_connection(cur, email=email_a, first_name=None, last_name=None)
+        rule_exact_email_match(cur)
+        cur.execute("select id from identity where channel = 'linkedin' and handle = %s", (conn_a,))
+        b = str(cur.fetchone()[0])
+
+        email_c = f"sarah-{uuid.uuid4().hex[:8]}@example.com"
+        c = _make_identity(cur, "outlook", email_c, "Sarah Chen")
+        _make_linkedin_connection(cur, email=email_c, first_name="Sarah", last_name="Chen")
+        # propose b (LinkedIn identity, now part of a's cluster) against
+        # a fresh contact bridge to c — reuse rule_exact_email_match's
+        # own mechanism isn't a fit here since b isn't a fresh LinkedIn
+        # connection; call the shared merge proposer directly instead,
+        # simulating whatever rule would have proposed b+c
+        from adapters.resolution.rules import _propose_and_maybe_confirm
+        _propose_and_maybe_confirm(cur, b, c, "test_transitive", "test", None)
+
+        cur.execute("select person_id from identity where id = %s", (c,))
+        assert cur.fetchone()[0] is None
+        cur.execute("select status from link_candidate where identity_a_id = %s or identity_b_id = %s", (c, c))
+        assert cur.fetchone()[0] == "pending"
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_safety.py::TestClusterNamesContradict tests/test_resolution_rules.py::TestTransitiveOverMerge -v`
+Expected: FAIL — `cluster_names_contradict` doesn't exist yet; the transitive test auto-confirms instead of blocking.
+
+- [ ] **Step 3: Add `cluster_names_contradict` to `adapters/resolution/safety.py`**
+
+Append to `adapters/resolution/safety.py`:
+
+```python
+def _cluster_display_names(cur, identity_id: str) -> list[str | None]:
+    """Every display_name already in identity_id's cluster — the whole
+    person's worth of identities if it's already resolved, or just
+    itself if not."""
+    cur.execute("select person_id from identity where id = %s", (identity_id,))
+    (person_id,) = cur.fetchone()
+    if person_id is None:
+        cur.execute("select display_name from identity where id = %s", (identity_id,))
+        return [cur.fetchone()[0]]
+    cur.execute("select display_name from identity where person_id = %s", (person_id,))
+    return [row[0] for row in cur.fetchall()]
+
+
+def cluster_names_contradict(cur, identity_a_id: str, identity_b_id: str) -> bool:
+    """Like names_contradict, but checks every display_name already in
+    EITHER identity's existing cluster against every display_name in the
+    other's — not just the two identities named in this call. Without
+    this, a transitive merge (A-B already merged because B has no name
+    to contradict with, then B-C proposed) never catches a contradiction
+    between A and C, since C is only ever compared against B directly.
+    See docs/superpowers/plans/2026-09-03-identity-resolution-phase1.md,
+    Fix 12.3."""
+    names_a = _cluster_display_names(cur, identity_a_id)
+    names_b = _cluster_display_names(cur, identity_b_id)
+    return any(names_contradict(na, nb) for na in names_a for nb in names_b)
+```
+
+- [ ] **Step 4: Use it in `adapters/resolution/rules.py` and `adapters/resolution/linkedin_correlation.py`**
+
+In `rules.py`'s `_propose_and_maybe_confirm`, change:
+
+```python
+    elif names_contradict(*_display_names(cur, identity_a_id, identity_b_id)):
+```
+
+to:
+
+```python
+    elif cluster_names_contradict(cur, identity_a_id, identity_b_id):
+```
+
+and update the import line:
+
+```python
+from .safety import (
+    MAX_CLUSTER_SIZE,
+    cluster_size_after_merge,
+    has_existing_rejected_candidate,
+    is_generic_role_email,
+    names_contradict,
+)
+```
+
+to:
+
+```python
+from .safety import (
+    MAX_CLUSTER_SIZE,
+    cluster_names_contradict,
+    cluster_size_after_merge,
+    has_existing_rejected_candidate,
+    is_generic_role_email,
+)
+```
+
+(`names_contradict` and the now-unused `_display_names` helper function
+in `rules.py` can be removed — `cluster_names_contradict` supersedes
+both call sites. Check `_display_names` has no other callers before
+removing it; if it's still used elsewhere, leave it.)
+
+Rule 5 (`linkedin_correlation.py`) doesn't currently call `names_contradict`
+at all (it's always-queued, so the design never required it) — no change
+needed there for this fix.
+
+- [ ] **Step 5: Run tests, full suite, and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_safety.py tests/test_resolution_rules.py -v && .venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/`
+Expected: all pass, no lint errors
+
+---
+
+#### Fix 12.4 (Important): re-running `run.py` must not duplicate candidates or re-apply merges
+
+**Bug:** the only pre-insert dedup check anywhere is
+`has_existing_rejected_candidate` — which matches only
+`status='rejected'`. Every `python -m adapters.resolution.run`
+invocation re-inserts a fresh `link_candidate` row for every still-
+matching pair: Rules 4/5 pile duplicate *pending* rows into the human's
+queue forever (confirming one leaves its twin pending), and Rules 1/3
+re-insert a duplicate *confirmed* row and call `apply_merge` again on
+every run (harmless since `apply_merge` is idempotent for an
+already-merged pair, but still wrong to keep inserting rows).
+
+**Fix:** widen the check from "a rejected candidate exists" to "any
+candidate exists at all" for this pair, in any status.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `tests/test_resolution_safety.py`, find `TestHasExistingRejectedCandidate`
+and replace its class name and the `test_pending_candidate_does_not_count_as_rejected`
+test (its behavior is precisely what's changing):
+
+```python
+class TestHasExistingCandidate:
+    def test_no_candidate_returns_false(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
+
+        assert has_existing_candidate(cur, a, b) is False
+
+    def test_rejected_candidate_found_regardless_of_pair_order(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
+        cur.execute(
+            """
+            insert into link_candidate (identity_a_id, identity_b_id, score, method, status)
+            values (%s, %s, 0.5, 'test', 'rejected')
+            """,
+            (a, b),
+        )
+
+        assert has_existing_candidate(cur, a, b) is True
+        assert has_existing_candidate(cur, b, a) is True  # order-independent
+
+    def test_pending_candidate_also_counts_now(self, db_conn: psycopg.Connection):
+        # this is the behavior change from the old
+        # has_existing_rejected_candidate: a pending row from a previous
+        # run must also block re-proposing, or every rerun duplicates
+        # the human's review queue forever
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
+        cur.execute(
+            """
+            insert into link_candidate (identity_a_id, identity_b_id, score, method, status)
+            values (%s, %s, 0.5, 'test', 'pending')
+            """,
+            (a, b),
+        )
+
+        assert has_existing_candidate(cur, a, b) is True
+
+    def test_confirmed_candidate_also_counts(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net")
+        cur.execute(
+            """
+            insert into link_candidate (identity_a_id, identity_b_id, score, method, status)
+            values (%s, %s, 0.5, 'test', 'confirmed')
+            """,
+            (a, b),
+        )
+
+        assert has_existing_candidate(cur, a, b) is True
+```
+
+Append to `tests/test_resolution_rules.py`:
+
+```python
+class TestRerunDoesNotDuplicate:
+    def test_running_rule_exact_email_match_twice_does_not_duplicate(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        email = f"eric-{uuid.uuid4().hex[:8]}@example.com"
+        _make_identity(cur, "outlook", email, "Eric Tham")
+        _make_linkedin_connection(cur, email=email, first_name="Eric", last_name="Tham")
+
+        first_count = rule_exact_email_match(cur)
+        second_count = rule_exact_email_match(cur)
+
+        assert first_count == 1
+        assert second_count == 0
+        cur.execute("select count(*) from link_candidate where method = 'exact_email'")
+        assert cur.fetchone()[0] == 1
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_safety.py::TestHasExistingCandidate tests/test_resolution_rules.py::TestRerunDoesNotDuplicate -v`
+Expected: FAIL — `has_existing_candidate` doesn't exist; the rerun test finds 2 rows instead of 1.
+
+- [ ] **Step 3: Widen `has_existing_rejected_candidate` in `adapters/resolution/safety.py`**
+
+Rename and widen:
+
+```python
+def has_existing_rejected_candidate(cur, identity_a_id: str, identity_b_id: str) -> bool:
+    """True if a human has already rejected a link_candidate for this
+    exact pair (in either order) — re-running the rules must not
+    re-propose a pair a human already said no to."""
+    cur.execute(
+        """
+        select 1 from link_candidate
+        where status = 'rejected'
+          and (
+              (identity_a_id = %s and identity_b_id = %s)
+              or (identity_a_id = %s and identity_b_id = %s)
+          )
+        limit 1
+        """,
+        (identity_a_id, identity_b_id, identity_b_id, identity_a_id),
+    )
+    return cur.fetchone() is not None
+```
+
+to:
+
+```python
+def has_existing_candidate(cur, identity_a_id: str, identity_b_id: str) -> bool:
+    """True if ANY link_candidate row already exists for this pair (in
+    either order), regardless of status — makes re-running the rules
+    idempotent: a rule must not re-propose (and the automatic rules must
+    not re-apply) a pair that a previous run already decided, confirmed,
+    or already queued for review. Supersedes the narrower
+    "rejected-only" check this function used to be — a pending or
+    confirmed candidate from a prior run needs exactly the same
+    protection, or every rerun duplicates the review queue forever."""
+    cur.execute(
+        """
+        select 1 from link_candidate
+        where (identity_a_id = %s and identity_b_id = %s)
+           or (identity_a_id = %s and identity_b_id = %s)
+        limit 1
+        """,
+        (identity_a_id, identity_b_id, identity_b_id, identity_a_id),
+    )
+    return cur.fetchone() is not None
+```
+
+- [ ] **Step 4: Update every call site**
+
+In `adapters/resolution/rules.py`: both the import line and every call
+to `has_existing_rejected_candidate(...)` (there are two: one inside
+`_propose_and_maybe_confirm`, one inside `rule_signature_phone`) become
+`has_existing_candidate(...)`.
+
+In `adapters/resolution/linkedin_correlation.py`: same — the import and
+the one call inside `rule_linkedin_correlation` become
+`has_existing_candidate(...)`.
+
+- [ ] **Step 5: Run tests, full suite, and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_safety.py tests/test_resolution_rules.py tests/test_resolution_linkedin_correlation.py -v && .venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/`
+Expected: all pass, no lint errors
+
+---
+
+#### Fix 12.5 (Important): `apply_merge` must not crash when no identity in the cluster has a name
+
+**Bug:** `select_names` raises `ValueError` when given no non-empty
+display names. `apply_merge` calls it unconditionally. This is
+reachable with ordinary data — a WhatsApp identity with no push name
+bridged to an Outlook identity with no display name (Rule 3's core
+case) — and crashes `run.py`'s whole batch for that rule (rolled back,
+logged to stderr) or 500s the human confirm route (whose `act()` in the
+template silently swallows the error, so the button appears to do
+nothing).
+
+- [ ] **Step 1: Write the failing test**
+
+In `tests/test_resolution_naming.py`, replace `test_empty_input_raises`:
+
+```python
+def test_empty_input_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        select_names([])
+```
+
+with:
+
+```python
+def test_all_none_or_empty_candidates_falls_back_gracefully():
+    # a merge always involves at least one real identity row, but that
+    # identity may have no display_name at all (e.g. a WhatsApp contact
+    # with no push name) — apply_merge must not crash in that case
+    primary, preferred = select_names([None, "", None])
+    assert primary == ""
+    assert preferred is None
+
+
+def test_truly_empty_list_falls_back_gracefully():
+    primary, preferred = select_names([])
+    assert primary == ""
+    assert preferred is None
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_naming.py -v`
+Expected: FAIL — `select_names([])` still raises `ValueError`.
+
+- [ ] **Step 3: Fix `adapters/resolution/naming.py`**
+
+Change:
+
+```python
+def select_names(display_names: list[str | None]) -> tuple[str, str | None]:
+    """Returns (primary_name, preferred_name). display_names is every
+    identity's display_name in the resulting merged cluster, in no
+    particular order. Raises ValueError if given no candidates at all
+    (a merge always involves at least one real identity)."""
+    candidates = [d.strip() for d in display_names if d and d.strip()]
+    if not candidates:
+        raise ValueError("select_names requires at least one non-empty candidate")
+```
+
+to:
+
+```python
+def select_names(display_names: list[str | None]) -> tuple[str, str | None]:
+    """Returns (primary_name, preferred_name). display_names is every
+    identity's display_name in the resulting merged cluster, in no
+    particular order. Falls back to ("", None) when none of the
+    identities being merged have a display_name at all — real, ordinary
+    data (e.g. a WhatsApp contact with no push name bridged to an
+    Outlook identity with no display name) reaches this path, so it
+    must degrade gracefully rather than raise."""
+    candidates = [d.strip() for d in display_names if d and d.strip()]
+    if not candidates:
+        return "", None
+```
+
+- [ ] **Step 4: Run tests, full suite, and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_naming.py -v && .venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/naming.py`
+Expected: all pass, no lint errors
+
+---
+
+#### Fix 12.6 (Important): set `person.merged_into` when folding an already-merged cluster
+
+**Bug:** `person.merged_into` exists specifically for this case (the
+migration's own comment: "soft merge: reversible, never delete rows"),
+but `apply_merge`'s both-sides-already-merged fold never sets it — the
+losing `person` row is left orphaned with no forwarding pointer. Once
+`action`/`outreach` (both FK to `person`) are ever populated, a fold
+would strand those references.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/test_resolution_merge.py`:
+
+```python
+    def test_folding_sets_merged_into_on_the_losing_person(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+
+        apply_merge(cur, a, b)
+
+        cur.execute("select merged_into from person where id = %s", (person_b_id,))
+        assert str(cur.fetchone()[0]) == person_a_id
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_merge.py::TestApplyMerge::test_folding_sets_merged_into_on_the_losing_person -v`
+Expected: FAIL — `merged_into` stays `NULL`.
+
+- [ ] **Step 3: Fix `adapters/resolution/merge.py`**
+
+Change:
+
+```python
+    if person_a and person_b and person_a != person_b:
+        # both identities already belong to different, already-merged
+        # clusters (e.g. two separate link_candidate matches converge on
+        # the same underlying person from different directions) — move
+        # every identity in person_b's cluster over to person_a's,
+        # rather than reassigning only identity_a_id/identity_b_id and
+        # silently stranding the rest of person_b's cluster under a now-
+        # orphaned, stale-named person row
+        cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
+        person_id = person_a
+```
+
+to:
+
+```python
+    if person_a and person_b and person_a != person_b:
+        # both identities already belong to different, already-merged
+        # clusters (e.g. two separate link_candidate matches converge on
+        # the same underlying person from different directions) — move
+        # every identity in person_b's cluster over to person_a's,
+        # rather than reassigning only identity_a_id/identity_b_id and
+        # silently stranding the rest of person_b's cluster under a now-
+        # orphaned, stale-named person row
+        cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
+        # person.merged_into is exactly this schema's soft-merge pointer
+        # (0001_init.sql: "reversible, never delete rows") — set it so
+        # the losing person row still forwards to the survivor, rather
+        # than leaving action/outreach rows (both FK to person) stranded
+        # at a person with no identities and no way to follow the merge
+        cur.execute("update person set merged_into = %s where id = %s", (person_a, person_b))
+        person_id = person_a
+```
+
+- [ ] **Step 4: Run tests, full suite, and lint**
+
+Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_merge.py -v && .venv/Scripts/python.exe -m pytest -q && ruff check adapters/resolution/merge.py`
+Expected: all pass, no lint errors
+
+---
+
+- [ ] **Step 7 (final): Commit everything**
+
+```bash
+git add adapters/resolution/ tests/test_resolution_safety.py tests/test_resolution_rules.py tests/test_resolution_linkedin_correlation.py tests/test_resolution_structured_facts.py tests/test_resolution_merge.py tests/test_resolution_naming.py
+git commit -m "Fix findings from the final whole-branch review: LinkedIn display_name backfill (Critical false-merge path), Rule 3 generic-email check, cluster-wide anti-transitivity, idempotent reruns, graceful no-name merge, person.merged_into on fold"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** Rule 1 → Task 6, Rule 2 → folded into Rule 3 per the 2026-09-03 decision with Eva (a phone-only match has no identity to merge into on its own; weaker evidence than the other automatic rules anyway), Rule 3 → Task 6, Rule 4 → Task 7, Rule 5 → Task 8, Rule 6 → unresolved (per spec). Safety checks 1-5 → Task 2, applied inside Task 6-8's rules. Evidence provenance (`reason`) → Task 2/6/7/8's `reason` columns. `fact`/`organization` schema → Task 1, populated by Task 9. Naming → Task 3, applied by Task 5. Review queue → Task 11. Adversarial tests from the design's Testing section → covered across Task 6 (generic address, recycled number, contact-bridge false-negative), Task 4 (organization normalisation, including the Acme Inc/Commonwealth Bank cases), Task 2 (name contradiction, rejection durability, cluster size) — transitive A-B-C over-merge and "two similarly-named LinkedIn profiles" are **not yet covered by an explicit test** in this plan; flagging this as a gap the implementer should close by adding a test in Task 6 or Task 8 covering the transitive case (confirm A-B, confirm B-C, verify A and C ended up correctly merged or not per real safety-check behavior — this needs runtime verification, not just a design assertion, since the plan's own rules don't have explicit anti-transitivity logic beyond what safety checks 2/5 incidentally catch).
