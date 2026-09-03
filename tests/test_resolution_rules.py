@@ -59,7 +59,6 @@ class TestRuleExactEmailMatch:
 
     def test_generic_role_email_does_not_auto_confirm(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
-        email = f"support-{uuid.uuid4().hex[:8]}@acme.com".replace(f"support-{uuid.uuid4().hex[:8]}", "support")
         outlook_id = _make_identity(cur, "outlook", "support@acme.com", None)
         _make_linkedin_connection(cur, email="support@acme.com")
 
