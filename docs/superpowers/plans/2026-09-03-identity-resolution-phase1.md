@@ -628,7 +628,7 @@ git commit -m "Add canonical organization dedup for knowledge-graph facts"
 
 **Interfaces:**
 - Consumes: `adapters.resolution.naming.select_names`.
-- Produces (used by Task 6's rules and Task 10's review-queue routes): `apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str` — creates/reuses a `person` row, sets `identity.person_id` on both sides, recomputes `primary_name`/`preferred_name` over the *whole* resulting cluster (not just the two identities just merged), returns the resulting `person.id`.
+- Produces (used by Task 6's rules and Task 10's review-queue routes): `apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str` — creates/reuses a `person` row, sets `identity.person_id` on both sides, recomputes `primary_name`/`preferred_name` over the *whole* resulting cluster (not just the two identities just merged), returns the resulting `person.id`. If `identity_a_id` and `identity_b_id` already belong to two different, already-merged clusters (e.g. two separate `link_candidate` matches converge on the same real person from different directions), the whole of the second cluster is folded into the first — this is the single merge mechanism, so it must never silently strand part of a cluster.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -702,6 +702,29 @@ class TestApplyMerge:
 
         cur.execute("select primary_name from person where id = %s", (person_id,))
         assert cur.fetchone()[0] == "Eric Tham"
+
+    def test_merging_two_already_linked_clusters_unifies_them(self, db_conn: psycopg.Connection):
+        # a and b each already belong to a DIFFERENT existing person —
+        # this happens when two separate link_candidate matches converge
+        # on the same underlying real person from different directions.
+        # Merging a and b must fold the whole of person_b's cluster into
+        # person_a's, not just move a and b themselves and strand
+        # person_b's other identity under a now-orphaned person row.
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+        stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
+
+        person_id = apply_merge(cur, a, b)
+
+        # the identity that was never passed to apply_merge, but shared
+        # person_b's cluster, must have followed the merge
+        cur.execute("select person_id from identity where id = %s", (stranded,))
+        assert str(cur.fetchone()[0]) == person_id
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -730,10 +753,21 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
     cur.execute("select person_id from identity where id = %s", (identity_b_id,))
     (person_b,) = cur.fetchone()
 
-    person_id = person_a or person_b
-    if person_id is None:
-        cur.execute("insert into person (primary_name) values ('') returning id")
-        person_id = cur.fetchone()[0]
+    if person_a and person_b and person_a != person_b:
+        # both identities already belong to different, already-merged
+        # clusters (e.g. two separate link_candidate matches converge on
+        # the same underlying person from different directions) — move
+        # every identity in person_b's cluster over to person_a's,
+        # rather than reassigning only identity_a_id/identity_b_id and
+        # silently stranding the rest of person_b's cluster under a now-
+        # orphaned, stale-named person row
+        cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
+        person_id = person_a
+    else:
+        person_id = person_a or person_b
+        if person_id is None:
+            cur.execute("insert into person (primary_name) values ('') returning id")
+            person_id = cur.fetchone()[0]
 
     cur.execute(
         "update identity set person_id = %s where id in (%s, %s)",
@@ -759,7 +793,7 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `.venv/Scripts/python.exe -m pytest tests/test_resolution_merge.py -v`
-Expected: PASS (3 tests)
+Expected: PASS (4 tests)
 
 - [ ] **Step 5: Run the full suite and lint**
 
