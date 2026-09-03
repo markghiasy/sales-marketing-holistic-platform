@@ -1932,14 +1932,32 @@ git commit -m "Add adapters.resolution.run entrypoint, running all Phase 1 rules
 # append to tests/test_onboarding_app.py
 import uuid as _uuid
 
-
-def _pg_conn():
-    import psycopg
-    return psycopg.connect(os.environ["DATABASE_URL"])
+# same local Postgres URL tests/conftest.py's db_conn fixture uses,
+# deliberately hardcoded there (not read from .env) because .env's
+# DATABASE_URL points at the real hosted Supabase project — this file's
+# resolution routes each open their OWN fresh connection via
+# _get_status_cursor(), which reads os.environ["DATABASE_URL"] directly.
+# Without redirecting that env var for the duration of these tests, every
+# route call below would silently connect to and mutate the real
+# production database instead of the local db_conn fixture's Postgres,
+# while the test's own seeded rows (via db_conn) would sit in a
+# completely separate database the route never sees. Caught by hand-
+# tracing this exact mismatch before dispatch — not a hypothetical.
+_RESOLUTION_TEST_DATABASE_URL = "postgresql://comms:comms@localhost:5432/comms"
 
 
 class TestResolutionReviewQueue:
-    def test_get_resolution_lists_pending_candidates(self, db_conn):
+    @pytest.fixture(autouse=True)
+    def _routes_use_local_db(self, monkeypatch):
+        # autouse + defined inside the class, so this only wraps tests in
+        # THIS class — every other test in the file is unaffected.
+        monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
+
+    def test_get_resolution_candidates_json_lists_pending(self, db_conn):
+        # the /resolution page itself renders client-side (fetches
+        # candidates.json via JS, see the template in Step 3) — assert on
+        # the JSON endpoint directly rather than the initial HTML, which
+        # never contains "test reason" verbatim
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"
         b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
@@ -1955,10 +1973,11 @@ class TestResolutionReviewQueue:
 
         flask_app = onboarding_app.create_app(testing=True)
         client = flask_app.test_client()
-        resp = client.get("/resolution")
+        resp = client.get("/resolution/candidates.json")
 
         assert resp.status_code == 200
-        assert b"test reason" in resp.data
+        body = resp.get_json()
+        assert any(item["reason"] == "test reason" for item in body)
 
     def test_confirm_candidate_applies_the_merge(self, db_conn):
         cur = db_conn.cursor()
@@ -2234,39 +2253,6 @@ Add inside `create_app`, after the LinkedIn routes:
         finally:
             cur.connection.close()
         return jsonify({"status": "rejected"})
-```
-
-Note: the `/resolution` HTML route in Step 1's test asserts `b"test
-reason" in resp.data`, but the template above renders reasons via
-client-side JS fetching `/resolution/candidates.json`, not server-side
-into the initial HTML — **fix the test in Step 1 before running it**:
-change that one assertion to hit `/resolution/candidates.json` directly
-and check the JSON body instead of the rendered page:
-
-```python
-    def test_get_resolution_candidates_json_lists_pending(self, db_conn):
-        # replaces test_get_resolution_lists_pending_candidates above —
-        # the page renders client-side, so assert on the JSON endpoint
-        cur = db_conn.cursor()
-        a_email = f"a-{_uuid.uuid4().hex}@example.com"
-        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
-        cur.execute("insert into identity (channel, handle, display_name) values ('outlook', %s, 'Eric Tham') returning id", (a_email,))
-        a = cur.fetchone()[0]
-        cur.execute("insert into identity (channel, handle, display_name) values ('whatsapp', %s, 'Eric') returning id", (b_handle,))
-        b = cur.fetchone()[0]
-        cur.execute(
-            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason) values (%s, %s, 0.5, 'test', 'pending', 'test reason')",
-            (a, b),
-        )
-        db_conn.commit()
-
-        flask_app = onboarding_app.create_app(testing=True)
-        client = flask_app.test_client()
-        resp = client.get("/resolution/candidates.json")
-
-        assert resp.status_code == 200
-        body = resp.get_json()
-        assert any(item["reason"] == "test reason" for item in body)
 ```
 
 - [ ] **Step 5: Add a link from the main dashboard page**
