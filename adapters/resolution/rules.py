@@ -102,14 +102,14 @@ def rule_exact_email_match(cur) -> int:
             """
             insert into identity (channel, handle, display_name) values ('linkedin', %s, %s)
             on conflict (channel, handle) do update
-                set display_name = excluded.display_name
-                where identity.display_name is null and excluded.display_name is not null
+                set display_name = coalesce(identity.display_name, excluded.display_name)
+            returning id
             """,
             (connection_id, linkedin_display_name),
         )
-        cur.execute(
-            "select id from identity where channel = 'linkedin' and handle = %s", (connection_id,)
-        )
+        # the on conflict clause has no WHERE, so it always fires and
+        # RETURNING always yields a row — no separate SELECT needed, even
+        # when the update is a same-value no-op
         linkedin_identity_id = str(cur.fetchone()[0])
 
         blocked_reason = (
@@ -128,6 +128,22 @@ def rule_exact_email_match(cur) -> int:
 def rule_contact_bridge(cur) -> int:
     cur.execute("select id, emails, phones, display_name from graph_contact")
     contacts = cur.fetchall()
+
+    # both identity tables are small relative to graph_contact and don't
+    # change mid-run, so load each once instead of re-querying per contact
+    # (or, for whatsapp, per digit-candidate) — this was the dominant cost
+    # of a real run against the hosted database, one network round trip
+    # per lookup instead of two queries total
+    cur.execute("select handle, id from identity where channel = 'outlook'")
+    outlook_by_handle = {handle: str(identity_id) for handle, identity_id in cur.fetchall()}
+
+    cur.execute("select id, handle from identity where channel = 'whatsapp'")
+    whatsapp_by_digits: dict[str, str] = {}
+    for wa_id, handle in cur.fetchall():
+        digits = _whatsapp_phone_digits(handle)
+        if digits:
+            whatsapp_by_digits.setdefault(digits, str(wa_id))
+
     count = 0
     for _contact_id, emails, phones, contact_display_name in contacts:
         if not emails or not phones:
@@ -135,23 +151,19 @@ def rule_contact_bridge(cur) -> int:
         outlook_identity_id = None
         matched_email = None
         for email in emails:
-            cur.execute(
-                "select id from identity where channel = 'outlook' and handle = %s", (email.lower(),)
-            )
-            row = cur.fetchone()
-            if row:
-                outlook_identity_id = str(row[0])
+            candidate = outlook_by_handle.get(email.lower())
+            if candidate:
+                outlook_identity_id = candidate
                 matched_email = email
                 break
         if outlook_identity_id is None:
             continue
 
         whatsapp_identity_id = None
-        cur.execute("select id, handle from identity where channel = 'whatsapp'")
-        for wa_id, handle in cur.fetchall():
-            digits = _whatsapp_phone_digits(handle)
-            if digits and digits in phones:
-                whatsapp_identity_id = str(wa_id)
+        for phone in phones:
+            candidate = whatsapp_by_digits.get(phone)
+            if candidate:
+                whatsapp_identity_id = candidate
                 break
         if whatsapp_identity_id is None:
             continue
@@ -199,24 +211,35 @@ def rule_signature_phone(cur) -> int:
         """
     )
     messages = cur.fetchall()
+
+    # loaded once, not once per digit-candidate: with thousands of real
+    # messages, re-running this query per candidate was the dominant cost
+    # of a real run against the hosted database (one network round trip
+    # per digit found, on top of one per message)
+    cur.execute("select id, handle from identity where channel = 'whatsapp'")
+    whatsapp_by_digits: dict[str, str] = {}
+    for wa_id, handle in cur.fetchall():
+        digits = _whatsapp_phone_digits(handle)
+        if digits:
+            whatsapp_by_digits.setdefault(digits, str(wa_id))
+
     count = 0
     for message_id, from_identity_id, body_text in messages:
         if from_identity_id is None or not body_text:
             continue
         for digits in _extract_signature_phone_digits(body_text):
-            cur.execute("select id, handle from identity where channel = 'whatsapp'")
-            for wa_id, handle in cur.fetchall():
-                wa_digits = _whatsapp_phone_digits(handle)
-                if wa_digits == digits:
-                    if has_existing_candidate(cur, str(from_identity_id), str(wa_id)):
-                        continue
-                    reason = f"phone {digits} found in signature of message {message_id}, matches WhatsApp handle {wa_digits}"
-                    cur.execute(
-                        """
-                        insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
-                        values (%s, %s, 0.8, 'email_signature_phone', 'pending', %s)
-                        """,
-                        (str(from_identity_id), str(wa_id), reason),
-                    )
-                    count += 1
+            wa_id = whatsapp_by_digits.get(digits)
+            if wa_id is None:
+                continue
+            if has_existing_candidate(cur, str(from_identity_id), wa_id):
+                continue
+            reason = f"phone {digits} found in signature of message {message_id}, matches WhatsApp handle {digits}"
+            cur.execute(
+                """
+                insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
+                values (%s, %s, 0.8, 'email_signature_phone', 'pending', %s)
+                """,
+                (str(from_identity_id), wa_id, reason),
+            )
+            count += 1
     return count
