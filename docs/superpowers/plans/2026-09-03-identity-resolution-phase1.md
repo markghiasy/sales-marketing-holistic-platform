@@ -1228,9 +1228,13 @@ class TestRuleSignaturePhone:
         body = f"Thanks,\nEric Tham\nMobile: {digits}"
         _make_message(cur, thread, outlook_id, body, direction="outbound")
 
-        count = rule_signature_phone(cur)
+        # not asserting an exact `count` here: this local database carries
+        # real committed rows alongside whatever this test inserts (see
+        # conftest.py's db_conn fixture note), so the rule may legitimately
+        # find other matches too. Scope assertions to this test's own
+        # identity pair instead.
+        rule_signature_phone(cur)
 
-        assert count == 1
         cur.execute(
             "select status, score, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
             (outlook_id, outlook_id),
@@ -1240,31 +1244,49 @@ class TestRuleSignaturePhone:
         assert score == 0.8
         assert method == "email_signature_phone"
 
-    def test_inbound_messages_are_not_scanned(self, db_conn: psycopg.Connection):
+    def test_inbound_messages_are_also_scanned(self, db_conn: psycopg.Connection):
+        # a phone number in the SENDER's signature is exactly as valid
+        # evidence on an inbound message as an outbound one — the mailbox
+        # owner's own outbound signature was never a requirement, just
+        # the first case built. from_identity_id on an inbound message is
+        # whoever sent it, so this links their Outlook identity to their
+        # own WhatsApp number, same mechanism, just the other direction.
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
         digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
-        _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
+        wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eric Tham")
         thread = _make_thread(cur)
-        _make_message(cur, thread, outlook_id, f"call me on {digits}", direction="inbound")
+        body = f"Thanks,\nEric Tham\nMobile: {digits}"
+        _make_message(cur, thread, outlook_id, body, direction="inbound")
 
-        count = rule_signature_phone(cur)
+        rule_signature_phone(cur)
 
-        assert count == 0
+        cur.execute(
+            "select status, score, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (wa_id, wa_id),
+        )
+        status, score, method = cur.fetchone()
+        assert status == "pending"
+        assert score == 0.8
+        assert method == "email_signature_phone"
 
     def test_number_outside_the_last_few_lines_is_not_matched(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
         digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
-        _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
+        wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Someone Else")
         thread = _make_thread(cur)
         padding = "\n".join(f"line {n}" for n in range(20))
         body = f"By the way my number is {digits}\n{padding}\nThanks,\nEric"
         _make_message(cur, thread, outlook_id, body, direction="outbound")
 
-        count = rule_signature_phone(cur)
+        rule_signature_phone(cur)
 
-        assert count == 0
+        cur.execute(
+            "select count(*) from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (wa_id, wa_id),
+        )
+        assert cur.fetchone()[0] == 0
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1327,11 +1349,16 @@ def _extract_signature_phone_digits(body_text: str) -> list[str]:
 
 
 def rule_signature_phone(cur) -> int:
+    # both directions are scanned: a phone number in the SIGNER's own
+    # signature is equally valid evidence whether they sent us the message
+    # (outbound) or we received it from them (inbound) — from_identity_id
+    # is always whoever wrote the message, so the link target is correct
+    # either way.
     cur.execute(
         """
         select id, from_identity_id, body_text
         from message
-        where channel = 'outlook' and direction = 'outbound'
+        where channel = 'outlook'
         """
     )
     messages = cur.fetchall()

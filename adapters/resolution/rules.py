@@ -186,11 +186,16 @@ def _extract_signature_phone_digits(body_text: str) -> list[str]:
 
 
 def rule_signature_phone(cur) -> int:
+    # both directions are scanned: a phone number in the SIGNER's own
+    # signature is equally valid evidence whether they sent us the message
+    # (outbound) or we received it from them (inbound) — from_identity_id
+    # is always whoever wrote the message, so the link target is correct
+    # either way.
     cur.execute(
         """
         select id, from_identity_id, body_text
         from message
-        where channel = 'outlook' and direction = 'outbound'
+        where channel = 'outlook'
         """
     )
     messages = cur.fetchall()
