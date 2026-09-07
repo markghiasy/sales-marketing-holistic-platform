@@ -15,6 +15,7 @@ adapters/whatsapp/node/chats*.jsonl
 adapters/whatsapp/node/lid_map.jsonl
 adapters/whatsapp/node/lids_input.jsonl
 scripts/*.dump
+exports/
 comms_outreach_platform.egg-info/
 adapters/whatsapp/node/self_jid.txt
 adapters/whatsapp/node/.heartbeat.txt

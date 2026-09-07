@@ -3,7 +3,7 @@ complete, re-importable dump.") Thin wrapper over pg_dump/pg_restore rather
 than a bespoke format — the store is plain Postgres, no reason to reinvent
 this.
 
-Runs pg_dump inside a throwaway `postgres:16` container instead of
+Runs pg_dump inside a throwaway `postgres:17` container instead of
 shelling out to a host-installed client — found via the fresh-deploy
 checkpoint (§2/§14) that a clean machine has no pg_dump on PATH at all,
 so the old direct-subprocess version failed outright on a real clean
@@ -12,6 +12,14 @@ out over the network like this also means it works the same way whether
 DATABASE_URL points at the local docker-compose Postgres or a remote
 host (e.g. the hosted Supabase instance) — nothing here assumes the
 target is a sibling container.
+
+Client image tracks the newest server this project talks to (checked
+2026-09-07: the hosted Supabase instance is on Postgres 17.6) —
+pg_dump refuses to run against a server newer than itself, so this
+must stay at or above every real target's version. A pg_dump client
+can still dump an older server without issue, so this is safe for the
+local docker-compose Postgres too even if that stays on an older major
+version.
 """
 
 from __future__ import annotations
@@ -47,7 +55,7 @@ def export(out_dir: str = "exports") -> str:
         [
             "docker", "run", "--rm",
             "-v", f"{out_dir_abs}:/out",
-            "postgres:16",
+            "postgres:17",
             "pg_dump", "--format=custom", f"--file=/out/{filename}",
             _db_url_for_container(os.environ["DATABASE_URL"]),
         ],
