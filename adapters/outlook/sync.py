@@ -7,6 +7,7 @@ Run: python -m adapters.outlook.sync
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from datetime import UTC, datetime
@@ -19,6 +20,25 @@ from dotenv import load_dotenv
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
 from .client import fetch_messages
+
+# Answers a question message-staleness alone can't: "did the sync itself
+# actually run and finish" is a different question from "did any new mail
+# land" — a mailbox can genuinely go quiet for a day or more even when the
+# adapter is working fine, and conflating the two flagged this mailbox
+# unhealthy on 2026-09-08 despite the scheduled task succeeding every
+# 10 minutes throughout. Same fix already applied to LinkedIn on
+# 2026-09-02 for the identical reason — see adapters/linkedin/sync.py and
+# scripts/monitor.py's _check_sync_status for the read side of this file.
+STATUS_PATH = Path(__file__).parent / ".sync_status.json"
+
+
+def _write_status(state: str, detail: str) -> None:
+    STATUS_PATH.write_text(json.dumps({
+        "state": state,
+        "detail": detail,
+        "at": datetime.now(UTC).isoformat(),
+    }))
+
 
 # One delta link per folder — each folder's delta query is its own
 # independent paging sequence, so they can't share a single cursor.
@@ -145,37 +165,42 @@ def run() -> None:
     _migrate_legacy_inbox_delta_link()
 
     count = 0
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        for folder in _FOLDERS:
-            delta_link_path = _DELTA_LINK_PATHS[folder]
-            delta_link = delta_link_path.read_text().strip() if delta_link_path.exists() else None
+    try:
+        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+            for folder in _FOLDERS:
+                delta_link_path = _DELTA_LINK_PATHS[folder]
+                delta_link = delta_link_path.read_text().strip() if delta_link_path.exists() else None
 
-            next_delta_link = None
-            gen = fetch_messages(folder=folder, delta_link=delta_link)
-            while True:
-                # NOT `for raw in gen:` — that swallows the generator's
-                # return value. fetch_messages() returns the next delta
-                # link via `return`, which only surfaces through
-                # StopIteration.value on manual next() calls. A for-loop
-                # never exposes it — found while self-reviewing before the
-                # first git push: every past run of this adapter had been
-                # silently doing a full mailbox backfill instead of an
-                # incremental delta sync.
-                try:
-                    raw = next(gen)
-                except StopIteration as e:
-                    next_delta_link = e.value
-                    break
-                env = _to_envelope(raw, self_handles={self_email})
-                if env is None:
-                    continue
-                upsert(conn, env, self_email)
-                count += 1
+                next_delta_link = None
+                gen = fetch_messages(folder=folder, delta_link=delta_link)
+                while True:
+                    # NOT `for raw in gen:` — that swallows the generator's
+                    # return value. fetch_messages() returns the next delta
+                    # link via `return`, which only surfaces through
+                    # StopIteration.value on manual next() calls. A for-loop
+                    # never exposes it — found while self-reviewing before the
+                    # first git push: every past run of this adapter had been
+                    # silently doing a full mailbox backfill instead of an
+                    # incremental delta sync.
+                    try:
+                        raw = next(gen)
+                    except StopIteration as e:
+                        next_delta_link = e.value
+                        break
+                    env = _to_envelope(raw, self_handles={self_email})
+                    if env is None:
+                        continue
+                    upsert(conn, env, self_email)
+                    count += 1
 
-            if next_delta_link:
-                delta_link_path.write_text(next_delta_link)
-        conn.commit()
+                if next_delta_link:
+                    delta_link_path.write_text(next_delta_link)
+            conn.commit()
+    except Exception as e:  # record the real failure, then let it surface
+        _write_status("error", f"sync failed: {e}")
+        raise
 
+    _write_status("ok", f"synced {count} messages")
     print(f"synced {count} messages")
 
 

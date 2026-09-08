@@ -5,23 +5,22 @@ on a schedule rather than by hand.
 
 Three different kinds of signal, deliberately not conflated:
 
-- Outlook runs as a one-shot sync script on a 10-minute schedule — for
-  this, "healthy" still means "the last sync ran recently and wrote
-  something," approximated by max(message.ingested_at). That's a
-  reasonable proxy at a 10-minute cadence: a real mailbox is rarely
-  quiet that long, so staleness is a fair stand-in for "did the last
-  run work."
-- LinkedIn runs 4x/day — quiet for a day or two is completely normal
-  (nobody messaged), so the same message-staleness proxy used for
-  Outlook produces false alarms here. Found 2026-09-02: a real,
-  successfully-completed sync reported "unhealthy" for over two days
-  straight because the inbox genuinely had no new messages, not because
-  anything was broken. Fixed by checking a different signal entirely:
-  adapters/linkedin/sync.py now writes its own .sync_status.json after
-  every run (ok/capped/error, with the real detail), independent of
-  whether anything new was found — this checks "did the mechanism run"
-  the same way the WhatsApp heartbeat checks "is the connector alive,"
-  instead of asking a question a quiet inbox can't answer.
+- Outlook and LinkedIn both run as one-shot sync scripts on a schedule
+  (10 minutes and 4x/day respectively). "Healthy" is "did the sync
+  mechanism itself last run successfully," not "did any new mail show
+  up" — message-volume staleness was tried first and produces false
+  alarms on any real mailbox that goes quiet for a stretch (nobody
+  emailed or messaged for a day). Found first for LinkedIn on
+  2026-09-02 (a real, successfully-completed sync reported "unhealthy"
+  for over two days because the inbox genuinely had no new messages),
+  then again for Outlook on 2026-09-08 (the scheduled task had
+  succeeded every 10 minutes throughout, but the mailbox itself had
+  had no new mail in over a day). Both adapters now write their own
+  .sync_status.json after every run (state + detail + timestamp),
+  independent of whether anything new was found — _check_sync_status
+  below reads it. This checks "did the mechanism run" the same way the
+  WhatsApp heartbeat checks "is the connector alive," instead of asking
+  a question a quiet channel can't answer.
 - WhatsApp is a long-running connector (ingest.js). Message staleness
   alone can't tell "the socket died" apart from "nobody happened to
   message for a while" — a quiet chat looks identical to a dead
@@ -64,6 +63,8 @@ WHATSAPP_STATUS_PATH = _WHATSAPP_DIR / ".status.json"
 WHATSAPP_PID_PATH = _WHATSAPP_DIR / ".pid"
 _LINKEDIN_DIR = Path(__file__).parent.parent / "adapters" / "linkedin"
 LINKEDIN_SYNC_STATUS_PATH = _LINKEDIN_DIR / ".sync_status.json"
+_OUTLOOK_DIR = Path(__file__).parent.parent / "adapters" / "outlook"
+OUTLOOK_SYNC_STATUS_PATH = _OUTLOOK_DIR / ".sync_status.json"
 ALERT_STATE_PATH = Path(__file__).parent / ".monitor_alert_state.json"
 
 # Staleness thresholds per channel, in hours — overridable via env so
@@ -77,7 +78,7 @@ ALERT_STATE_PATH = Path(__file__).parent / ".monitor_alert_state.json"
 # one missed slot before flagging without also masking a genuinely
 # stopped scheduler for days.
 _DEFAULT_THRESHOLDS_HOURS = {
-    "outlook": 24.0,
+    "outlook_run": 24.0,
     "linkedin_run": 20.0,
 }
 _WHATSAPP_HEARTBEAT_THRESHOLD_MINUTES = 5.0  # ingest.js heartbeats every 60s
@@ -98,70 +99,66 @@ def _threshold_hours(channel: str) -> float:
     return float(os.environ.get(env_key, _DEFAULT_THRESHOLDS_HOURS[channel]))
 
 
-def _check_message_staleness(cur, channel: str) -> ChannelStatus:
-    cur.execute("select max(ingested_at) from message where channel = %s", (channel,))
-    (last_ingest,) = cur.fetchone()
-    if last_ingest is None:
-        return ChannelStatus(channel, False, "no messages ever ingested")
-
-    age_hours = (datetime.now(UTC) - last_ingest).total_seconds() / 3600
-    threshold = _threshold_hours(channel)
-    if age_hours > threshold:
+def _check_sync_status(
+    channel: str, status_path: Path, threshold_key: str, run_command: str
+) -> ChannelStatus:
+    """Checks whether a scheduled sync mechanism itself last ran
+    successfully — a separate question from whether anything new showed
+    up, which a quiet channel can go long stretches without answering
+    "yes" to even when nothing is broken. See the corresponding adapter's
+    _write_status for the write side of this file."""
+    if not status_path.exists():
         return ChannelStatus(
             channel, False,
-            f"last ingest {age_hours:.1f}h ago, threshold is {threshold:.0f}h "
-            f"(last: {last_ingest.isoformat()})",
-        )
-    return ChannelStatus(channel, True, f"last ingest {age_hours:.1f}h ago")
-
-
-def _check_linkedin_liveness() -> ChannelStatus:
-    """Checks whether the sync mechanism itself last ran successfully —
-    a separate question from whether any new messages showed up, which
-    a quiet LinkedIn inbox can go days without answering "yes" to even
-    when nothing is broken. See adapters/linkedin/sync.py's
-    _write_status for the write side of this file."""
-    if not LINKEDIN_SYNC_STATUS_PATH.exists():
-        return ChannelStatus(
-            "linkedin", False,
-            "never run yet, or ran before this status file existed — "
-            "run it: `python -m adapters.linkedin.sync`",
+            f"never run yet, or ran before this status file existed — run it: `{run_command}`",
         )
 
     try:
-        status = json.loads(LINKEDIN_SYNC_STATUS_PATH.read_text())
+        status = json.loads(status_path.read_text())
     except (json.JSONDecodeError, OSError) as e:
-        return ChannelStatus("linkedin", False, f"couldn't read sync status: {e}")
+        return ChannelStatus(channel, False, f"couldn't read sync status: {e}")
 
     state = status.get("state")
     detail = status.get("detail", "no detail")
     at_text = status.get("at")
 
     if state == "error":
-        return ChannelStatus("linkedin", False, f"last sync failed — {detail}")
+        return ChannelStatus(channel, False, f"last sync failed — {detail}")
 
     if not at_text:
-        return ChannelStatus("linkedin", False, "sync status file missing a timestamp")
+        return ChannelStatus(channel, False, "sync status file missing a timestamp")
 
     try:
         at = datetime.fromisoformat(at_text)
     except ValueError:
-        return ChannelStatus("linkedin", False, f"sync status has an unparseable timestamp: {at_text}")
+        return ChannelStatus(channel, False, f"sync status has an unparseable timestamp: {at_text}")
 
     age_hours = (datetime.now(UTC) - at).total_seconds() / 3600
-    threshold = _threshold_hours("linkedin_run")
+    threshold = _threshold_hours(threshold_key)
     if age_hours > threshold:
         return ChannelStatus(
-            "linkedin", False,
+            channel, False,
             f"last successful run {age_hours:.1f}h ago, threshold is "
             f"{threshold:.0f}h — the schedule may have stopped firing "
             f"(last: {detail})",
         )
 
-    # "capped" (hit the daily session limit) is still a healthy sign —
-    # the mechanism ran, made a deliberate choice, and exited clean; see
-    # sync.py's own comment on why that's not a failure.
-    return ChannelStatus("linkedin", True, f"last run {age_hours:.1f}h ago — {detail}")
+    # a non-"ok" non-"error" state (e.g. LinkedIn's "capped", hit the
+    # daily session limit) is still a healthy sign — the mechanism ran,
+    # made a deliberate choice, and exited clean.
+    return ChannelStatus(channel, True, f"last run {age_hours:.1f}h ago — {detail}")
+
+
+def _check_linkedin_liveness() -> ChannelStatus:
+    return _check_sync_status(
+        "linkedin", LINKEDIN_SYNC_STATUS_PATH, "linkedin_run", "python -m adapters.linkedin.sync"
+    )
+
+
+def _check_outlook_liveness() -> ChannelStatus:
+    return _check_sync_status(
+        "outlook", OUTLOOK_SYNC_STATUS_PATH, "outlook_run", "python -m adapters.outlook.sync"
+    )
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -352,24 +349,25 @@ def _send_alert(message: str, priority: str = "high") -> None:
             print(f"ALERT DELIVERY FAILED (webhook): {e}", file=sys.stderr)
 
 
-def check_all(cur) -> list[ChannelStatus]:
-    statuses: list[ChannelStatus] = [_check_message_staleness(cur, "outlook")]
-    statuses.append(_check_linkedin_liveness())
-    statuses.append(_check_whatsapp_liveness())
-    return statuses
+def check_all() -> list[ChannelStatus]:
+    return [_check_outlook_liveness(), _check_linkedin_liveness(), _check_whatsapp_liveness()]
 
 
 def run() -> int:
     load_dotenv()
 
+    # a fast, independent check: the store being unreachable is its own
+    # failure mode, distinct from any single channel's sync status (none
+    # of the three channel checks below touch the database at all — each
+    # reads its adapter's own liveness file instead).
     try:
-        conn = psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
+        with psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5):
+            pass
     except Exception as e:  # noqa: BLE001 — report, don't crash the caller
         _send_alert(f"cannot reach store at all: {e}")
         return 1
 
-    with conn, conn.cursor() as cur:
-        statuses = check_all(cur)
+    statuses = check_all()
 
     alert_state = _load_alert_state()
     now = time.time()

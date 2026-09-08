@@ -43,9 +43,8 @@ def _reset_outlook_state(monkeypatch, tmp_path):
 
 
 def test_status_route_returns_all_three_channels(monkeypatch):
-    fake_cursor = MagicMock(fetchone=lambda: (None,))
-    fake_cursor.connection = MagicMock()
-    monkeypatch.setattr(onboarding_app, "_get_status_cursor", lambda: fake_cursor)
+    monkeypatch.setattr(monitor, "_check_outlook_liveness", lambda: monitor.ChannelStatus("outlook", True, "ok"))
+    monkeypatch.setattr(monitor, "_check_linkedin_liveness", lambda: monitor.ChannelStatus("linkedin", True, "ok"))
     monkeypatch.setattr(monitor, "_check_whatsapp_liveness", lambda: monitor.ChannelStatus("whatsapp", True, "ok"))
 
     flask_app = onboarding_app.create_app(testing=True)
@@ -57,30 +56,8 @@ def test_status_route_returns_all_three_channels(monkeypatch):
     body = resp.get_json()
     assert set(body.keys()) == {"outlook", "linkedin", "whatsapp"}
     assert body["whatsapp"] == {"healthy": True, "detail": "ok"}
-
-
-def test_status_route_degrades_when_db_unreachable(monkeypatch):
-    import psycopg
-
-    def _raise():
-        raise psycopg.OperationalError("connection refused")
-
-    monkeypatch.setattr(onboarding_app, "_get_status_cursor", _raise)
-    monkeypatch.setattr(monitor, "_check_whatsapp_liveness", lambda: monitor.ChannelStatus("whatsapp", True, "ok"))
-
-    flask_app = onboarding_app.create_app(testing=True)
-    client = flask_app.test_client()
-
-    resp = client.get("/status")
-
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert set(body.keys()) == {"outlook", "linkedin", "whatsapp"}
-    assert body["outlook"]["healthy"] is False
-    assert "connection refused" in body["outlook"]["detail"]
-    assert body["linkedin"]["healthy"] is False
-    assert "connection refused" in body["linkedin"]["detail"]
-    assert body["whatsapp"] == {"healthy": True, "detail": "ok"}
+    assert body["linkedin"] == {"healthy": True, "detail": "ok"}
+    assert body["outlook"] == {"healthy": True, "detail": "ok"}
 
 
 def test_outlook_connect_then_status_shows_pending_code(monkeypatch):

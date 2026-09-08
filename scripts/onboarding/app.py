@@ -167,19 +167,12 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/status")
     def status():
-        try:
-            cur = _get_status_cursor()
-        except Exception as e:  # noqa: BLE001 — degrade, don't crash the route
-            statuses = [
-                monitor.ChannelStatus("outlook", False, f"cannot reach store: {e}"),
-                monitor.ChannelStatus("linkedin", False, f"cannot reach store: {e}"),
-                monitor._check_whatsapp_liveness(),
-            ]
-        else:
-            try:
-                statuses = monitor.check_all(cur)
-            finally:
-                cur.connection.close()
+        # none of the three channel checks touch the database — each
+        # reads its adapter's own liveness file — so there's no store
+        # connection to degrade from here any more (see monitor.py's
+        # check_all/run for where store-reachability is still checked,
+        # as its own independent failure mode)
+        statuses = monitor.check_all()
         return jsonify({s.channel: {"healthy": s.healthy, "detail": s.detail} for s in statuses})
 
     @flask_app.post("/outlook/connect")
