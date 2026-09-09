@@ -5,6 +5,20 @@ what makes the cutover in §14 possible at all.
 
 ## Deploying a clean instance
 
+**Two different Postgres targets, decided 2026-09-10 — don't conflate
+them.** `docker compose up -d` below spins up a self-hosted local
+Postgres; that's what this section and the fresh-deploy-gate runs
+further down actually exercise, and it's what the automated test suite
+always uses (`tests/conftest.py`) regardless of anything else. **It is
+NOT what production points at.** Mark's real deployment uses his own
+Supabase project (`DATABASE_URL` set to its connection string, no local
+Postgres or Docker involved at all) — migrations there don't
+auto-apply the way `docker-entrypoint-initdb.d` does below, they're
+applied by hand, one file at a time (see "Applying a migration to an
+already-running instance" further down, or use the
+`deploy-comms-platform` skill, which walks the whole thing with a
+verification step after each command).
+
 1. `cp .env.example .env`, fill in every value. Nothing here should ever
    come from a file, seed, or migration instead (§5 rule 1).
 2. `docker compose up -d` — brings up Postgres and applies
