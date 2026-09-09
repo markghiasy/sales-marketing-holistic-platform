@@ -31,12 +31,23 @@ from .safety import (
 def _whatsapp_phone_digits(handle: str) -> str | None:
     """Extracts the digit portion of a WhatsApp identity.handle (a raw
     JID like '15806709090@s.whatsapp.net'), or None for a group chat
-    ('...@g.us') or anything not shaped like a person's number."""
+    ('...@g.us') or anything not shaped like a person's number.
+
+    Strips an optional trailing ':<device id>' first (real linked-device
+    JIDs look like '61404157396:22@s.whatsapp.net') — found 2026-09-09:
+    without this, every one of the mailbox owner's own is_self=true rows
+    (all real ones carry a device suffix) silently produced None here,
+    so a self-number check built only from those rows' digits stayed
+    empty and matched nothing, even though a *second*, undeviced
+    duplicate row for the same real number (never flagged is_self) was
+    exactly what a later bug went on to match against.
+    """
     if handle.endswith("@g.us"):
         return None
     if "@" not in handle:
         return None
-    digits = handle.split("@", 1)[0]
+    local_part = handle.split("@", 1)[0]
+    digits = local_part.split(":", 1)[0]
     return digits if digits.isdigit() else None
 
 
@@ -217,7 +228,7 @@ def rule_signature_phone(cur) -> int:
     # of a real run against the hosted database (one network round trip
     # per digit found, on top of one per message)
     #
-    # is_self=true rows excluded — real bug found 2026-09-09 against the
+    # self phone numbers excluded — real bug found 2026-09-09 against the
     # hosted database: an automated confirmation email (a visitor sign-in
     # system) echoed the mailbox owner's own submitted phone number back
     # in its body ("Your Details: <name>, <email>, <phone>"), which this
@@ -229,11 +240,24 @@ def rule_signature_phone(cur) -> int:
     # produce "the owner, linked to themselves" as a side effect of
     # whatever number happens to appear in a message body, regardless of
     # whose signature it actually came from.
-    cur.execute("select id, handle from identity where channel = 'whatsapp' and is_self = false")
+    #
+    # Matched by NORMALISED DIGITS, not by excluding is_self=true rows
+    # directly: the real case found had the owner's own number sitting in
+    # a *second*, separate identity row that was never flagged is_self at
+    # all (a data-quality gap in its own right, not fixed here) — filtering
+    # only the flagged row would have missed exactly the case that
+    # triggered this fix. Collecting the full set of self digit-strings
+    # first, then excluding any WhatsApp row that shares one, catches an
+    # unflagged duplicate too.
+    cur.execute("select handle from identity where channel = 'whatsapp' and is_self = true")
+    self_digits = {_whatsapp_phone_digits(handle) for (handle,) in cur.fetchall()}
+    self_digits.discard(None)
+
+    cur.execute("select id, handle from identity where channel = 'whatsapp'")
     whatsapp_by_digits: dict[str, str] = {}
     for wa_id, handle in cur.fetchall():
         digits = _whatsapp_phone_digits(handle)
-        if digits:
+        if digits and digits not in self_digits:
             whatsapp_by_digits.setdefault(digits, str(wa_id))
 
     count = 0

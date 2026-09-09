@@ -254,6 +254,31 @@ class TestRuleSignaturePhone:
         )
         assert cur.fetchone()[0] == 0
 
+    def test_does_not_match_an_undeviced_duplicate_of_the_owners_own_number(self, db_conn: psycopg.Connection):
+        # the real 2026-09-09 case, precisely: the owner's own number
+        # existed as TWO identity rows — device-suffixed ones flagged
+        # is_self=true (real linked-device JIDs, e.g. '...:22@s.whatsapp.net'),
+        # and a bare, undeviced duplicate that was never flagged self at
+        # all. A fix that only excludes rows already flagged is_self
+        # misses this second row entirely — it must be excluded too,
+        # because it's the same real phone number.
+        cur = db_conn.cursor()
+        outlook_id = _make_identity(cur, "outlook", f"ikea-{uuid.uuid4().hex[:8]}@example.com", "IKEA Customer Service")
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
+        _make_identity(cur, "whatsapp", f"{digits}:22@s.whatsapp.net", "Eva Ng", is_self=True)
+        undeviced_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", None, is_self=False)
+        thread = _make_thread(cur)
+        body = f"Your Details\nEva Ng\neva@example.com\n{digits}"
+        _make_message(cur, thread, outlook_id, body, direction="inbound")
+
+        rule_signature_phone(cur)
+
+        cur.execute(
+            "select count(*) from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (undeviced_id, undeviced_id),
+        )
+        assert cur.fetchone()[0] == 0
+
     def test_number_outside_the_last_few_lines_is_not_matched(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
