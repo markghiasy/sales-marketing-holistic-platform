@@ -13,7 +13,12 @@ what makes the cutover in §14 possible at all.
 4. `python -m adapters.outlook.sync` — first run triggers a device-code
    auth prompt against `AZURE_TENANT_ID` / `AZURE_CLIENT_ID`; sign in as
    `OUTLOOK_MAILBOX`.
-5. `python scripts/pipe_health.py` — confirms the store is reachable and
+5. Connect the other two channels — each needs its own one-time auth, done
+   separately from the steps above: **"WhatsApp: first-time setup and
+   ongoing sync"** below (QR-code device link) and **"LinkedIn: first-time
+   setup"** below (browser login + the data-export sync). A clean instance
+   isn't fully up until all three channels are connected, not just Outlook.
+6. `python scripts/pipe_health.py` — confirms the store is reachable and
    has ingested at least one message.
 
 A second, independent deploy from a clean checkout and an empty database
