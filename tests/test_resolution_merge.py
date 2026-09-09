@@ -208,3 +208,30 @@ class TestUndoMerge:
 
         cur.execute("select reversed_at from merge_log where id = %s", (merge_log_id,))
         assert cur.fetchone()[0] is not None
+
+    def test_undo_refuses_when_a_later_merge_touched_the_same_survivor(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+
+        survivor_person_id = apply_merge(cur, a, b)
+        cur.execute("select id from merge_log where survivor_person_id = %s", (survivor_person_id,))
+        (first_merge_log_id,) = cur.fetchone()
+
+        # a second, later merge also lands on the same survivor person —
+        # e.g. a third cluster gets folded in afterward
+        c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham")
+        apply_merge(cur, a, c)
+
+        with pytest.raises(MergeConflictError):
+            undo_merge(cur, str(first_merge_log_id))
+
+        # nothing changed — b is still on the survivor, not restored to person_b_id
+        cur.execute("select person_id from identity where id = %s", (b,))
+        assert str(cur.fetchone()[0]) == survivor_person_id
+        cur.execute("select reversed_at from merge_log where id = %s", (first_merge_log_id,))
+        assert cur.fetchone()[0] is None

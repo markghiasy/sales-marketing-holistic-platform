@@ -4,7 +4,17 @@
 
 create table merge_log (
     id                   uuid primary key default gen_random_uuid(),
-    merged_at            timestamptz not null default now(),
+    merged_at            timestamptz not null default clock_timestamp(),  -- NOT now():
+                                                                            -- now() is frozen
+                                                                            -- for the whole
+                                                                            -- transaction, so
+                                                                            -- two merges in one
+                                                                            -- transaction would
+                                                                            -- get an identical
+                                                                            -- timestamp and the
+                                                                            -- "later merge"
+                                                                            -- check below could
+                                                                            -- never fire
     identity_a_id        uuid not null references identity(id),
     identity_b_id        uuid not null references identity(id),
     survivor_person_id   uuid not null references person(id),
