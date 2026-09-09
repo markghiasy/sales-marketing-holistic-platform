@@ -4,7 +4,6 @@ from __future__ import annotations
 import uuid
 
 import psycopg
-
 import pytest
 
 from adapters.resolution.merge import MergeConflictError, apply_merge, undo_merge

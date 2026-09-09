@@ -106,9 +106,7 @@ def _sender_looks_automated(from_handle: str) -> bool:
     local_part, _, domain = from_handle.partition("@")
     if local_part.lower() in _AUTOMATED_SENDER_PATTERNS:
         return True
-    if domain.lower() in _AUTOMATED_SENDER_DOMAINS:
-        return True
-    return False
+    return domain.lower() in _AUTOMATED_SENDER_DOMAINS
 
 
 def is_automated(raw: dict, from_handle: str) -> bool:
