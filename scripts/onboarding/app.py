@@ -332,7 +332,8 @@ def create_app(testing: bool = False) -> Flask:
             cur.execute(
                 """
                 select lc.id, lc.score, lc.method, lc.reason,
-                       ia.display_name, ia.channel, ib.display_name, ib.channel
+                       ia.display_name, ia.channel, ia.handle,
+                       ib.display_name, ib.channel, ib.handle
                 from link_candidate lc
                 join identity ia on ia.id = lc.identity_a_id
                 join identity ib on ib.id = lc.identity_b_id
@@ -346,8 +347,12 @@ def create_app(testing: bool = False) -> Flask:
         return jsonify([
             {
                 "id": r[0], "score": r[1], "method": r[2], "reason": r[3],
-                "name_a": r[4] or "(no name)", "channel_a": r[5],
-                "name_b": r[6] or "(no name)", "channel_b": r[7],
+                # handle (the real email/phone/LinkedIn id) is always
+                # present — a reviewer can't actually judge "same person?"
+                # from a display_name alone, which is often blank. Found
+                # 2026-09-09: the page previously omitted this entirely.
+                "name_a": r[4] or "(no name)", "channel_a": r[5], "handle_a": r[6],
+                "name_b": r[7] or "(no name)", "channel_b": r[8], "handle_b": r[9],
             }
             for r in rows
         ])

@@ -62,7 +62,7 @@ async function loadCandidates() {
   }
   container.innerHTML = items.map(item => `
     <div class="item">
-      <div class="names">${escapeHtml(item.name_a)} (${escapeHtml(item.channel_a)}) &harr; ${escapeHtml(item.name_b)} (${escapeHtml(item.channel_b)})</div>
+      <div class="names">${escapeHtml(item.name_a)} — ${escapeHtml(item.channel_a)}: ${escapeHtml(item.handle_a)} &harr; ${escapeHtml(item.name_b)} — ${escapeHtml(item.channel_b)}: ${escapeHtml(item.handle_b)}</div>
       <div class="score">score ${item.score.toFixed(2)} — ${escapeHtml(item.method)}</div>
       <div class="reason">${escapeHtml(item.reason || "")}</div>
       <button class="confirm" data-kind="candidate" data-id="${item.id}" data-action="confirm">Confirm — same person</button>
@@ -93,7 +93,18 @@ async function loadFacts() {
 }
 
 async function act(kind, id, action) {
-  await fetch(`/resolution/${kind}/${id}/${action}`, { method: "POST" });
+  let resp;
+  try {
+    resp = await fetch(`/resolution/${kind}/${id}/${action}`, { method: "POST" });
+  } catch (err) {
+    alert(`Request failed: ${err}. The item was NOT ${action}ed — try again.`);
+    return;
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    alert(`Server error (${resp.status}). The item was NOT ${action}ed — try again.\n${body}`);
+    return;
+  }
   loadCandidates();
   loadFacts();
 }

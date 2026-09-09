@@ -562,6 +562,13 @@ class TestResolutionReviewQueue:
         body = resp.get_json()
         assert any(item["reason"] == "test reason" for item in body)
 
+        # real gap found 2026-09-09: a reviewer can't judge a merge from a
+        # display_name alone (often blank/"(no name)") — the actual
+        # identifier (email/phone) has to be there to make a real call
+        item = next(item for item in body if item["reason"] == "test reason")
+        assert item["handle_a"] == a_email
+        assert item["handle_b"] == b_handle
+
     def test_confirm_candidate_applies_the_merge(self, db_conn, _created_identity_ids):
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"

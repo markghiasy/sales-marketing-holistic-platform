@@ -21,6 +21,21 @@ standing up and syncing cleanly is the exit criterion for this block, not
 a one-time demo (§2, "deploying a clean second instance is a gate at every
 block checkpoint").
 
+**Applying a migration to an already-running instance:** step 2 above only
+auto-applies `db/migrations/*.sql` the first time Postgres starts against
+an empty data volume (`docker-entrypoint-initdb.d` behavior) — a fresh
+deploy always gets every migration that exists at deploy time for free. An
+instance that's already been running (dev, or Mark's after this point)
+does NOT auto-pick-up a migration added later. Apply it by hand against
+the running database, e.g.:
+```
+psql "$DATABASE_URL" -f db/migrations/000N_<name>.sql
+```
+Found 2026-09-09: migration `0006_merge_log.sql` sat unapplied against the
+real dev Supabase instance for the rest of that session after being
+written, because nothing flags "a migration file newer than what's been
+run" — worth a `pipe_health.py`-style check eventually, not built yet.
+
 **Run for real, 2026-08-27/28** — this had never actually been done
 before (Block A had been called "functionally done" without it). Fresh
 `git clone` of the pushed repo, different Postgres port and password,
