@@ -569,19 +569,162 @@ session back to — set this to wherever the dashboard is actually
 reachable if it's not on the same machine as whoever's connecting
 LinkedIn.
 
-**Where this runs long-term is still an open decision** (see the design
-doc's Scope section) — it needs to stay running the same way WhatsApp's
-`ingest.js` connector does, so a laptop that gets closed takes the whole
-thing down with it.
+**Where this runs long-term** — Mark's AWS instance, likely Linux (not yet
+confirmed which distro/init system; systemd is assumed below since it's
+the default on Ubuntu/Debian/Amazon Linux 2023, the likely candidates —
+adjust if his box turns out to be something else). It needs to stay
+running the same way WhatsApp's `ingest.js` connector does, so the process
+that started it exiting (an SSH session ending, a laptop closing) doesn't
+take the whole thing down.
 
-**Retiring the old monitor task (deployment step):** once this is deployed
-and confirmed running in production, retire the old `CommsPlatformMonitor`
-scheduled task with:
+**Not exposed publicly, either channel of it.** `/resolution` (merge
+review) and `/status` + `/outlook`, `/whatsapp`, `/linkedin` (pipeline
+health + connecting channels) are ALL the same Flask app on the same
+port — there's no separate "pipeline dashboard" to secure differently.
+Eva confirmed 2026-09-09: access via SSH tunnel forwarding, not a public
+port or basic auth — `ssh -L 5000:localhost:5000 <user>@<aws-ip>`, then
+browse `http://localhost:5000` locally. The app itself still binds
+`0.0.0.0:5000` (unchanged); what makes this safe is the AWS security
+group having no public inbound rule for port 5000 at all, so the only way
+in is through an already-authenticated SSH session.
+
+**Retiring the old monitor task (deployment step, Windows dev box only):**
+once this is deployed and confirmed running in production, retire the old
+`CommsPlatformMonitor` scheduled task with:
 ```powershell
 Unregister-ScheduledTask -TaskName "CommsPlatformMonitor" -Confirm:$false
 ```
 This should only be done after verifying the dashboard's background thread
 is actively running and alerting as expected.
+
+## Linux deployment: scheduling and long-running services
+
+Everything above this point (`schtasks`, PowerShell `Register-ScheduledTask`)
+is what actually got verified on Eva's Windows dev laptop and is kept as-is
+for that record — it does not apply to Mark's box. This section is the
+systemd equivalent, written 2026-09-10 for tomorrow's deploy and **not yet
+run for real** — verify each unit on the actual instance before trusting it
+unattended, the same way every Windows scheduled task above needed a real
+trigger-and-check pass before being trusted (see "Found broken, fixed for
+real" above — a unit that *looks* registered correctly is not the same as
+one that has actually fired successfully).
+
+Assumes the repo is checked out at `/opt/comms-platform` and the venv at
+`/opt/comms-platform/.venv` — adjust every path below if it's deployed
+somewhere else. All units run as whatever Linux user owns the checkout
+(add `User=<username>` to each `[Service]` block if that's not root, which
+it shouldn't be).
+
+**Outlook sync — every 10 minutes**, same cadence as Windows
+(`/etc/systemd/system/comms-outlook-sync.service` +
+`comms-outlook-sync.timer`):
+```ini
+# comms-outlook-sync.service
+[Unit]
+Description=Comms platform — Outlook sync
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/comms-platform
+ExecStart=/opt/comms-platform/.venv/bin/python -m adapters.outlook.sync
+```
+```ini
+# comms-outlook-sync.timer
+[Unit]
+Description=Run comms-outlook-sync every 10 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target
+```
+
+**LinkedIn sync — four fixed daily times**, same slots as Windows
+(09:00/12:30/15:30/19:00; the script's own 0-15min jitter still applies on
+top of these). One timer, multiple `OnCalendar=` lines — systemd fires on
+any of them, no need for four separate units:
+```ini
+# comms-linkedin-sync.service
+[Unit]
+Description=Comms platform — LinkedIn sync
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/comms-platform
+ExecStart=/opt/comms-platform/.venv/bin/python scripts/run_linkedin_sync.py
+```
+```ini
+# comms-linkedin-sync.timer
+[Unit]
+Description=Run comms-linkedin-sync at four daily slots
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+OnCalendar=*-*-* 12:30:00
+OnCalendar=*-*-* 15:30:00
+OnCalendar=*-*-* 19:00:00
+
+[Install]
+WantedBy=timers.target
+```
+
+**WhatsApp connector and ops dashboard — long-running, not timers.** Both
+need to stay up continuously and restart themselves if they crash, which
+is what `Restart=always` is for (a timer re-fires on a schedule; a service
+with `Restart=always` relaunches immediately on exit, which is what a
+persistent connector needs):
+```ini
+# comms-whatsapp.service
+[Unit]
+Description=Comms platform — WhatsApp connector (ingest.js)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/comms-platform/adapters/whatsapp/node
+ExecStart=/usr/bin/node ingest.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+```ini
+# comms-dashboard.service
+[Unit]
+Description=Comms platform — ops dashboard (onboarding + live status)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/comms-platform
+ExecStart=/opt/comms-platform/.venv/bin/python scripts/onboarding/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+This dashboard service already covers the old `CommsPlatformMonitor`
+role (its background thread runs the same health checks every 15
+minutes) — no separate monitor timer needed on Linux, matching the
+Windows side's "retiring the old monitor task" note above.
+
+**Enabling everything, once the unit files above are in place:**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now comms-outlook-sync.timer comms-linkedin-sync.timer comms-whatsapp.service comms-dashboard.service
+```
+
+**Checking a unit actually ran, not just that it's registered** — the
+Windows side's hard-won lesson (`schtasks /query` showing a healthy-looking
+task that had never actually succeeded) applies here too:
+```bash
+systemctl status comms-outlook-sync.timer      # next scheduled fire
+systemctl list-timers comms-outlook-sync.timer # same, plus last-fire time
+journalctl -u comms-outlook-sync.service -n 50 # did the last run actually succeed
+journalctl -u comms-whatsapp.service -f         # tail the live connector log
+```
 
 ## Known gaps at the end of Block A
 
