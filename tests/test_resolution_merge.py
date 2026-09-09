@@ -235,3 +235,42 @@ class TestUndoMerge:
         assert str(cur.fetchone()[0]) == survivor_person_id
         cur.execute("select reversed_at from merge_log where id = %s", (first_merge_log_id,))
         assert cur.fetchone()[0] is None
+
+    def test_undoing_a_first_time_merge_detaches_both_identities(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+
+        person_id = apply_merge(cur, a, b)
+        cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
+        (merge_log_id,) = cur.fetchone()
+
+        undo_merge(cur, str(merge_log_id))
+
+        cur.execute("select person_id from identity where id = %s", (a,))
+        assert cur.fetchone()[0] is None
+        cur.execute("select person_id from identity where id = %s", (b,))
+        assert cur.fetchone()[0] is None
+        # the now-empty person row is left in place, never deleted
+        cur.execute("select id from person where id = %s", (person_id,))
+        assert cur.fetchone() is not None
+
+    def test_undoing_a_join_merge_detaches_only_the_identity_that_joined(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        existing_person = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=existing_person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+
+        person_id = apply_merge(cur, a, b)
+        cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
+        (merge_log_id,) = cur.fetchone()
+
+        undo_merge(cur, str(merge_log_id))
+
+        cur.execute("select person_id from identity where id = %s", (b,))
+        assert cur.fetchone()[0] is None  # detached — this is the one that joined
+        cur.execute("select person_id from identity where id = %s", (a,))
+        assert str(cur.fetchone()[0]) == existing_person  # untouched — already belonged here
+        cur.execute("select primary_name from person where id = %s", (existing_person,))
+        assert cur.fetchone()[0] == "Eric Tham"  # restored (was already correct, but confirms no corruption)
