@@ -513,14 +513,23 @@ class TestResolutionReviewQueue:
         # committed here and never cleaned up collides with that other
         # file's fixed test names the next time the whole suite runs.
         # Tests append the ids they create to this list; this fixture
-        # deletes them (and any link_candidate row referencing them) after
-        # the test body runs, restoring real isolation despite the commit.
+        # deletes them (and any link_candidate/merge_log row referencing
+        # them) after the test body runs, restoring real isolation
+        # despite the commit.
         ids: list = []
         yield ids
         if ids:
             cur = db_conn.cursor()
             cur.execute(
                 "delete from link_candidate where identity_a_id = any(%s) or identity_b_id = any(%s)",
+                (ids, ids),
+            )
+            # merge_log.identity_a_id/identity_b_id FK identity — added by
+            # the reversible-identity-merge change; without this, deleting
+            # an identity that a confirmed merge in this test logged fails
+            # with a ForeignKeyViolation instead of cleaning up.
+            cur.execute(
+                "delete from merge_log where identity_a_id = any(%s) or identity_b_id = any(%s)",
                 (ids, ids),
             )
             cur.execute("delete from identity where id = any(%s)", (ids,))
