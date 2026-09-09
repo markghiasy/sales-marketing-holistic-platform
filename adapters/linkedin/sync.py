@@ -52,6 +52,11 @@ def _self_handle(env) -> str:
     return env.to_handles[0] if env.to_handles else ""
 
 
+def _run_resolution_best_effort() -> None:
+    from ..resolution.run import run_best_effort
+    run_best_effort()
+
+
 def run() -> None:
     load_dotenv()
 
@@ -91,6 +96,7 @@ def run() -> None:
                 print(f"stopped: {e}")
                 print(f"synced {count} messages before hitting the limit")
                 _write_status("capped", f"daily session limit reached — synced {count} before stopping")
+                _run_resolution_best_effort()
                 return
     except Exception as e:  # record the real failure, then let it surface
         _write_status("error", f"sync failed: {e}")
@@ -98,6 +104,7 @@ def run() -> None:
 
     _write_status("ok", f"synced {count} messages")
     print(f"synced {count} messages")
+    _run_resolution_best_effort()
 
 
 if __name__ == "__main__":

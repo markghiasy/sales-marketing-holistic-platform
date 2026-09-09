@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from adapters.resolution.run import run
+from adapters.resolution.run import run, run_best_effort
 
 
 def test_run_calls_every_rule_and_structured_facts(monkeypatch):
@@ -45,3 +45,21 @@ def test_run_survives_one_rule_raising(monkeypatch, capsys):
 
     m2.assert_called_once()  # the rule after the failing one still ran
     assert "boom" in capsys.readouterr().err
+
+
+def test_run_best_effort_calls_run(monkeypatch):
+    with patch("adapters.resolution.run.run") as m:
+        run_best_effort()
+    m.assert_called_once()
+
+
+def test_run_best_effort_survives_a_total_failure(monkeypatch, capsys):
+    # e.g. the database itself is unreachable — run() raises before any
+    # per-rule isolation even gets a chance to run. A caller (a channel's
+    # sync.py, right after its own successful sync) must never see this.
+    with patch("adapters.resolution.run.run", side_effect=RuntimeError("db unreachable")):
+        run_best_effort()  # must not raise
+
+    err = capsys.readouterr().err
+    assert "db unreachable" in err
+    assert "sync itself still succeeded" in err

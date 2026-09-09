@@ -1,15 +1,18 @@
 """Entrypoint for identity resolution + Phase 1 structured knowledge-graph
 facts. Run: python -m adapters.resolution.run
 
-Deliberately manual, not scheduled — see
-docs/superpowers/specs/2026-09-03-identity-resolution-design.md,
-"Architecture".
+Called automatically after every channel sync (see run_best_effort() below
+and each adapter's own sync.py) — no longer purely manual as
+docs/superpowers/specs/2026-09-03-identity-resolution-design.md originally
+described; that design predates real usage. Safe to call this often since
+every Phase 1 rule is free (no model call).
 """
 
 from __future__ import annotations
 
 import os
 import sys
+import traceback
 
 import psycopg
 from dotenv import load_dotenv
@@ -45,6 +48,20 @@ def run() -> None:
                 except Exception as e:  # noqa: BLE001 — one rule's bug must not block the rest
                     conn.rollback()
                     print(f"{label}: FAILED — {e}", file=sys.stderr)
+
+
+def run_best_effort() -> None:
+    """Same as run(), except a total failure here (e.g. the database is
+    unreachable) is caught and logged rather than raised — called from
+    each channel's own sync.py after a successful sync, where a
+    resolution problem must never make the calling sync job look like it
+    failed. run() already isolates each rule's own failure internally;
+    this is the second, outer layer of isolation for the call itself."""
+    try:
+        run()
+    except Exception as e:  # noqa: BLE001 — resolution failing must never fail the caller's sync
+        print(f"identity resolution run failed (the sync itself still succeeded): {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
 
 if __name__ == "__main__":

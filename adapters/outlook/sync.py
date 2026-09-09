@@ -249,6 +249,9 @@ def run() -> None:
     _write_status("ok", f"synced {count} messages")
     print(f"synced {count} messages")
 
+    from ..resolution.run import run_best_effort as _run_resolution
+    _run_resolution()
+
 
 if __name__ == "__main__":
     run()
