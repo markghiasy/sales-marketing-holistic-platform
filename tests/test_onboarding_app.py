@@ -595,6 +595,40 @@ class TestResolutionReviewQueue:
         cur.execute("select status from link_candidate where id = %s", (candidate_id,))
         assert cur.fetchone()[0] == "confirmed"
 
+    def test_confirming_twice_only_merges_and_logs_once(self, db_conn, _created_identity_ids):
+        # Regression test for 2026-09-09: a double/triple/quintuple click
+        # on a Confirm button that gives no visible feedback used to reach
+        # the server as N separate requests, each reading status='pending'
+        # before the first one's UPDATE committed, so each called
+        # apply_merge and wrote its own merge_log row for what should be
+        # one merge event. The route now claims the row with an atomic
+        # UPDATE ... WHERE status = 'pending' before merging, so only the
+        # first of any repeat requests actually merges.
+        cur = db_conn.cursor()
+        a_email = f"a-{_uuid.uuid4().hex}@example.com"
+        b_handle = f"{_uuid.uuid4().hex[:10]}@s.whatsapp.net"
+        cur.execute("insert into identity (channel, handle) values ('outlook', %s) returning id", (a_email,))
+        a = cur.fetchone()[0]
+        cur.execute("insert into identity (channel, handle) values ('whatsapp', %s) returning id", (b_handle,))
+        b = cur.fetchone()[0]
+        _created_identity_ids.extend([a, b])
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) values (%s, %s, 0.5, 'test', 'pending') returning id",
+            (a, b),
+        )
+        candidate_id = cur.fetchone()[0]
+        db_conn.commit()
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        first = client.post(f"/resolution/candidate/{candidate_id}/confirm")
+        second = client.post(f"/resolution/candidate/{candidate_id}/confirm")
+
+        assert first.status_code == 200 and first.get_json()["status"] == "confirmed"
+        assert second.status_code == 200 and second.get_json()["status"] == "no_op"
+        cur.execute("select count(*) from merge_log where identity_a_id = %s and identity_b_id = %s", (a, b))
+        assert cur.fetchone()[0] == 1
+
     def test_reject_candidate_does_not_merge(self, db_conn, _created_identity_ids):
         cur = db_conn.cursor()
         a_email = f"a-{_uuid.uuid4().hex}@example.com"

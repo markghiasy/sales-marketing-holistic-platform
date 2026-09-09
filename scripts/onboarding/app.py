@@ -361,17 +361,33 @@ def create_app(testing: bool = False) -> Flask:
     def resolution_candidate_confirm(candidate_id):
         cur = _get_status_cursor()
         try:
-            cur.execute("select identity_a_id, identity_b_id, status from link_candidate where id = %s", (candidate_id,))
+            # Claim the row with an atomic conditional UPDATE *before*
+            # touching identity/person state, and check identity_a_id/
+            # identity_b_id from ITS return value, not a separate SELECT —
+            # a plain SELECT-then-UPDATE let concurrent requests (e.g. a
+            # user double/triple-clicking a Confirm button that gives no
+            # visible feedback, found 2026-09-09 against real hosted data:
+            # one candidate got merged 5 times in 9 seconds) all read
+            # status='pending' before any of them committed, so all of
+            # them called apply_merge and each wrote its own merge_log
+            # row for what should have been a single merge event. Only
+            # the request whose UPDATE actually flips pending->confirmed
+            # proceeds; every other concurrent or repeat request sees 0
+            # rows updated and no-ops instead.
+            cur.execute(
+                """
+                update link_candidate set status = 'confirmed'
+                where id = %s and status = 'pending'
+                returning identity_a_id, identity_b_id
+                """,
+                (candidate_id,),
+            )
             row = cur.fetchone()
-            if row is None or row[2] != "pending":
+            if row is None:
+                cur.connection.rollback()
                 return jsonify({"status": "no_op"})
-            identity_a_id, identity_b_id, _ = row
+            identity_a_id, identity_b_id = row
             apply_merge(cur, str(identity_a_id), str(identity_b_id))
-            # link_candidate has no reviewed_at column (migration 0005 only
-            # added one to fact, not link_candidate — a real gap found
-            # while implementing this task; link_candidate.reason already
-            # carries the audit trail, so status alone is enough here)
-            cur.execute("update link_candidate set status = 'confirmed' where id = %s", (candidate_id,))
             cur.connection.commit()
         finally:
             cur.connection.close()
