@@ -216,7 +216,20 @@ def rule_signature_phone(cur) -> int:
     # messages, re-running this query per candidate was the dominant cost
     # of a real run against the hosted database (one network round trip
     # per digit found, on top of one per message)
-    cur.execute("select id, handle from identity where channel = 'whatsapp'")
+    #
+    # is_self=true rows excluded — real bug found 2026-09-09 against the
+    # hosted database: an automated confirmation email (a visitor sign-in
+    # system) echoed the mailbox owner's own submitted phone number back
+    # in its body ("Your Details: <name>, <email>, <phone>"), which this
+    # rule then read as the confirmation sender's own signature phone,
+    # producing false candidates linking real senders (a visitor-
+    # management system, several other automated senders) to the owner's
+    # own WhatsApp identity. This rule exists to link OTHER people's
+    # Outlook and WhatsApp identities — it should never be able to
+    # produce "the owner, linked to themselves" as a side effect of
+    # whatever number happens to appear in a message body, regardless of
+    # whose signature it actually came from.
+    cur.execute("select id, handle from identity where channel = 'whatsapp' and is_self = false")
     whatsapp_by_digits: dict[str, str] = {}
     for wa_id, handle in cur.fetchall():
         digits = _whatsapp_phone_digits(handle)

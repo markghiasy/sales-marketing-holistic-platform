@@ -11,10 +11,10 @@ from adapters.resolution.rules import (
 )
 
 
-def _make_identity(cur, channel: str, handle: str, display_name: str | None = None) -> str:
+def _make_identity(cur, channel: str, handle: str, display_name: str | None = None, is_self: bool = False) -> str:
     cur.execute(
-        "insert into identity (channel, handle, display_name) values (%s, %s, %s) returning id",
-        (channel, handle, display_name),
+        "insert into identity (channel, handle, display_name, is_self) values (%s, %s, %s, %s) returning id",
+        (channel, handle, display_name, is_self),
     )
     return str(cur.fetchone()[0])
 
@@ -230,6 +230,29 @@ class TestRuleSignaturePhone:
         assert status == "pending"
         assert score == 0.8
         assert method == "email_signature_phone"
+
+    def test_does_not_match_the_mailbox_owners_own_whatsapp_number(self, db_conn: psycopg.Connection):
+        # real bug found 2026-09-09: an automated confirmation email
+        # (e.g. a visitor sign-in system) can echo the mailbox owner's
+        # own submitted phone number back in its body — this rule must
+        # never link a sender's Outlook identity to the owner's own
+        # WhatsApp identity as a result, since it exists to link OTHER
+        # people's identities, not to "discover" the owner is themselves.
+        cur = db_conn.cursor()
+        outlook_id = _make_identity(cur, "outlook", f"sine-{uuid.uuid4().hex[:8]}@example.com", "Sine Visitor System")
+        digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
+        wa_id = _make_identity(cur, "whatsapp", f"{digits}@s.whatsapp.net", "Eva Ng", is_self=True)
+        thread = _make_thread(cur)
+        body = f"Your Details\nEva Ng\neva@example.com\n{digits}"
+        _make_message(cur, thread, outlook_id, body, direction="inbound")
+
+        rule_signature_phone(cur)
+
+        cur.execute(
+            "select count(*) from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (wa_id, wa_id),
+        )
+        assert cur.fetchone()[0] == 0
 
     def test_number_outside_the_last_few_lines_is_not_matched(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
