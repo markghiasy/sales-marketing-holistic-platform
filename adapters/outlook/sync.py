@@ -130,6 +130,9 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
 
     direction = Direction.outbound if from_handle in self_handles else Direction.inbound
 
+    headers = raw.get("internetMessageHeaders") or []
+    has_list_unsubscribe = any(h.get("name", "").lower() == "list-unsubscribe" for h in headers)
+
     return Envelope(
         channel=Channel.outlook,
         external_id=raw["internetMessageId"],
@@ -143,13 +146,14 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         subject=raw.get("subject"),
         body_text=_strip_html(raw.get("body", {})),
         is_group=len(to_handles) > 1,
-        # §9 tier 1's own table names this exact signal: "Graph's own
-        # Focused/Other classification. Sets is_automated at ingest." Not
-        # the full tier-1 ruleset (List-Unsubscribe header, known
-        # automated domains, bulk-sender patterns) — those still belong
-        # to the real Block B noise-parser build — just this one field,
-        # since Graph already computes it and hands it back for free.
-        is_automated=raw.get("inferenceClassification") == "other",
+        # §9 tier 1, combined via OR — any one signal is enough:
+        # - Graph's own Focused/Other classification (free, already computed)
+        # - a List-Unsubscribe header (bulk/marketing mail marks itself)
+        # Sender pattern/domain checks are added in the next task.
+        is_automated=(
+            raw.get("inferenceClassification") == "other"
+            or has_list_unsubscribe
+        ),
         raw=raw,
     )
 

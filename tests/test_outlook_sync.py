@@ -160,3 +160,21 @@ class TestToEnvelope:
         env = _to_envelope(self._BASE_RAW, self_handles={"me@example.com"})
         assert env is not None
         assert env.is_automated is False
+
+    def test_is_automated_true_for_list_unsubscribe_header(self):
+        raw = dict(
+            self._BASE_RAW,
+            internetMessageHeaders=[{"name": "List-Unsubscribe", "value": "<mailto:x@y.com>"}],
+        )
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
+    def test_is_automated_true_for_lowercase_list_unsubscribe_header_name(self):
+        raw = dict(
+            self._BASE_RAW,
+            internetMessageHeaders=[{"name": "list-unsubscribe", "value": "<mailto:x@y.com>"}],
+        )
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
