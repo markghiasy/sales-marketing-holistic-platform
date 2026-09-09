@@ -178,3 +178,26 @@ class TestToEnvelope:
         env = _to_envelope(raw, self_handles={"me@example.com"})
         assert env is not None
         assert env.is_automated is True
+
+    def test_is_automated_true_for_noreply_local_part(self):
+        raw = dict(self._BASE_RAW, **{"from": {"emailAddress": {"address": "noreply@example.com", "name": "Example"}}})
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
+    def test_is_automated_true_for_notifications_local_part(self):
+        raw = dict(self._BASE_RAW, **{"from": {"emailAddress": {"address": "notifications@github.com", "name": "GitHub"}}})
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
+    def test_is_automated_true_for_known_automated_domain(self):
+        raw = dict(self._BASE_RAW, **{"from": {"emailAddress": {"address": "updates@sendgrid.net", "name": "SendGrid"}}})
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
+    def test_is_automated_false_for_ordinary_sender(self):
+        env = _to_envelope(self._BASE_RAW, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is False

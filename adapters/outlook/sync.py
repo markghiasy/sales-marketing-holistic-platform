@@ -76,6 +76,34 @@ _QUOTE_START_RE = re.compile(
 # convention for where quoted history starts in a plain-text body.
 _QUOTE_START_TEXT_RE = re.compile(r"^On .{5,80} wrote:\s*$", re.MULTILINE)
 
+# §9 tier 1: sender local-part patterns that mark automated mail —
+# separate list from any "generic role address" concept used elsewhere
+# (identity resolution's safety checks) — this list means "this sender
+# is a machine," not "this address might be shared by several humans."
+_AUTOMATED_SENDER_PATTERNS = frozenset({
+    "noreply", "no-reply", "donotreply", "do-not-reply",
+    "notifications", "notification", "alerts", "alert",
+    "mailer-daemon", "postmaster",
+})
+
+# §9 tier 1: known automated/ESP sending domains. A seed list, not
+# verified against real mailbox data yet (Docker was down while this was
+# designed) — extend with a one-line diff once real automated senders
+# are seen that this list misses.
+_AUTOMATED_SENDER_DOMAINS = frozenset({
+    "sendgrid.net", "mailgun.org", "amazonses.com",
+    "mailchimp.com", "notifications.google.com",
+})
+
+
+def _sender_looks_automated(from_handle: str) -> bool:
+    local_part, _, domain = from_handle.partition("@")
+    if local_part.lower() in _AUTOMATED_SENDER_PATTERNS:
+        return True
+    if domain.lower() in _AUTOMATED_SENDER_DOMAINS:
+        return True
+    return False
+
 
 def _strip_html(body: dict) -> str:
     """Graph returns body as {contentType, content}. Plain-text it and cut
@@ -149,10 +177,11 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         # §9 tier 1, combined via OR — any one signal is enough:
         # - Graph's own Focused/Other classification (free, already computed)
         # - a List-Unsubscribe header (bulk/marketing mail marks itself)
-        # Sender pattern/domain checks are added in the next task.
+        # - sender local-part or domain patterns that indicate automation
         is_automated=(
             raw.get("inferenceClassification") == "other"
             or has_list_unsubscribe
+            or _sender_looks_automated(from_handle)
         ),
         raw=raw,
     )
