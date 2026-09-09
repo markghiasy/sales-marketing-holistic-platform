@@ -150,3 +150,73 @@ def test_check_outlook_liveness_stale_successful_run_is_unhealthy(monkeypatch, t
 
     assert status.healthy is False
     assert "threshold" in status.detail
+
+
+# Regression tests for 2026-09-10: _pid_is_alive, _start_whatsapp_detached,
+# and the ZOMBIE branch of _attempt_whatsapp_auto_heal used Windows-only
+# tools/APIs (tasklist, taskkill, subprocess.DETACHED_PROCESS) unconditionally
+# — the detach call raised AttributeError outright on POSIX, and the other
+# two silently no-opped. Force the POSIX branch via sys.platform regardless
+# of the host these tests actually run on, so the fix is verified either way.
+
+
+def test_pid_is_alive_on_posix_uses_os_kill_signal_zero(monkeypatch):
+    monkeypatch.setattr(monitor.sys, "platform", "linux")
+    calls = []
+    monkeypatch.setattr(monitor.os, "kill", lambda pid, sig: calls.append((pid, sig)))
+
+    assert monitor._pid_is_alive(1234) is True
+    assert calls == [(1234, 0)]
+
+
+def test_pid_is_alive_on_posix_process_lookup_error_means_dead(monkeypatch):
+    monkeypatch.setattr(monitor.sys, "platform", "linux")
+
+    def fake_kill(pid, sig):
+        raise ProcessLookupError()
+    monkeypatch.setattr(monitor.os, "kill", fake_kill)
+
+    assert monitor._pid_is_alive(1234) is False
+
+
+def test_pid_is_alive_on_posix_permission_error_means_alive(monkeypatch):
+    # exists but owned by someone else — still alive, from monitor's
+    # point of view
+    monkeypatch.setattr(monitor.sys, "platform", "linux")
+
+    def fake_kill(pid, sig):
+        raise PermissionError()
+    monkeypatch.setattr(monitor.os, "kill", fake_kill)
+
+    assert monitor._pid_is_alive(1234) is True
+
+
+def test_start_whatsapp_detached_on_posix_uses_start_new_session_not_creationflags(monkeypatch):
+    monkeypatch.setattr(monitor.sys, "platform", "linux")
+    calls = {}
+
+    def fake_popen(*args, **kwargs):
+        calls["kwargs"] = kwargs
+    monkeypatch.setattr(monitor.subprocess, "Popen", fake_popen)
+
+    monitor._start_whatsapp_detached()
+
+    assert calls["kwargs"].get("start_new_session") is True
+    assert "creationflags" not in calls["kwargs"]
+
+
+def test_zombie_auto_heal_on_posix_uses_os_kill_sigkill(monkeypatch, tmp_path):
+    monkeypatch.setattr(monitor.sys, "platform", "linux")
+    pid_path = tmp_path / ".pid"
+    pid_path.write_text("4321")
+    monkeypatch.setattr(monitor, "WHATSAPP_PID_PATH", pid_path)
+    monkeypatch.setattr(monitor, "_start_whatsapp_detached", lambda: None)
+    monkeypatch.setattr(monitor, "_check_whatsapp_liveness", lambda: monitor.ChannelStatus("whatsapp", True, "ok"))
+    monkeypatch.setattr(monitor.time, "sleep", lambda _seconds: None)
+
+    calls = []
+    monkeypatch.setattr(monitor.os, "kill", lambda pid, sig: calls.append((pid, sig)))
+
+    monitor._attempt_whatsapp_auto_heal(monitor.ChannelStatus("whatsapp", False, "ZOMBIE — process 4321 is stale"))
+
+    assert calls == [(4321, getattr(monitor.signal, "SIGKILL", 9))]

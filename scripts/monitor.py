@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -162,6 +163,20 @@ def _check_outlook_liveness() -> ChannelStatus:
 
 
 def _pid_is_alive(pid: int) -> bool:
+    if sys.platform != "win32":
+        # signal 0 sends nothing — it only asks the OS whether pid exists
+        # and is killable by us. ProcessLookupError means it's gone;
+        # PermissionError means it exists but we don't own it (still
+        # alive, from monitor's point of view).
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+        return True
     # os.kill(pid, 0) isn't a liveness check on Windows the way it is on
     # POSIX — shell out to tasklist and check whether it actually lists
     # the pid, rather than trust a signal call that doesn't mean the same
@@ -253,11 +268,26 @@ def _start_whatsapp_detached() -> None:
     """Launches ingest.js independent of this process's own lifetime —
     monitor.py exits after every check, so a plain subprocess.Popen
     whose child dies with its parent would defeat the point of
-    auto-healing. DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP is the
-    Windows-specific way to fully decouple the child from its launcher —
-    the same problem hit repeatedly running ingest.js as a Claude Code
-    background task: the child died whenever the launching session did,
-    even though nobody asked for that."""
+    auto-healing. The same problem hit repeatedly running ingest.js as a
+    Claude Code background task: the child died whenever the launching
+    session did, even though nobody asked for that.
+
+    DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP (Windows) and
+    start_new_session (POSIX, calls setsid() in the child before exec)
+    are each platform's way to fully decouple the child from its
+    launcher — found 2026-09-10 while getting this ready for Mark's
+    Linux box: the Windows-only creationflags below raise AttributeError
+    outright on POSIX, so this had never actually been able to auto-heal
+    off Windows."""
+    if sys.platform != "win32":
+        subprocess.Popen(
+            ["node", "ingest.js"],
+            cwd=str(_WHATSAPP_DIR),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return
     subprocess.Popen(
         ["node", "ingest.js"],
         cwd=str(_WHATSAPP_DIR),
@@ -278,9 +308,21 @@ def _attempt_whatsapp_auto_heal(status: ChannelStatus) -> tuple[ChannelStatus, b
     if status.detail.startswith("ZOMBIE"):
         pid_text = WHATSAPP_PID_PATH.read_text().strip() if WHATSAPP_PID_PATH.exists() else ""
         if pid_text.isdigit():
-            subprocess.run(
-                ["taskkill", "/PID", pid_text, "/F"], capture_output=True, check=False
-            )
+            if sys.platform != "win32":
+                # signal.SIGKILL is absent from the `signal` module's
+                # Windows build entirely (not just unusable) — getattr
+                # with the literal POSIX signal number keeps this line
+                # from raising AttributeError merely by being *imported*
+                # into a process running on Windows, even though this
+                # branch itself never executes there.
+                try:
+                    os.kill(int(pid_text), getattr(signal, "SIGKILL", 9))
+                except OSError:
+                    pass  # already gone — fine, we're about to start a fresh one anyway
+            else:
+                subprocess.run(
+                    ["taskkill", "/PID", pid_text, "/F"], capture_output=True, check=False
+                )
 
     try:
         _start_whatsapp_detached()
