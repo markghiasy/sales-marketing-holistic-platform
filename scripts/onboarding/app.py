@@ -8,6 +8,7 @@ Run: python scripts/onboarding/app.py
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import secrets
@@ -34,12 +35,47 @@ import monitor
 _MONITOR_INTERVAL_SECONDS = 15 * 60
 
 
-def _get_status_cursor():
-    """A short-lived connection+cursor for one /status read — separate
-    from monitor.run()'s own connection, which the background thread
-    manages on its own schedule."""
-    conn = psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
-    return conn.cursor()
+_db_conn: psycopg.Connection | None = None
+_db_conn_lock = threading.Lock()
+
+
+@contextlib.contextmanager
+def _db_cursor():
+    """One persistent connection reused across `/resolution/*` requests,
+    guarded by a lock — separate from monitor.run()'s own connection,
+    which the background thread manages on its own schedule.
+
+    Found 2026-09-10: the previous version opened a brand new
+    `psycopg.connect()` — a real TCP+TLS handshake against Supabase's
+    hosted Postgres — on every single request (every page load, every
+    Confirm/Reject click), measured at ~1.5s just to connect before any
+    query even ran. That's almost certainly a real contributor to how
+    unresponsive the review UI felt, on top of the missing-feedback bug
+    fixed the day before. Reusing one connection cuts that to near zero
+    after the first request. A single serialized connection (the lock
+    means only one request touches it at a time) is fine for a
+    single-operator internal tool like this — no need for a connection
+    pool here.
+
+    Commits on a clean exit, rolls back and drops the held connection on
+    any exception so the next call reconnects fresh rather than reusing
+    a connection left in a broken/aborted-transaction state.
+    """
+    global _db_conn
+    with _db_conn_lock:
+        if _db_conn is None or _db_conn.closed:
+            _db_conn = psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=5)
+        try:
+            with _db_conn.cursor() as cur:
+                yield cur
+            _db_conn.commit()
+        except Exception:
+            try:
+                _db_conn.rollback()
+            except Exception:  # noqa: BLE001, S110 — connection's already broken, nothing to salvage
+                pass
+            _db_conn = None
+            raise
 
 
 # in-memory only — a real device-code flow is inherently short-lived
@@ -327,8 +363,7 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/resolution/candidates.json")
     def resolution_candidates_json():
-        cur = _get_status_cursor()
-        try:
+        with _db_cursor() as cur:
             cur.execute(
                 """
                 select lc.id, lc.score, lc.method, lc.reason,
@@ -342,8 +377,6 @@ def create_app(testing: bool = False) -> Flask:
                 """
             )
             rows = cur.fetchall()
-        finally:
-            cur.connection.close()
         return jsonify([
             {
                 "id": r[0], "score": r[1], "method": r[2], "reason": r[3],
@@ -359,21 +392,22 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.post("/resolution/candidate/<candidate_id>/confirm")
     def resolution_candidate_confirm(candidate_id):
-        cur = _get_status_cursor()
-        try:
-            # Claim the row with an atomic conditional UPDATE *before*
-            # touching identity/person state, and check identity_a_id/
-            # identity_b_id from ITS return value, not a separate SELECT —
-            # a plain SELECT-then-UPDATE let concurrent requests (e.g. a
-            # user double/triple-clicking a Confirm button that gives no
-            # visible feedback, found 2026-09-09 against real hosted data:
-            # one candidate got merged 5 times in 9 seconds) all read
-            # status='pending' before any of them committed, so all of
-            # them called apply_merge and each wrote its own merge_log
-            # row for what should have been a single merge event. Only
-            # the request whose UPDATE actually flips pending->confirmed
-            # proceeds; every other concurrent or repeat request sees 0
-            # rows updated and no-ops instead.
+        # Claim the row with an atomic conditional UPDATE *before*
+        # touching identity/person state, and check identity_a_id/
+        # identity_b_id from ITS return value, not a separate SELECT —
+        # a plain SELECT-then-UPDATE let concurrent requests (e.g. a
+        # user double/triple-clicking a Confirm button that gives no
+        # visible feedback, found 2026-09-09 against real hosted data:
+        # one candidate got merged 5 times in 9 seconds) all read
+        # status='pending' before any of them committed, so all of
+        # them called apply_merge and each wrote its own merge_log
+        # row for what should have been a single merge event. Only
+        # the request whose UPDATE actually flips pending->confirmed
+        # proceeds; every other concurrent or repeat request sees 0
+        # rows updated and no-ops instead. _db_cursor()'s own lock now
+        # serializes requests too, so this is defense in depth rather
+        # than the only thing preventing a double-merge.
+        with _db_cursor() as cur:
             cur.execute(
                 """
                 update link_candidate set status = 'confirmed'
@@ -384,29 +418,20 @@ def create_app(testing: bool = False) -> Flask:
             )
             row = cur.fetchone()
             if row is None:
-                cur.connection.rollback()
                 return jsonify({"status": "no_op"})
             identity_a_id, identity_b_id = row
             apply_merge(cur, str(identity_a_id), str(identity_b_id))
-            cur.connection.commit()
-        finally:
-            cur.connection.close()
         return jsonify({"status": "confirmed"})
 
     @flask_app.post("/resolution/candidate/<candidate_id>/reject")
     def resolution_candidate_reject(candidate_id):
-        cur = _get_status_cursor()
-        try:
+        with _db_cursor() as cur:
             cur.execute("update link_candidate set status = 'rejected' where id = %s and status = 'pending'", (candidate_id,))
-            cur.connection.commit()
-        finally:
-            cur.connection.close()
         return jsonify({"status": "rejected"})
 
     @flask_app.get("/resolution/facts.json")
     def resolution_facts_json():
-        cur = _get_status_cursor()
-        try:
+        with _db_cursor() as cur:
             cur.execute(
                 """
                 select f.id, f.fact_type, f.confidence, f.source, f.reason,
@@ -419,8 +444,6 @@ def create_app(testing: bool = False) -> Flask:
                 """
             )
             rows = cur.fetchall()
-        finally:
-            cur.connection.close()
         return jsonify([
             {
                 "id": r[0], "fact_type": r[1], "confidence": r[2], "source": r[3], "reason": r[4],
@@ -432,22 +455,14 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.post("/resolution/fact/<fact_id>/confirm")
     def resolution_fact_confirm(fact_id):
-        cur = _get_status_cursor()
-        try:
+        with _db_cursor() as cur:
             cur.execute("update fact set status = 'confirmed', reviewed_at = now() where id = %s and status = 'pending'", (fact_id,))
-            cur.connection.commit()
-        finally:
-            cur.connection.close()
         return jsonify({"status": "confirmed"})
 
     @flask_app.post("/resolution/fact/<fact_id>/reject")
     def resolution_fact_reject(fact_id):
-        cur = _get_status_cursor()
-        try:
+        with _db_cursor() as cur:
             cur.execute("update fact set status = 'rejected', reviewed_at = now() where id = %s and status = 'pending'", (fact_id,))
-            cur.connection.commit()
-        finally:
-            cur.connection.close()
         return jsonify({"status": "rejected"})
 
     if not testing:

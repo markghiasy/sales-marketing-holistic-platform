@@ -478,13 +478,14 @@ import uuid as _uuid
 # same local Postgres URL tests/conftest.py's db_conn fixture uses,
 # deliberately hardcoded there (not read from .env) because .env's
 # DATABASE_URL points at the real hosted Supabase project — this file's
-# resolution routes each open their OWN fresh connection via
-# _get_status_cursor(), which reads os.environ["DATABASE_URL"] directly.
-# Without redirecting that env var for the duration of these tests, every
-# route call below would silently connect to and mutate the real
-# production database instead of the local db_conn fixture's Postgres,
-# while the test's own seeded rows (via db_conn) would sit in a
-# completely separate database the route never sees. Caught by hand-
+# resolution routes share one persistent connection via _db_cursor()
+# (scripts/onboarding/app.py), opened against os.environ["DATABASE_URL"]
+# the first time any route in this class is called and reused after
+# that. Without redirecting that env var for the duration of these
+# tests, every route call below would silently connect to and mutate
+# the real production database instead of the local db_conn fixture's
+# Postgres, while the test's own seeded rows (via db_conn) would sit in
+# a completely separate database the route never sees. Caught by hand-
 # tracing this exact mismatch before dispatch — not a hypothetical.
 _RESOLUTION_TEST_DATABASE_URL = "postgresql://comms:comms@localhost:5432/comms"
 
@@ -499,9 +500,9 @@ class TestResolutionReviewQueue:
     @pytest.fixture
     def _created_identity_ids(self, db_conn):
         # Every test in this class calls db_conn.commit() (needed so the
-        # route's OWN, separate connection — opened fresh by
-        # _get_status_cursor() — can see the rows this test just inserted;
-        # a plain uncommitted transaction is invisible across connections).
+        # route's OWN, separate connection — held open across requests by
+        # _db_cursor() — can see the rows this test just inserted; a
+        # plain uncommitted transaction is invisible across connections).
         # That means, unlike every other test in this plan, these tests
         # cannot rely on db_conn's own rollback-on-teardown for isolation
         # — a committed row stays in the local test database forever.
