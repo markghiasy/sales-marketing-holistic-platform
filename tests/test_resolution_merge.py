@@ -254,6 +254,31 @@ class TestUndoMerge:
         cur.execute("select id from person where id = %s", (person_id,))
         assert cur.fetchone() is not None
 
+    def test_undoing_a_merge_resets_its_link_candidate_to_pending(self, db_conn: psycopg.Connection):
+        # Found 2026-09-09: undo_merge reversed the identity/person state
+        # but left the originating link_candidate stuck at 'confirmed',
+        # so the review UI (which only lists status='pending' rows) never
+        # surfaced the pair again for re-review even though the merge had
+        # been undone.
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+        cur.execute(
+            "insert into link_candidate (identity_a_id, identity_b_id, score, method, status) "
+            "values (%s, %s, 0.5, 'test', 'confirmed') returning id",
+            (a, b),
+        )
+        (candidate_id,) = cur.fetchone()
+
+        person_id = apply_merge(cur, a, b)
+        cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
+        (merge_log_id,) = cur.fetchone()
+
+        undo_merge(cur, str(merge_log_id))
+
+        cur.execute("select status from link_candidate where id = %s", (candidate_id,))
+        assert cur.fetchone()[0] == "pending"
+
     def test_undoing_a_join_merge_detaches_only_the_identity_that_joined(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")

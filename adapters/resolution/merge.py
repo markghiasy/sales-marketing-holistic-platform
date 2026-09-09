@@ -106,7 +106,7 @@ def undo_merge(cur, merge_log_id: str) -> None:
     cur.execute(
         """
         select absorbed_person_id, moved_identity_ids, prev_primary_name, prev_preferred_name,
-               survivor_person_id, merged_at
+               survivor_person_id, merged_at, identity_a_id, identity_b_id
         from merge_log
         where id = %s
         """,
@@ -116,7 +116,7 @@ def undo_merge(cur, merge_log_id: str) -> None:
     if row is None:
         raise ValueError(f"no merge_log row with id {merge_log_id}")
     (absorbed_person_id, moved_identity_ids, prev_primary_name, prev_preferred_name,
-     survivor_person_id, merged_at) = row
+     survivor_person_id, merged_at, identity_a_id, identity_b_id) = row
 
     # refuse if a later merge already built on the same survivor — it may
     # have absorbed more identities into this cluster, or relied on the
@@ -147,3 +147,19 @@ def undo_merge(cur, merge_log_id: str) -> None:
         (prev_primary_name, prev_preferred_name, survivor_person_id),
     )
     cur.execute("update merge_log set reversed_at = now() where id = %s", (merge_log_id,))
+
+    # Put the originating link_candidate back to pending so the review UI
+    # (which only lists status='pending' rows) surfaces it for re-review —
+    # found 2026-09-09: undoing a merge with no link_candidate update left
+    # it stuck 'confirmed' with no way to see or re-decide it from the
+    # dashboard, even though the underlying merge had been reversed.
+    # identity_a_id/identity_b_id are recorded in the same order apply_merge
+    # (and its only caller, the confirm route) was called with, so an exact
+    # match is safe here — no need to check both orderings.
+    cur.execute(
+        """
+        update link_candidate set status = 'pending'
+        where identity_a_id = %s and identity_b_id = %s and status = 'confirmed'
+        """,
+        (identity_a_id, identity_b_id),
+    )
