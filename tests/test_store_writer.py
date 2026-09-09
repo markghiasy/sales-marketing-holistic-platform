@@ -142,6 +142,32 @@ class TestUpsert:
         )
         assert cur.fetchone()[0] == "Real Name"
 
+    def test_persists_is_automated_true(self, db_conn: psycopg.Connection):
+        env = _make_envelope(is_automated=True)
+        upsert(db_conn, env, self_handle="me@example.com")
+
+        cur = db_conn.cursor()
+        cur.execute(
+            "select is_automated from message where channel = %s and external_id = %s",
+            (env.channel.value, env.external_id),
+        )
+        row = cur.fetchone()
+        assert row is not None
+        assert row[0] is True
+
+    def test_persists_is_automated_false(self, db_conn: psycopg.Connection):
+        env = _make_envelope(is_automated=False)
+        upsert(db_conn, env, self_handle="me@example.com")
+
+        cur = db_conn.cursor()
+        cur.execute(
+            "select is_automated from message where channel = %s and external_id = %s",
+            (env.channel.value, env.external_id),
+        )
+        row = cur.fetchone()
+        assert row is not None
+        assert row[0] is False
+
 
 @pytest.fixture(autouse=True, scope="module")
 def _require_local_db():

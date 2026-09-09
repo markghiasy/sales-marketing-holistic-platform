@@ -39,15 +39,15 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> None:
             """
             insert into message
                 (thread_id, channel, external_id, direction, sent_at,
-                 from_identity_id, subject, body_text, raw)
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 from_identity_id, subject, body_text, is_automated, raw)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             on conflict (channel, external_id) do nothing
             returning id
             """,
             (
                 thread_id, env.channel.value, env.external_id, env.direction.value,
                 env.sent_at, from_identity_id, env.subject, env.body_text,
-                psycopg.types.json.Json(env.raw),
+                env.is_automated, psycopg.types.json.Json(env.raw),
             ),
         )
         row = cur.fetchone()
