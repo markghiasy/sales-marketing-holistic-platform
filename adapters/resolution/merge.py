@@ -100,3 +100,50 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
     )
 
     return str(person_id)
+
+
+def undo_merge(cur, merge_log_id: str) -> None:
+    cur.execute(
+        """
+        select absorbed_person_id, moved_identity_ids, prev_primary_name, prev_preferred_name,
+               survivor_person_id, merged_at
+        from merge_log
+        where id = %s
+        """,
+        (merge_log_id,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise ValueError(f"no merge_log row with id {merge_log_id}")
+    (absorbed_person_id, moved_identity_ids, prev_primary_name, prev_preferred_name,
+     survivor_person_id, merged_at) = row
+
+    # refuse if a later merge already built on the same survivor — it may
+    # have absorbed more identities into this cluster, or relied on the
+    # identities we're about to pull back out; the operator must undo that
+    # later merge first
+    cur.execute(
+        "select id from merge_log where survivor_person_id = %s and merged_at > %s",
+        (survivor_person_id, merged_at),
+    )
+    later = cur.fetchone()
+    if later is not None:
+        raise MergeConflictError(
+            f"cannot undo merge {merge_log_id}: a later merge ({later[0]}) "
+            f"already touched survivor person {survivor_person_id}"
+        )
+
+    if moved_identity_ids:
+        cur.execute(
+            "update identity set person_id = %s where id = any(%s::uuid[])",
+            (absorbed_person_id, moved_identity_ids),
+        )
+
+    if absorbed_person_id is not None:
+        cur.execute("update person set merged_into = null where id = %s", (absorbed_person_id,))
+
+    cur.execute(
+        "update person set primary_name = %s, preferred_name = %s where id = %s",
+        (prev_primary_name, prev_preferred_name, survivor_person_id),
+    )
+    cur.execute("update merge_log set reversed_at = now() where id = %s", (merge_log_id,))

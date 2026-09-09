@@ -5,7 +5,9 @@ import uuid
 
 import psycopg
 
-from adapters.resolution.merge import apply_merge
+import pytest
+
+from adapters.resolution.merge import MergeConflictError, apply_merge, undo_merge
 
 
 def _make_identity(cur, channel: str, handle: str, display_name: str | None = None, person_id: str | None = None) -> str:
@@ -172,3 +174,37 @@ class TestApplyMerge:
         assert str(absorbed_person_id) == person_b_id
         assert sorted(moved_identity_ids) == sorted([b, stranded])
         assert prev_primary_name == "Eric Tham"
+
+
+class TestUndoMerge:
+    def test_undoing_a_cluster_union_merge_restores_both_clusters(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+        stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
+
+        survivor_person_id = apply_merge(cur, a, b)
+        cur.execute("select id from merge_log where survivor_person_id = %s", (survivor_person_id,))
+        (merge_log_id,) = cur.fetchone()
+
+        undo_merge(cur, str(merge_log_id))
+
+        cur.execute("select person_id from identity where id = %s", (b,))
+        assert str(cur.fetchone()[0]) == person_b_id
+        cur.execute("select person_id from identity where id = %s", (stranded,))
+        assert str(cur.fetchone()[0]) == person_b_id
+        cur.execute("select person_id from identity where id = %s", (a,))
+        assert str(cur.fetchone()[0]) == person_a_id  # untouched — never moved
+
+        cur.execute("select merged_into from person where id = %s", (person_b_id,))
+        assert cur.fetchone()[0] is None
+
+        cur.execute("select primary_name from person where id = %s", (person_a_id,))
+        assert cur.fetchone()[0] == "Eric Tham"  # restored prev_primary_name
+
+        cur.execute("select reversed_at from merge_log where id = %s", (merge_log_id,))
+        assert cur.fetchone()[0] is not None
