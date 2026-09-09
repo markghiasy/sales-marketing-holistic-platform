@@ -86,10 +86,16 @@ _AUTOMATED_SENDER_PATTERNS = frozenset({
     "mailer-daemon", "postmaster",
 })
 
-# §9 tier 1: known automated/ESP sending domains. A seed list, not
-# verified against real mailbox data yet (Docker was down while this was
-# designed) — extend with a one-line diff once real automated senders
-# are seen that this list misses.
+# §9 tier 1: known automated/ESP sending domains. Checked against 4,769
+# real ingested Outlook messages: matched 0 of them. ESPs (SendGrid,
+# Mailgun, etc.) relay under the customer's own domain in the `From:`
+# header — the thing this check looks at — not under their own domain;
+# an ESP's own domain shows up in `Return-Path` instead, which isn't
+# available here (the Envelope/raw payload this code sees carries only
+# `from_handle`, no return-path headers). Left in place since a future
+# sender could still match (e.g. a company's own bulk-mail subdomain) —
+# extend with a one-line diff if real automated senders are seen that
+# this list misses.
 _AUTOMATED_SENDER_DOMAINS = frozenset({
     "sendgrid.net", "mailgun.org", "amazonses.com",
     "mailchimp.com", "notifications.google.com",

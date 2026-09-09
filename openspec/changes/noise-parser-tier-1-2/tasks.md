@@ -45,14 +45,30 @@
       filter (where is_automated), count(*) from message where channel =
       'outlook'` returned `0 / 4769` — every existing row still shows
       `is_automated = false`, including obvious automated senders already
-      in the store (`no-reply@edm.cba.com.au`,
-      `mssecurity-noreply@microsoft.com`, etc.), because those rows were
-      ingested before this fix and `store_writer.upsert`'s `on conflict
-      (channel, external_id) do nothing` means simply re-running the
-      Outlook sync will NOT retroactively update them. The new tier-1
-      logic is verified correct in isolation (23+ unit tests), but a
-      **backfill (an UPDATE recomputing is_automated for existing rows,
-      or a full wipe-and-re-ingest) is a real follow-up need, out of this
-      change's scope** — flagged for Eva, not built unprompted.
+      in the store (`no-reply@edm.cba.com.au`, `noreply@ventraip.com.au`,
+      etc.), because those rows were ingested before this fix and
+      `store_writer.upsert`'s `on conflict (channel, external_id) do
+      nothing` means simply re-running the Outlook sync will NOT
+      retroactively update them. The new tier-1 logic is verified correct
+      in isolation (23+ unit tests), but a **backfill (an UPDATE
+      recomputing is_automated for existing rows, or a full
+      wipe-and-re-ingest) is a real follow-up need, out of this change's
+      scope** — flagged for Eva, not built unprompted.
+      Note: the sender-pattern check uses exact local-part matching
+      (`local_part.lower() in _AUTOMATED_SENDER_PATTERNS`), per spec —
+      not a substring match. So a backfill alone would not flag every
+      "obviously automated" address; e.g.
+      `mssecurity-noreply@microsoft.com` has a local part that *contains*
+      `noreply` but isn't an exact match, so it would still show
+      `is_automated=false` even after a backfill. This is spec-compliant
+      behavior, not a bug. Separately, 192 real messages in the mailbox
+      have a local-part that *contains* an automated pattern as a
+      substring (not an exact match) and no List-Unsubscribe header —
+      e.g. `account-security-noreply@accountprotection.microsoft.com`,
+      `azure-noreply@microsoft.com`, `ato-otp-noreply@ato.gov.au`,
+      `meetings-noreply@google.com`. A substring/prefix match on
+      `noreply`/`no-reply` would additionally catch these ~192 messages —
+      flagged as a possible cheap follow-up, not implemented here (out of
+      scope for this documentation correction).
 - [x] 4.3 Presented for review.
 
