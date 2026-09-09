@@ -104,3 +104,71 @@ class TestApplyMerge:
 
         cur.execute("select merged_into from person where id = %s", (person_b_id,))
         assert str(cur.fetchone()[0]) == person_a_id
+
+    def test_logs_a_merge_log_row_when_neither_identity_has_a_person(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+
+        person_id = apply_merge(cur, a, b)
+
+        cur.execute(
+            """
+            select identity_a_id, identity_b_id, survivor_person_id, absorbed_person_id,
+                   moved_identity_ids, prev_primary_name, prev_preferred_name, reversed_at
+            from merge_log
+            where survivor_person_id = %s
+            """,
+            (person_id,),
+        )
+        row = cur.fetchone()
+        assert row is not None
+        (identity_a_id, identity_b_id, survivor_person_id, absorbed_person_id,
+         moved_identity_ids, prev_primary_name, prev_preferred_name, reversed_at) = row
+        assert str(identity_a_id) == a
+        assert str(identity_b_id) == b
+        assert str(survivor_person_id) == person_id
+        assert absorbed_person_id is None
+        assert sorted(moved_identity_ids) == sorted([a, b])
+        assert prev_primary_name == ""
+        assert prev_preferred_name is None
+        assert reversed_at is None
+
+    def test_logs_only_the_joining_identity_when_one_side_already_has_a_person(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        existing_person = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=existing_person)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+
+        person_id = apply_merge(cur, a, b)
+
+        cur.execute(
+            "select absorbed_person_id, moved_identity_ids, prev_primary_name from merge_log where survivor_person_id = %s",
+            (person_id,),
+        )
+        absorbed_person_id, moved_identity_ids, prev_primary_name = cur.fetchone()
+        assert absorbed_person_id is None
+        assert moved_identity_ids == [b]
+        assert prev_primary_name == "Eric Tham"
+
+    def test_logs_the_whole_absorbed_cluster_for_a_cluster_union_merge(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Eric Tham') returning id")
+        person_a_id = str(cur.fetchone()[0])
+        cur.execute("insert into person (primary_name) values ('E Tham') returning id")
+        person_b_id = str(cur.fetchone()[0])
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
+        stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
+
+        person_id = apply_merge(cur, a, b)
+
+        cur.execute(
+            "select absorbed_person_id, moved_identity_ids, prev_primary_name from merge_log where survivor_person_id = %s",
+            (person_id,),
+        )
+        absorbed_person_id, moved_identity_ids, prev_primary_name = cur.fetchone()
+        assert str(absorbed_person_id) == person_b_id
+        assert sorted(moved_identity_ids) == sorted([b, stranded])
+        assert prev_primary_name == "Eric Tham"

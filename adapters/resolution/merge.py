@@ -2,6 +2,10 @@
 person rows and sets identity.person_id, used both by automatic rules
 (adapters/resolution/rules.py) and the human-confirm route in
 scripts/onboarding/app.py, so there's exactly one merge mechanism.
+
+Every call writes a merge_log row before mutating anything, capturing
+enough state to invert the merge — see
+docs/superpowers/specs/2026-09-09-reversible-identity-merge-design.md.
 """
 
 from __future__ import annotations
@@ -9,11 +13,19 @@ from __future__ import annotations
 from .naming import select_names
 
 
+class MergeConflictError(Exception):
+    """Raised by undo_merge when a later merge already touched the same
+    survivor person, so reversing this one could pull identities out from
+    under a merge that was applied afterward."""
+
+
 def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
     cur.execute("select person_id from identity where id = %s", (identity_a_id,))
     (person_a,) = cur.fetchone()
     cur.execute("select person_id from identity where id = %s", (identity_b_id,))
     (person_b,) = cur.fetchone()
+
+    absorbed_person_id = None
 
     if person_a and person_b and person_a != person_b:
         # both identities already belong to different, already-merged
@@ -23,6 +35,8 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
         # rather than reassigning only identity_a_id/identity_b_id and
         # silently stranding the rest of person_b's cluster under a now-
         # orphaned, stale-named person row
+        cur.execute("select id from identity where person_id = %s", (person_b,))
+        moved_identity_ids = [str(row[0]) for row in cur.fetchall()]
         cur.execute("update identity set person_id = %s where person_id = %s", (person_a, person_b))
         # person.merged_into is exactly this schema's soft-merge pointer
         # (0001_init.sql: "reversible, never delete rows") — set it so
@@ -31,11 +45,41 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
         # at a person with no identities and no way to follow the merge
         cur.execute("update person set merged_into = %s where id = %s", (person_a, person_b))
         person_id = person_a
+        absorbed_person_id = person_b
     else:
         person_id = person_a or person_b
         if person_id is None:
             cur.execute("insert into person (primary_name) values ('') returning id")
             person_id = cur.fetchone()[0]
+        # whichever of the two identities didn't already carry person_id
+        # is the one actually moving — the other (if any) is already
+        # exactly where it needs to be
+        moved_identity_ids = [
+            identity_id
+            for identity_id, existing_person in ((identity_a_id, person_a), (identity_b_id, person_b))
+            if existing_person != person_id
+        ]
+
+    cur.execute("select primary_name, preferred_name from person where id = %s", (person_id,))
+    prev_primary_name, prev_preferred_name = cur.fetchone()
+
+    cur.execute(
+        """
+        insert into merge_log
+            (identity_a_id, identity_b_id, survivor_person_id, absorbed_person_id,
+             moved_identity_ids, prev_primary_name, prev_preferred_name)
+        values (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            identity_a_id,
+            identity_b_id,
+            person_id,
+            absorbed_person_id,
+            moved_identity_ids,
+            prev_primary_name,
+            prev_preferred_name,
+        ),
+    )
 
     cur.execute(
         "update identity set person_id = %s where id in (%s, %s)",
