@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import ClassVar
 
-from adapters.outlook.sync import _resolve_sent_at, _strip_html, _to_envelope
+from adapters.outlook.sync import _resolve_sent_at, _strip_html, _to_envelope, is_automated
 
 
 class TestStripHtml:
@@ -201,3 +201,25 @@ class TestToEnvelope:
         env = _to_envelope(self._BASE_RAW, self_handles={"me@example.com"})
         assert env is not None
         assert env.is_automated is False
+
+
+class TestIsAutomated:
+    """Direct tests for the standalone is_automated(raw, from_handle)
+    function — pulled out of _to_envelope so a backfill can recompute it
+    against already-stored raw payloads (see scripts/backfill_is_automated.py)
+    without re-deriving from_handle or duplicating the OR expression."""
+
+    def test_true_when_raw_and_from_handle_come_from_a_stored_message(self):
+        raw = {
+            "inferenceClassification": "focused",
+            "internetMessageHeaders": [{"name": "List-Unsubscribe", "value": "<mailto:x@y.com>"}],
+        }
+        assert is_automated(raw, "someone@example.com") is True
+
+    def test_false_when_nothing_matches(self):
+        raw = {"inferenceClassification": "focused", "internetMessageHeaders": []}
+        assert is_automated(raw, "eric.tham@example.com") is False
+
+    def test_true_from_from_handle_pattern_alone(self):
+        raw = {"inferenceClassification": "focused", "internetMessageHeaders": []}
+        assert is_automated(raw, "noreply@example.com") is True

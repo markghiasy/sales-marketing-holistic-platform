@@ -111,6 +111,26 @@ def _sender_looks_automated(from_handle: str) -> bool:
     return False
 
 
+def is_automated(raw: dict, from_handle: str) -> bool:
+    """§9 tier 1, combined via OR — any one signal is enough:
+    - Graph's own Focused/Other classification (free, already computed)
+    - a List-Unsubscribe header (bulk/marketing mail marks itself)
+    - sender local-part or domain patterns that indicate automation
+
+    Pulled out of _to_envelope so a backfill can recompute this against
+    already-ingested messages' stored `raw` payload without needing to
+    re-derive from_handle or duplicate the OR expression in a second
+    place — see scripts/backfill_is_automated.py.
+    """
+    headers = raw.get("internetMessageHeaders") or []
+    has_list_unsubscribe = any(h.get("name", "").lower() == "list-unsubscribe" for h in headers)
+    return (
+        raw.get("inferenceClassification") == "other"
+        or has_list_unsubscribe
+        or _sender_looks_automated(from_handle)
+    )
+
+
 def _strip_html(body: dict) -> str:
     """Graph returns body as {contentType, content}. Plain-text it and cut
     the quoted-reply chain — §6 calls for a clean body, needed for both
@@ -164,9 +184,6 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
 
     direction = Direction.outbound if from_handle in self_handles else Direction.inbound
 
-    headers = raw.get("internetMessageHeaders") or []
-    has_list_unsubscribe = any(h.get("name", "").lower() == "list-unsubscribe" for h in headers)
-
     return Envelope(
         channel=Channel.outlook,
         external_id=raw["internetMessageId"],
@@ -180,15 +197,7 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         subject=raw.get("subject"),
         body_text=_strip_html(raw.get("body", {})),
         is_group=len(to_handles) > 1,
-        # §9 tier 1, combined via OR — any one signal is enough:
-        # - Graph's own Focused/Other classification (free, already computed)
-        # - a List-Unsubscribe header (bulk/marketing mail marks itself)
-        # - sender local-part or domain patterns that indicate automation
-        is_automated=(
-            raw.get("inferenceClassification") == "other"
-            or has_list_unsubscribe
-            or _sender_looks_automated(from_handle)
-        ),
+        is_automated=is_automated(raw, from_handle),
         raw=raw,
     )
 
