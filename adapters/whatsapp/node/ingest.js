@@ -11,7 +11,17 @@
  * Run: node ingest.js
  */
 
-const { default: makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
+// @whiskeysockets/baileys ships as a pure ESM package ("type": "module" in
+// its own package.json) — require() of it fails outright with
+// ERR_REQUIRE_ESM. Found 2026-09-10 verifying a from-scratch `npm install`
+// on real Linux for tomorrow's deploy: package-lock.json was never
+// committed to this repo, so every fresh install (Mark's included) resolves
+// whatever version currently satisfies "^7.0.0-rc14" — which is this
+// ESM-only one — regardless of what Eva's own long-lived local node_modules
+// happens to have. Declared here, assigned via dynamic import() at the
+// bottom of this file before start() is called — everything that uses
+// these (inside start()) only runs after that import resolves.
+let makeWASocket, fetchLatestBaileysVersion, DisconnectReason;
 const { useEncryptedMultiFileAuthState } = require('./encrypted_auth_state.js');
 const QRCode = require('qrcode');
 const pino = require('pino');
@@ -237,7 +247,11 @@ async function start() {
   }
 }
 
-start().catch((e) => {
+(async () => {
+  ({ default: makeWASocket, fetchLatestBaileysVersion, DisconnectReason } =
+    await import('@whiskeysockets/baileys'));
+  await start();
+})().catch((e) => {
   logEvent(`FATAL start() failed: ${e.stack || e}`);
   writeStatus('crashed', String(e.message || e));
   process.exit(1);

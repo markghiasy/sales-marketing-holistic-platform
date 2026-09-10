@@ -13,7 +13,10 @@
  * Writes: lid_map.jsonl (one {lid, pn} per line; pn is null if unresolved)
  */
 
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+// @whiskeysockets/baileys is pure ESM — require() fails with
+// ERR_REQUIRE_ESM (see ingest.js's own note on this). Loaded via dynamic
+// import() in main() instead, below.
+let makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion;
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
@@ -39,6 +42,8 @@ const LIDS = fs.readFileSync(inputPath, 'utf8')
   });
 
 async function main() {
+  ({ default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } =
+    await import('@whiskeysockets/baileys'));
   const { state } = await useMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
   const sock = makeWASocket({ auth: state, version, logger: pino({ level: 'silent' }) });

@@ -21,7 +21,18 @@ const { Mutex } = require('async-mutex');
 const { mkdir, readFile, stat, unlink, writeFile } = require('fs/promises');
 const { join } = require('path');
 const crypto = require('crypto');
-const { proto, initAuthCreds, BufferJSON } = require('@whiskeysockets/baileys');
+
+// @whiskeysockets/baileys is pure ESM ("type": "module") — require() of it
+// fails with ERR_REQUIRE_ESM. Loaded lazily via dynamic import() instead,
+// cached after the first call so every caller within this process shares
+// one resolved module. See ingest.js's own top-of-file note for how this
+// was found (a from-scratch `npm install`, package-lock.json never having
+// been committed here, resolves straight to this ESM-only version).
+let _baileysModule;
+async function loadBaileys() {
+  if (!_baileysModule) _baileysModule = await import('@whiskeysockets/baileys');
+  return _baileysModule;
+}
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // recommended nonce length for GCM
@@ -83,6 +94,7 @@ function getFileLock(path) {
 const fixFileName = (file) => file?.replace(/\//g, '__')?.replace(/:/g, '-');
 
 async function useEncryptedMultiFileAuthState(folder) {
+  const { proto, initAuthCreds, BufferJSON } = await loadBaileys();
   const key = loadKey();
 
   const writeData = async (data, file) => {
