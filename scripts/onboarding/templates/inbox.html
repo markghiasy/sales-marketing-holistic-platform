@@ -32,9 +32,7 @@
   :root {
     /* Light app theme — matches kinso's actual product screenshot
        (their marketing SITE is dark, but the app mockup inside it is
-       light/white). --page-bg is the dark surround behind the "window",
-       same idea as kinso's site background framing their app screenshot. */
-    --page-bg: #0b0d10;
+       light/white). */
     --bg: #ffffff;
     --panel: #f7f8fa;
     --panel-2: #eef0f3;
@@ -46,40 +44,13 @@
   }
   * { box-sizing: border-box; }
   body {
-    background: var(--page-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
     height: 100vh;
     overflow: hidden;
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  .window {
-    width: min(1400px, 96vw);
-    height: min(820px, 92vh);
-    background: var(--bg);
-    color: var(--text);
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-  }
-  .titlebar {
-    height: 34px;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 0 14px;
-  }
-  .titlebar .dot { width: 11px; height: 11px; border-radius: 50%; }
-  .titlebar .dot.red { background: #ff5f57; }
-  .titlebar .dot.yellow { background: #febc2e; }
-  .titlebar .dot.green { background: #28c840; }
-  .app { flex: 1; display: flex; min-height: 0; }
+  .app { height: 100vh; display: flex; min-height: 0; }
 
   /* left icon rail */
   .rail {
@@ -197,8 +168,6 @@
   .empty { color: var(--text-dim); font-size: 13px; padding: 20px 8px; }
 </style>
 
-<div class="window">
-<div class="titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
 <div class="app">
 <div class="rail" id="rail"></div>
 
@@ -221,7 +190,6 @@
       <div class="ai-cards" id="ai-cards"></div>
     </div>
   </div>
-</div>
 </div>
 </div>
 
