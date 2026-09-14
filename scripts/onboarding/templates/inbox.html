@@ -89,6 +89,7 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 10px;
+    cursor: text;
     color: var(--text-dim);
     font-size: 13px;
     display: flex; align-items: center; gap: 8px;
@@ -166,13 +167,66 @@
   .ai-card-body { color: var(--text-dim); line-height: 1.4; }
 
   .empty { color: var(--text-dim); font-size: 13px; padding: 20px 8px; }
+
+  /* Assistant overlay — opens from the search bar, styled after kinso's
+     mobile mockup (their landing page's phone screenshot): a greeting,
+     a one-line "N new / M active" stat, a "Today's briefing" button,
+     and an input pinned to the bottom of the card. Mock only — the
+     stats are computed from MOCK_CONVERSATIONS, nothing is a real
+     assistant response. */
+  .assistant-backdrop {
+    position: fixed; inset: 0; background: rgba(20,20,25,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 20;
+  }
+  .assistant-panel {
+    width: 360px; min-height: 420px;
+    background: #fff; border-radius: 18px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column;
+    padding: 22px 20px 16px;
+  }
+  .assistant-greeting { font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+  .assistant-greeting span { color: var(--accent); }
+  .assistant-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.4; margin-bottom: 16px; }
+  .assistant-sub b { color: var(--text); font-weight: 700; }
+  .briefing-btn {
+    align-self: flex-start;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+    color: var(--text); cursor: pointer; margin-bottom: 20px;
+  }
+  .assistant-suggestions { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .assistant-suggestion {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-size: 12.5px; color: var(--text-dim); cursor: pointer;
+  }
+  .assistant-suggestion:hover { background: var(--panel-2); }
+  .assistant-input-row {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border); border-radius: 24px;
+    padding: 8px 8px 8px 16px; margin-top: 16px;
+  }
+  .assistant-input-row input {
+    flex: 1; border: none; outline: none; font-size: 13px; background: transparent; color: var(--text);
+  }
+  .assistant-send {
+    width: 30px; height: 30px; border-radius: 50%; border: none;
+    background: var(--text); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .assistant-close {
+    align-self: flex-end; margin: -8px -6px 4px auto;
+    width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent;
+    color: var(--text-dim); font-size: 16px; cursor: pointer;
+  }
 </style>
 
 <div class="app">
 <div class="rail" id="rail"></div>
 
 <div class="main">
-  <div class="searchbar"><span class="dot"></span> Start typing to ask or search (not wired up in this prototype)</div>
+  <div class="searchbar" id="searchbar"><span class="dot"></span> Start typing to ask or search</div>
   <div class="content">
     <div class="list-panel">
       <h2>Inbox</h2>
@@ -330,6 +384,48 @@ document.getElementById("f-unread").addEventListener("change", e => { state.unre
 document.getElementById("f-unanswered").addEventListener("change", e => { state.unanswered = e.target.checked; render(); });
 document.getElementById("s-priority").addEventListener("change", () => { state.sort = "priority"; render(); });
 document.getElementById("s-recent").addEventListener("change", () => { state.sort = "recent"; render(); });
+
+// Assistant overlay — opens on clicking the search bar. Mock only: the
+// greeting stats are computed from MOCK_CONVERSATIONS, the suggestions
+// and input do nothing real when submitted (see file header).
+const ASSISTANT_SUGGESTIONS = [
+  "What's most urgent right now?",
+  "Who's waiting on a reply from me?",
+  "Summarize this week's WhatsApp activity",
+];
+
+function openAssistant() {
+  const unread = MOCK_CONVERSATIONS.filter(c => c.unread).length;
+  const active = MOCK_CONVERSATIONS.filter(c => c.unanswered).length;
+  const backdrop = document.createElement("div");
+  backdrop.className = "assistant-backdrop";
+  backdrop.innerHTML = `
+    <div class="assistant-panel">
+      <button class="assistant-close" id="assistant-close-btn">&times;</button>
+      <div class="assistant-greeting">Good morning<span>.</span></div>
+      <div class="assistant-sub">You've got <b>${unread} new</b> and <b>${active} active</b> conversations.</div>
+      <button class="briefing-btn" type="button">Today's briefing &rsaquo;</button>
+      <div class="assistant-suggestions">
+        ${ASSISTANT_SUGGESTIONS.map(s => `<div class="assistant-suggestion">${escapeHtml(s)}</div>`).join("")}
+      </div>
+      <div class="assistant-input-row">
+        <input type="text" placeholder="Ask anything..." disabled>
+        <button class="assistant-send" type="button">&uarr;</button>
+      </div>
+    </div>
+  `;
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeAssistant(); });
+  document.body.appendChild(backdrop);
+  document.getElementById("assistant-close-btn").addEventListener("click", closeAssistant);
+}
+
+function closeAssistant() {
+  const el = document.querySelector(".assistant-backdrop");
+  if (el) el.remove();
+}
+
+document.getElementById("searchbar").addEventListener("click", openAssistant);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAssistant(); });
 
 render();
 </script>
