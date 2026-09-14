@@ -7,9 +7,14 @@
   right-side "AI suggestion card" panel duplicated what the list preview
   already showed once the preview text was written to read like a real
   summary — so that panel is gone. In its place: clicking a row opens a
-  detail panel (raw message + Context + an AI draft reply when one
-  exists), and rows with a ready draft get a small badge in the list, so
-  "is there something to act on" is visible without opening anything.
+  detail panel (full message thread + Context + an AI draft reply when
+  one exists), and rows with a ready draft get a small badge in the
+  list, so "is there something to act on" is visible without opening
+  anything. The list row's own preview text is `summary` — a short
+  third-person AI action-summary, the piece that got dropped when the
+  right-side card was removed — not the raw last message (that's
+  `message`, still used as the newest line inside the detail panel's
+  thread and for the graph/Context copy).
 
   DELIBERATELY MOCK DATA ONLY, nothing below is a real integration:
     - Conversations, topic tags, `context` bullets, and `draft` replies
@@ -407,6 +412,7 @@ const MOCK_CONVERSATIONS = [
   { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
     tag: { text: "Contract Request", color: "#5b6fd6" },
     message: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week.",
+    summary: "Needs the updated services agreement with phased pricing before Friday to close out the deal.",
     threads: [
       { channel: "outlook", subject: "Q4 rollout — kicking things off", messages: [
         { from: "them", time: "2 weeks ago", text: "Hi — we spoke last month about bringing your team on for the Q4 rollout, and I'd love to move forward. Could you put together a proposal?" },
@@ -429,6 +435,7 @@ const MOCK_CONVERSATIONS = [
   { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
     tag: { text: "Scheduling", color: "#3d8f63" },
     message: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end",
+    summary: "Wants to move this week's shipment-review call from Wednesday to Thursday afternoon.",
     threads: [
       { channel: "whatsapp", subject: null, messages: [
         { from: "them", time: "3 days ago", text: "hey! quick one — we're behind on the Q3 shipment numbers, can we do a call this week to go through it?" },
@@ -448,6 +455,7 @@ const MOCK_CONVERSATIONS = [
   { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
     tag: { text: "Intro Request", color: "#a35bc7" },
     message: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along.",
+    summary: "Following up on the promised intro to your product lead; offered to send a one-pager first.",
     threads: [
       { channel: "linkedin", subject: null, messages: [
         { from: "them", time: "6 days ago", text: "Hi! Tomasz mentioned you might be a great person to connect with — we're building in the digital health space and I saw you work closely with a few product teams." },
@@ -467,6 +475,7 @@ const MOCK_CONVERSATIONS = [
   { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Invoice", color: "#c78b3f" },
     message: "Perfect, thank you for confirming!",
+    summary: "Confirmed invoice #4471 is scheduled for payment next week — no action needed.",
     threads: [
       { channel: "outlook", subject: "Invoice #4471", messages: [
         { from: "them", time: "4 days ago", text: "Hi, sending over invoice #4471 for last month's consulting hours, net-30 as usual." },
@@ -485,6 +494,7 @@ const MOCK_CONVERSATIONS = [
   { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Team Update", color: "#3d8f63" },
     message: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance.",
+    summary: "Shared this week's progress notes and flagged Priya's contract-scope question for you.",
     threads: [
       { channel: "whatsapp", subject: null, messages: [
         { from: "them", time: "yesterday", text: "morning! finished up the Q3 client review deck, sharing it in the drive" },
@@ -504,6 +514,7 @@ const MOCK_CONVERSATIONS = [
   { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
     tag: { text: "Networking", color: "#a35bc7" },
     message: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going.",
+    summary: "Wants to stay in touch after the conference — just followed through on introducing you to Odalys Ferreira.",
     threads: [
       { channel: "linkedin", subject: null, messages: [
         { from: "them", time: "1 week ago", text: "Hey, great chatting at SaaStr! Small world that we both know people in the digital health space." },
@@ -584,7 +595,7 @@ function renderList() {
           ${c.draft ? `<span class="draft-badge" title="AI draft ready">&#9998; Draft ready</span>` : ""}
           <span class="row-time">${c.time}</span>
         </div>
-        <div class="row-preview">${escapeHtml(c.message)}</div>
+        <div class="row-preview">${escapeHtml(c.summary)}</div>
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
     </div>
