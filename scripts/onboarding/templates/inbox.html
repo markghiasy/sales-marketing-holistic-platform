@@ -3,29 +3,43 @@
   inspired by kinso.ai's UI (Eva and Mark's Phase 2 design reference for
   a single interface over the three adapters: Outlook/WhatsApp/LinkedIn).
 
+  Redesigned same day, still same session: Eva pointed out the original
+  right-side "AI suggestion card" panel duplicated what the list preview
+  already showed once the preview text was written to read like a real
+  summary — so that panel is gone. In its place: clicking a row opens a
+  detail panel (raw message + Context + an AI draft reply when one
+  exists), and rows with a ready draft get a small badge in the list, so
+  "is there something to act on" is visible without opening anything.
+
   DELIBERATELY MOCK DATA ONLY, nothing below is a real integration:
-    - Conversations, topic tags, and AI summaries are all hardcoded in
-      MOCK_CONVERSATIONS below — not read from the real `message`/
-      `identity`/`fact` tables.
-    - AI summaries are pre-written text, not a real Anthropic API call
+    - Conversations, topic tags, `context` bullets, and `draft` replies
+      are all hardcoded in MOCK_CONVERSATIONS below — not read from the
+      real `message`/`identity`/`fact` tables. `context` is meant to
+      stand in for what identity resolution + the fact table already
+      extract for real (company/title, last contact, shared history,
+      mutual connections) — this pass just hand-writes plausible values,
+      doesn't query them.
+    - Draft replies are pre-written text, not a real Anthropic API call
       (ANTHROPIC_API_KEY exists as of today, but wiring this up to a
-      real model call is future work, not this pass).
-    - Filter/sort (Unread/Unanswered, Priority/Most Recent) run
-      client-side over the mock array — no backend query.
+      real model call is future work, not this pass). "Use this draft"
+      does nothing.
+    - Filter/sort (Unread/Unanswered/Has draft ready, Priority/Most
+      Recent) run client-side over the mock array — no backend query.
     - Left icon rail's channel filter is the same idea as kinso's
       "Accounts" panel, collapsed into one control since this project
       has exactly three channels, not multiple accounts per channel.
 
-  Explicitly NOT built in this pass (kinso has these, noted for later):
-    - Real data: this UI reading from adapters' actual synced messages.
-    - Real LLM call producing the AI summary line.
-    - kinso's second AI-panel behavior — retrieving and surfacing a
-      *related past message* as context (e.g. "found the contract you
-      sent Aug 3"), not just summarizing the incoming ask. Meaningfully
-      more work (some form of retrieval over message history) than the
-      one-line summary built here.
+  Explicitly NOT built in this pass, noted for later:
+    - Real data: this UI reading from adapters' actual synced messages,
+      and Context reading from real identity/fact rows instead of a
+      hand-written array.
+    - Real LLM call producing draft replies and the topic tags.
+    - A network-graph / node visualization in the Context section —
+      Eva asked for this, cut for time (this pass built in ~30min before
+      a demo); Context is a plain bullet list instead. Worth a real
+      pass once there's time to pick a rendering approach.
     - The top search bar's real semantic search (visual only below).
-    - A message detail / reply view — this is a triage list only.
+    - Actually sending a reply — "Use this draft" is a dead button.
 -->
 <title>Inbox</title>
 <style>
@@ -107,9 +121,14 @@
     display: flex; align-items: center; gap: 12px;
     padding: 10px 8px;
     border-radius: 10px;
-    cursor: default;
+    cursor: pointer;
   }
   .row:hover { background: var(--panel); }
+  .draft-badge {
+    background: #eef6ff; color: #2f6fb2; border: 1px solid #cfe4fb;
+    font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 20px;
+    white-space: nowrap;
+  }
   .avatar {
     width: 36px; height: 36px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
@@ -220,6 +239,33 @@
     width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent;
     color: var(--text-dim); font-size: 16px; cursor: pointer;
   }
+
+  /* Message detail panel — opens on clicking a row. Real message text,
+     a Context section (mock identity/relationship info — see this
+     file's header comment on where real data would plug in), and an
+     AI draft reply when one exists. */
+  .detail-panel {
+    width: 420px; max-height: 82vh; overflow-y: auto;
+    background: #fff; border-radius: 18px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column;
+    padding: 22px 22px 20px;
+  }
+  .detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .detail-message {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 13.5px; line-height: 1.5; margin-bottom: 16px;
+  }
+  .detail-context, .detail-draft { margin-bottom: 16px; }
+  .detail-context h3, .detail-draft h3 {
+    font-size: 10.5px; letter-spacing: 0.06em; color: var(--text-dim);
+    text-transform: uppercase; margin: 0 0 8px;
+  }
+  .detail-context ul { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .draft-text {
+    background: #fff8ef; border: 1px solid #f1dfc2; border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 10px;
+  }
 </style>
 
 <div class="app">
@@ -237,11 +283,11 @@
         <h3>Filter by</h3>
         <label><input type="checkbox" id="f-unread"> Unread</label>
         <label><input type="checkbox" id="f-unanswered"> Unanswered</label>
+        <label><input type="checkbox" id="f-draft"> Has draft ready</label>
         <h3 class="spaced">Sort by</h3>
         <label><input type="radio" name="sort" id="s-priority" checked> Priority</label>
         <label><input type="radio" name="sort" id="s-recent"> Most recent</label>
       </div>
-      <div class="ai-cards" id="ai-cards"></div>
     </div>
   </div>
 </div>
@@ -280,39 +326,50 @@ function initials(name) {
   return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
+// `message` is the raw excerpt (what they actually wrote, first person) —
+// shown in the list AND at the top of the detail panel. `context` is a
+// short list of the kind of thing identity resolution + the fact table
+// already extract for real (company/title, last contact, shared
+// history) — mocked here as plain strings, not an actual graph query.
+// `draft` is a pre-written AI reply, null when none exists yet.
 const MOCK_CONVERSATIONS = [
   { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
     tag: { text: "Contract Request", color: "#5b6fd6" },
-    preview: "Wants you to share the services agreement with updated pricing before Friday.",
-    ai: "Requesting the services agreement with updated pricing, due Friday." },
+    message: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week.",
+    context: ["VP Partnerships @ Brightstone Realty", "Last contact: 2 weeks ago (intro call)", "3 prior email threads, no WhatsApp/LinkedIn overlap yet"],
+    draft: "Hi Priya — attaching the updated services agreement now, pricing reflects the terms we discussed. Let me know if Friday still works or if you need it sooner." },
   { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
     tag: { text: "Scheduling", color: "#3d8f63" },
-    preview: "Can we push our call to Thursday afternoon instead of Wednesday?",
-    ai: "Asking to move Wednesday's call to Thursday afternoon." },
+    message: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end",
+    context: ["Ops Lead @ Fenwick & Co", "Last contact: yesterday (WhatsApp)", "Recurring biweekly check-in"],
+    draft: null },
   { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
     tag: { text: "Intro Request", color: "#a35bc7" },
-    preview: "Following up on the intro to your product lead — happy to send a one-pager first.",
-    ai: "Following up on a product-lead introduction, offering a one-pager." },
+    message: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along.",
+    context: ["Founder @ Solace Health", "Connected via mutual: Tomasz Kaczmarek", "No prior direct contact"],
+    draft: "Hi Odalys — happy to make the intro. Send the one-pager over and I'll forward it along with some context." },
   { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Invoice", color: "#c78b3f" },
-    preview: "Confirming invoice #4471 was received and is scheduled for payment next week.",
-    ai: null },
+    message: "Confirming invoice #4471 was received on our end and is scheduled for payment next week.",
+    context: ["Finance @ Lumen Partners", "Last contact: 3 days ago", "8 prior threads — long-standing vendor relationship"],
+    draft: null },
   { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Team Update", color: "#3d8f63" },
-    preview: "Shared this week's progress notes and next sprint's rough plan.",
-    ai: null },
+    message: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance.",
+    context: ["Teammate", "Last contact: today, earlier", "Daily WhatsApp thread"],
+    draft: null },
   { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
     tag: { text: "Networking", color: "#a35bc7" },
-    preview: "Great meeting you at the conference — would love to stay in touch.",
-    ai: null },
+    message: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going.",
+    context: ["Partner @ Meridian Ventures", "Met in person: SaaStr conference, last week", "Mutual connection: Odalys Ferreira"],
+    draft: "Great to meet you too, Tomasz! Would love to stay in touch — let me know if you're ever up for a coffee chat." },
 ];
 
-let state = { channel: "all", unread: false, unanswered: false, sort: "priority" };
+let state = { channel: "all", unread: false, unanswered: false, draft: false, sort: "priority" };
 
 function render() {
   renderRail();
   renderList();
-  renderAiCards();
 }
 
 function renderRail() {
@@ -330,6 +387,7 @@ function filtered() {
   let rows = MOCK_CONVERSATIONS.filter(c => state.channel === "all" || c.channel === state.channel);
   if (state.unread) rows = rows.filter(c => c.unread);
   if (state.unanswered) rows = rows.filter(c => c.unanswered);
+  if (state.draft) rows = rows.filter(c => c.draft);
   // Real bug found by Eva 2026-09-14: this used to sort "Most recent" by
   // b.id - a.id (descending id), but ids are assigned in the same order
   // as MOCK_CONVERSATIONS' `time` field — 1 is the newest (12m), 6 the
@@ -354,36 +412,63 @@ function renderList() {
     return;
   }
   list.innerHTML = rows.map(c => `
-    <div class="row">
+    <div class="row" data-id="${c.id}">
       <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
       <div class="row-main">
         <div class="row-top">
           <span class="row-name">${escapeHtml(c.name)}</span>
           <span class="tag" style="background:${c.tag.color}22;color:${c.tag.color}">${escapeHtml(c.tag.text)}</span>
+          ${c.draft ? `<span class="draft-badge" title="AI draft ready">&#9998; Draft ready</span>` : ""}
           <span class="row-time">${c.time}</span>
         </div>
-        <div class="row-preview">${escapeHtml(c.preview)}</div>
+        <div class="row-preview">${escapeHtml(c.message)}</div>
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
     </div>
   `).join("");
+  list.querySelectorAll(".row").forEach(row => {
+    row.addEventListener("click", () => openDetail(Number(row.dataset.id)));
+  });
 }
 
-function renderAiCards() {
-  const rows = filtered().filter(c => c.ai).slice(0, 3);
-  const box = document.getElementById("ai-cards");
-  if (rows.length === 0) { box.innerHTML = ""; return; }
-  box.innerHTML = rows.map((c, i) => `
-    <div class="ai-card ${i === 0 ? "top" : ""}">
-      <span class="ai-card-menu">⋯</span>
-      <div class="ai-card-head">
-        <span>${CHANNELS[c.channel].icon}</span>
-        <span class="name">${escapeHtml(c.name)}</span>
-        <span class="time">${c.time}</span>
+// Detail panel — opens on row click. Message (raw text) + Context
+// (mock identity/relationship info — this is where a real build would
+// surface adapters.resolution's actual identity/fact data) + an AI
+// draft reply when one exists. Same overlay pattern as the assistant
+// panel; only one of the two is ever open at a time.
+function openDetail(id) {
+  const c = MOCK_CONVERSATIONS.find(x => x.id === id);
+  if (!c) return;
+  closeOverlay();
+  const backdrop = document.createElement("div");
+  backdrop.className = "assistant-backdrop";
+  backdrop.innerHTML = `
+    <div class="detail-panel">
+      <button class="assistant-close" id="detail-close-btn">&times;</button>
+      <div class="detail-head">
+        <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+        <div>
+          <div class="row-name">${escapeHtml(c.name)}</div>
+          <div class="row-time">${CHANNELS[c.channel].label} &middot; ${c.time}</div>
+        </div>
       </div>
-      <div class="ai-card-body">${escapeHtml(c.ai)}</div>
+      <div class="detail-message">${escapeHtml(c.message)}</div>
+      <div class="detail-context">
+        <h3>Context</h3>
+        <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+      </div>
+      ${c.draft ? `
+        <div class="detail-draft">
+          <h3>&#9998; AI draft reply</h3>
+          <div class="draft-text">${escapeHtml(c.draft)}</div>
+          <button class="briefing-btn" type="button">Use this draft &rsaquo;</button>
+        </div>
+      ` : `<div class="detail-context"><h3>&#9998; AI draft reply</h3><div class="row-preview">No draft yet.</div></div>`}
     </div>
-  `).join("");
+  `;
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
+  document.body.appendChild(backdrop);
+  document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
 }
 
 document.getElementById("f-unread").addEventListener("change", e => { state.unread = e.target.checked; render(); });
@@ -401,6 +486,7 @@ const ASSISTANT_SUGGESTIONS = [
 ];
 
 function openAssistant() {
+  closeOverlay();
   const unread = MOCK_CONVERSATIONS.filter(c => c.unread).length;
   const active = MOCK_CONVERSATIONS.filter(c => c.unanswered).length;
   const backdrop = document.createElement("div");
@@ -420,18 +506,19 @@ function openAssistant() {
       </div>
     </div>
   `;
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeAssistant(); });
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
   document.body.appendChild(backdrop);
-  document.getElementById("assistant-close-btn").addEventListener("click", closeAssistant);
+  document.getElementById("assistant-close-btn").addEventListener("click", closeOverlay);
 }
 
-function closeAssistant() {
+function closeOverlay() {
   const el = document.querySelector(".assistant-backdrop");
   if (el) el.remove();
 }
 
 document.getElementById("searchbar").addEventListener("click", openAssistant);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAssistant(); });
+document.getElementById("f-draft").addEventListener("change", e => { state.draft = e.target.checked; render(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
 
 render();
 </script>
