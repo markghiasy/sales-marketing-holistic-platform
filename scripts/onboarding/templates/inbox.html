@@ -1,0 +1,297 @@
+<!--
+  Unified inbox prototype — built 2026-09-14 for a same-day demo to Mark,
+  inspired by kinso.ai's UI (Eva and Mark's Phase 2 design reference for
+  a single interface over the three adapters: Outlook/WhatsApp/LinkedIn).
+
+  DELIBERATELY MOCK DATA ONLY, nothing below is a real integration:
+    - Conversations, topic tags, and AI summaries are all hardcoded in
+      MOCK_CONVERSATIONS below — not read from the real `message`/
+      `identity`/`fact` tables.
+    - AI summaries are pre-written text, not a real Anthropic API call
+      (ANTHROPIC_API_KEY exists as of today, but wiring this up to a
+      real model call is future work, not this pass).
+    - Filter/sort (Unread/Unanswered, Priority/Most Recent) run
+      client-side over the mock array — no backend query.
+    - Left icon rail's channel filter is the same idea as kinso's
+      "Accounts" panel, collapsed into one control since this project
+      has exactly three channels, not multiple accounts per channel.
+
+  Explicitly NOT built in this pass (kinso has these, noted for later):
+    - Real data: this UI reading from adapters' actual synced messages.
+    - Real LLM call producing the AI summary line.
+    - kinso's second AI-panel behavior — retrieving and surfacing a
+      *related past message* as context (e.g. "found the contract you
+      sent Aug 3"), not just summarizing the incoming ask. Meaningfully
+      more work (some form of retrieval over message history) than the
+      one-line summary built here.
+    - The top search bar's real semantic search (visual only below).
+    - A message detail / reply view — this is a triage list only.
+-->
+<title>Inbox</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171b;
+    --panel-2: #1a1e23;
+    --border: #262b31;
+    --text: #e8eaed;
+    --text-dim: #9aa1a9;
+    --accent: #e8825a;
+    --accent-2: #6fb98f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* left icon rail */
+  .rail {
+    width: 56px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .rail button {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rail button.active {
+    background: var(--panel-2);
+    border-color: var(--border);
+    color: var(--accent);
+  }
+
+  /* main column */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .searchbar {
+    margin: 16px 20px 8px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-dim);
+    font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .searchbar .dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    flex-shrink: 0;
+  }
+  .content { flex: 1; display: flex; overflow: hidden; padding: 0 20px 20px; gap: 16px; }
+
+  .list-panel { flex: 1; min-width: 0; overflow-y: auto; }
+  .list-panel h2 { font-size: 15px; margin: 4px 0 12px; color: var(--text); }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    cursor: default;
+  }
+  .row:hover { background: var(--panel); }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: #fff;
+    flex-shrink: 0;
+  }
+  .row-main { flex: 1; min-width: 0; }
+  .row-top { display: flex; align-items: baseline; gap: 8px; }
+  .row-name { font-weight: 600; font-size: 13.5px; }
+  .row-time { font-size: 11px; color: var(--text-dim); margin-left: auto; }
+  .row-preview { font-size: 12.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .tag {
+    display: inline-block; padding: 1px 8px; border-radius: 20px;
+    font-size: 10.5px; font-weight: 600; margin-right: 6px;
+    white-space: nowrap;
+  }
+  .channel-icon { font-size: 15px; flex-shrink: 0; }
+
+  /* right filter + AI panel */
+  .side-panel { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+  .filter-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px;
+  }
+  .filter-box h3 { font-size: 10.5px; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 8px; text-transform: uppercase; }
+  .filter-box h3.spaced { margin-top: 14px; }
+  .filter-box label { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; cursor: pointer; }
+
+  .ai-cards { display: flex; flex-direction: column; gap: 10px; }
+  .ai-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; font-size: 12.5px;
+  }
+  .ai-card.top { border-color: var(--accent); border-left-width: 3px; }
+  .ai-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .ai-card-head .name { font-weight: 600; font-size: 13px; }
+  .ai-card-head .time { margin-left: auto; color: var(--text-dim); font-size: 10.5px; }
+  .ai-card-body { color: var(--text-dim); line-height: 1.4; }
+
+  .empty { color: var(--text-dim); font-size: 13px; padding: 20px 8px; }
+</style>
+
+<div class="rail" id="rail"></div>
+
+<div class="main">
+  <div class="searchbar"><span class="dot"></span> Start typing to ask or search (not wired up in this prototype)</div>
+  <div class="content">
+    <div class="list-panel">
+      <h2>Inbox</h2>
+      <div id="list"></div>
+    </div>
+    <div class="side-panel">
+      <div class="filter-box">
+        <h3>Filter by</h3>
+        <label><input type="checkbox" id="f-unread"> Unread</label>
+        <label><input type="checkbox" id="f-unanswered"> Unanswered</label>
+        <h3 class="spaced">Sort by</h3>
+        <label><input type="radio" name="sort" id="s-priority" checked> Priority</label>
+        <label><input type="radio" name="sort" id="s-recent"> Most recent</label>
+      </div>
+      <div class="ai-cards" id="ai-cards"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Mock data only — see the file header comment. Nothing here is read
+// from a real adapter/message/fact table.
+const CHANNELS = {
+  outlook:  { icon: "\u{1F4E7}", label: "Outlook" },
+  whatsapp: { icon: "\u{1F4AC}", label: "WhatsApp" },
+  linkedin: { icon: "\u{1F517}", label: "LinkedIn" },
+};
+
+const AVATAR_COLORS = ["#e8825a", "#6fb98f", "#6f9ceb", "#c77dd1", "#d1b16f", "#7dd1c7"];
+function avatarColor(name) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
+}
+function initials(name) {
+  return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+const MOCK_CONVERSATIONS = [
+  { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
+    tag: { text: "Contract Request", color: "#5b6fd6" },
+    preview: "Wants you to share the services agreement with updated pricing before Friday.",
+    ai: "Requesting the services agreement with updated pricing, due Friday." },
+  { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
+    tag: { text: "Scheduling", color: "#3d8f63" },
+    preview: "Can we push our call to Thursday afternoon instead of Wednesday?",
+    ai: "Asking to move Wednesday's call to Thursday afternoon." },
+  { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
+    tag: { text: "Intro Request", color: "#a35bc7" },
+    preview: "Following up on the intro to your product lead — happy to send a one-pager first.",
+    ai: "Following up on a product-lead introduction, offering a one-pager." },
+  { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
+    tag: { text: "Invoice", color: "#c78b3f" },
+    preview: "Confirming invoice #4471 was received and is scheduled for payment next week.",
+    ai: null },
+  { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
+    tag: { text: "Team Update", color: "#3d8f63" },
+    preview: "Shared this week's progress notes and next sprint's rough plan.",
+    ai: null },
+  { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 1, unread: false, unanswered: true,
+    tag: { text: "Networking", color: "#a35bc7" },
+    preview: "Great meeting you at the conference — would love to stay in touch.",
+    ai: null },
+];
+
+let state = { channel: "all", unread: false, unanswered: false, sort: "priority" };
+
+function render() {
+  renderRail();
+  renderList();
+  renderAiCards();
+}
+
+function renderRail() {
+  const rail = document.getElementById("rail");
+  const items = [{ key: "all", icon: "\u{1F4E5}" }, ...Object.entries(CHANNELS).map(([k, v]) => ({ key: k, icon: v.icon }))];
+  rail.innerHTML = items.map(it =>
+    `<button data-channel="${it.key}" class="${state.channel === it.key ? "active" : ""}">${it.icon}</button>`
+  ).join("");
+  rail.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => { state.channel = btn.dataset.channel; render(); });
+  });
+}
+
+function filtered() {
+  let rows = MOCK_CONVERSATIONS.filter(c => state.channel === "all" || c.channel === state.channel);
+  if (state.unread) rows = rows.filter(c => c.unread);
+  if (state.unanswered) rows = rows.filter(c => c.unanswered);
+  rows = rows.slice().sort((a, b) => state.sort === "priority" ? b.priority - a.priority : b.id - a.id);
+  return rows;
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value ?? "";
+  return div.innerHTML;
+}
+
+function renderList() {
+  const rows = filtered();
+  const list = document.getElementById("list");
+  if (rows.length === 0) {
+    list.innerHTML = `<div class="empty">Nothing matches this filter.</div>`;
+    return;
+  }
+  list.innerHTML = rows.map(c => `
+    <div class="row">
+      <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
+      <div class="row-main">
+        <div class="row-top">
+          <span class="row-name">${escapeHtml(c.name)}</span>
+          <span class="tag" style="background:${c.tag.color}22;color:${c.tag.color}">${escapeHtml(c.tag.text)}</span>
+          <span class="row-time">${c.time}</span>
+        </div>
+        <div class="row-preview">${escapeHtml(c.preview)}</div>
+      </div>
+      <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
+    </div>
+  `).join("");
+}
+
+function renderAiCards() {
+  const rows = filtered().filter(c => c.ai).slice(0, 3);
+  const box = document.getElementById("ai-cards");
+  if (rows.length === 0) { box.innerHTML = ""; return; }
+  box.innerHTML = rows.map((c, i) => `
+    <div class="ai-card ${i === 0 ? "top" : ""}">
+      <div class="ai-card-head">
+        <span>${CHANNELS[c.channel].icon}</span>
+        <span class="name">${escapeHtml(c.name)}</span>
+        <span class="time">${c.time}</span>
+      </div>
+      <div class="ai-card-body">${escapeHtml(c.ai)}</div>
+    </div>
+  `).join("");
+}
+
+document.getElementById("f-unread").addEventListener("change", e => { state.unread = e.target.checked; render(); });
+document.getElementById("f-unanswered").addEventListener("change", e => { state.unanswered = e.target.checked; render(); });
+document.getElementById("s-priority").addEventListener("change", () => { state.sort = "priority"; render(); });
+document.getElementById("s-recent").addEventListener("change", () => { state.sort = "recent"; render(); });
+
+render();
+</script>

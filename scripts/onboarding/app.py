@@ -361,6 +361,13 @@ def create_app(testing: bool = False) -> Flask:
     def resolution_page():
         return render_template("resolution.html")
 
+    @flask_app.get("/inbox")
+    def inbox_page():
+        # Prototype for a 2026-09-14 demo to Mark — mock data only, no
+        # DB or LLM call from this route. See inbox.html's own header
+        # comment for what's deliberately out of scope in this pass.
+        return render_template("inbox.html")
+
     @flask_app.get("/resolution/candidates.json")
     def resolution_candidates_json():
         with _db_cursor() as cur:
