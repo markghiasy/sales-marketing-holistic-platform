@@ -34,10 +34,13 @@
       and Context reading from real identity/fact rows instead of a
       hand-written array.
     - Real LLM call producing draft replies and the topic tags.
-    - A network-graph / node visualization in the Context section —
-      Eva asked for this, cut for time (this pass built in ~30min before
-      a demo); Context is a plain bullet list instead. Worth a real
-      pass once there's time to pick a rendering approach.
+    - A REAL graph layout for the Network mini-viz (renderGraph()) —
+      what's there is plain trig-based radial placement around a fixed
+      center, not a force-directed/physics layout, and the underlying
+      `graph.org`/`graph.people` data is hand-written per contact, not
+      queried from the real graph tables (contact_stats etc., §10).
+      Fine for 1-6 nodes in a demo; would need real layout work to
+      scale past that.
     - The top search bar's real semantic search (visual only below).
     - Actually sending a reply — "Use this draft" is a dead button.
 -->
@@ -240,32 +243,47 @@
     color: var(--text-dim); font-size: 16px; cursor: pointer;
   }
 
-  /* Message detail panel — opens on clicking a row. Real message text,
-     a Context section (mock identity/relationship info — see this
-     file's header comment on where real data would plug in), and an
-     AI draft reply when one exists. */
+  /* Message detail panel — opens on clicking a row, near-fullscreen
+     (Eva's call — the first pass at 420px was too cramped to read).
+     Two columns: message + draft on the left, Context (including the
+     network-graph mini-viz) on the right. */
   .detail-panel {
-    width: 420px; max-height: 82vh; overflow-y: auto;
+    width: 94vw; height: 90vh;
     background: #fff; border-radius: 18px;
     box-shadow: 0 30px 70px rgba(0,0,0,0.35);
     display: flex; flex-direction: column;
-    padding: 22px 22px 20px;
+    padding: 28px 32px 24px;
   }
-  .detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-shrink: 0; }
+  .detail-head .avatar { width: 48px; height: 48px; font-size: 16px; }
+  .detail-head .row-name { font-size: 20px; }
+  .detail-head .row-time { font-size: 14px; }
+  .detail-body { flex: 1; display: flex; gap: 32px; min-height: 0; }
+  .detail-col { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; }
   .detail-message {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px 14px; font-size: 13.5px; line-height: 1.5; margin-bottom: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px; font-size: 17px; line-height: 1.55; margin-bottom: 22px;
   }
-  .detail-context, .detail-draft { margin-bottom: 16px; }
+  .detail-context, .detail-draft { margin-bottom: 22px; }
   .detail-context h3, .detail-draft h3 {
-    font-size: 10.5px; letter-spacing: 0.06em; color: var(--text-dim);
-    text-transform: uppercase; margin: 0 0 8px;
+    font-size: 12.5px; letter-spacing: 0.06em; color: var(--text-dim);
+    text-transform: uppercase; margin: 0 0 10px;
   }
-  .detail-context ul { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--text); line-height: 1.6; }
+  .detail-context ul { margin: 0; padding-left: 20px; font-size: 15px; color: var(--text); line-height: 1.8; }
   .draft-text {
-    background: #fff8ef; border: 1px solid #f1dfc2; border-radius: 12px;
-    padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 10px;
+    background: #fff8ef; border: 1px solid #f1dfc2; border-radius: 14px;
+    padding: 18px 20px; font-size: 15.5px; line-height: 1.6; margin-bottom: 14px;
   }
+  /* Network graph mini-viz — a plain radial layout computed in JS
+     (simple trig, no graph library), not a real force-directed sim.
+     Center node = this contact, spokes = company/mutual-connection
+     nodes pulled from the mock `graph` field. */
+  .graph-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 10px; margin-top: 4px;
+  }
+  .graph-node-label { font-size: 11px; font-weight: 600; fill: var(--text); }
+  .graph-node-sub { font-size: 9px; fill: var(--text-dim); }
 </style>
 
 <div class="app">
@@ -332,36 +350,47 @@ function initials(name) {
 // already extract for real (company/title, last contact, shared
 // history) — mocked here as plain strings, not an actual graph query.
 // `draft` is a pre-written AI reply, null when none exists yet.
+// `graph` feeds the network mini-viz in the detail panel: `org` is this
+// person's company/employer, `people` are other identities they're
+// connected to (mutual connections, teammates) — kept consistent across
+// rows where it makes sense (Odalys <-> Tomasz's mutual connection is
+// the same real relationship shown from both sides).
 const MOCK_CONVERSATIONS = [
   { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
     tag: { text: "Contract Request", color: "#5b6fd6" },
     message: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week.",
     context: ["VP Partnerships @ Brightstone Realty", "Last contact: 2 weeks ago (intro call)", "3 prior email threads, no WhatsApp/LinkedIn overlap yet"],
+    graph: { org: "Brightstone Realty", people: [] },
     draft: "Hi Priya — attaching the updated services agreement now, pricing reflects the terms we discussed. Let me know if Friday still works or if you need it sooner." },
   { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
     tag: { text: "Scheduling", color: "#3d8f63" },
     message: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end",
     context: ["Ops Lead @ Fenwick & Co", "Last contact: yesterday (WhatsApp)", "Recurring biweekly check-in"],
+    graph: { org: "Fenwick & Co", people: [] },
     draft: null },
   { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
     tag: { text: "Intro Request", color: "#a35bc7" },
     message: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along.",
     context: ["Founder @ Solace Health", "Connected via mutual: Tomasz Kaczmarek", "No prior direct contact"],
+    graph: { org: "Solace Health", people: ["Tomasz Kaczmarek"] },
     draft: "Hi Odalys — happy to make the intro. Send the one-pager over and I'll forward it along with some context." },
   { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Invoice", color: "#c78b3f" },
     message: "Confirming invoice #4471 was received on our end and is scheduled for payment next week.",
     context: ["Finance @ Lumen Partners", "Last contact: 3 days ago", "8 prior threads — long-standing vendor relationship"],
+    graph: { org: "Lumen Partners", people: [] },
     draft: null },
   { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Team Update", color: "#3d8f63" },
     message: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance.",
     context: ["Teammate", "Last contact: today, earlier", "Daily WhatsApp thread"],
+    graph: { org: null, people: ["Priya Nandakumar", "Marcus Wetherby"] },
     draft: null },
   { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
     tag: { text: "Networking", color: "#a35bc7" },
     message: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going.",
     context: ["Partner @ Meridian Ventures", "Met in person: SaaStr conference, last week", "Mutual connection: Odalys Ferreira"],
+    graph: { org: "Meridian Ventures", people: ["Odalys Ferreira"] },
     draft: "Great to meet you too, Tomasz! Would love to stay in touch — let me know if you're ever up for a coffee chat." },
 ];
 
@@ -436,6 +465,43 @@ function renderList() {
 // surface adapters.resolution's actual identity/fact data) + an AI
 // draft reply when one exists. Same overlay pattern as the assistant
 // panel; only one of the two is ever open at a time.
+// Plain radial layout, computed with trig — NOT a real force-directed
+// graph library. Center node = this contact; org + people nodes are
+// placed evenly around it with straight-line edges back to center.
+// Good enough to communicate "here's who/what this person connects to"
+// for a demo; a real version would need actual layout for larger graphs.
+function renderGraph(centerName, graph) {
+  const others = [
+    ...(graph.org ? [{ label: graph.org, kind: "org" }] : []),
+    ...graph.people.map(p => ({ label: p, kind: "person" })),
+  ];
+  const W = 380, H = 260, cx = W / 2, cy = H / 2, r = 70;
+  if (others.length === 0) {
+    return `<div class="row-preview" style="padding:20px 4px;">No known company or mutual-connection data for this contact.</div>`;
+  }
+  const nodes = others.map((n, i) => {
+    const angle = (2 * Math.PI * i) / others.length - Math.PI / 2;
+    return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  });
+  const color = k => k === "org" ? "#c78b3f" : "#5b6fd6";
+  const edges = nodes.map(n => `<line x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" stroke="#d8dce2" stroke-width="1.5"/>`).join("");
+  const nodeEls = nodes.map(n => `
+    <g>
+      <circle cx="${n.x}" cy="${n.y}" r="22" fill="${color(n.kind)}22" stroke="${color(n.kind)}" stroke-width="1.5"/>
+      <text x="${n.x}" y="${n.y + 3}" text-anchor="middle" class="graph-node-label" fill="${color(n.kind)}">${escapeHtml(initials(n.label))}</text>
+      <text x="${n.x}" y="${n.y + 38}" text-anchor="middle" class="graph-node-sub">${escapeHtml(n.label)}</text>
+    </g>
+  `).join("");
+  return `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="240">
+      ${edges}
+      <circle cx="${cx}" cy="${cy}" r="26" fill="var(--accent)" opacity="0.15" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="${cx}" y="${cy + 4}" text-anchor="middle" class="graph-node-label" fill="var(--accent)">${escapeHtml(initials(centerName))}</text>
+      ${nodeEls}
+    </svg>
+  `;
+}
+
 function openDetail(id) {
   const c = MOCK_CONVERSATIONS.find(x => x.id === id);
   if (!c) return;
@@ -452,18 +518,28 @@ function openDetail(id) {
           <div class="row-time">${CHANNELS[c.channel].label} &middot; ${c.time}</div>
         </div>
       </div>
-      <div class="detail-message">${escapeHtml(c.message)}</div>
-      <div class="detail-context">
-        <h3>Context</h3>
-        <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
-      </div>
-      ${c.draft ? `
-        <div class="detail-draft">
-          <h3>&#9998; AI draft reply</h3>
-          <div class="draft-text">${escapeHtml(c.draft)}</div>
-          <button class="briefing-btn" type="button">Use this draft &rsaquo;</button>
+      <div class="detail-body">
+        <div class="detail-col">
+          <div class="detail-message">${escapeHtml(c.message)}</div>
+          ${c.draft ? `
+            <div class="detail-draft">
+              <h3>&#9998; AI draft reply</h3>
+              <div class="draft-text">${escapeHtml(c.draft)}</div>
+              <button class="briefing-btn" type="button">Use this draft &rsaquo;</button>
+            </div>
+          ` : `<div class="detail-draft"><h3>&#9998; AI draft reply</h3><div class="row-preview">No draft yet.</div></div>`}
         </div>
-      ` : `<div class="detail-context"><h3>&#9998; AI draft reply</h3><div class="row-preview">No draft yet.</div></div>`}
+        <div class="detail-col">
+          <div class="detail-context">
+            <h3>Context</h3>
+            <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
+          </div>
+          <div class="detail-context">
+            <h3>Network</h3>
+            <div class="graph-box">${renderGraph(c.name, c.graph)}</div>
+          </div>
+        </div>
+      </div>
     </div>
   `;
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
