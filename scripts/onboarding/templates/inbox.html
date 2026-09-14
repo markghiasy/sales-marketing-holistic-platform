@@ -19,6 +19,16 @@
       extract for real (company/title, last contact, shared history,
       mutual connections) — this pass just hand-writes plausible values,
       doesn't query them.
+    - Each contact's `threads` is an array of {channel, subject, messages}
+      groups, not a single conversation — mirrors how a real person's
+      history is actually scattered (a new email thread instead of a
+      reply, a hand-off that moves from LinkedIn to WhatsApp). The detail
+      panel renders every group for that person, in order, labeled by
+      channel/subject, so Context has one stitched cross-channel history
+      to summarize instead of one row's own thread. Still hand-written
+      per contact here — a real version would query all messages for the
+      resolved identity/person across all three adapters, not just the
+      one the inbox row happened to be filed under.
     - Draft replies are pre-written text, not a real Anthropic API call
       (ANTHROPIC_API_KEY exists as of today, but wiring this up to a
       real model call is future work, not this pass). "Use this draft"
@@ -280,10 +290,43 @@
      nodes pulled from the mock `graph` field. */
   .graph-box {
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-    padding: 10px; margin-top: 4px;
+    padding: 14px; margin-top: 4px;
   }
-  .graph-node-label { font-size: 11px; font-weight: 600; fill: var(--text); }
-  .graph-node-sub { font-size: 9px; fill: var(--text-dim); }
+  .graph-node { cursor: pointer; }
+  .graph-node rect { transition: filter 0.1s ease; }
+  .graph-node:hover rect { filter: brightness(0.96); }
+  .graph-hint { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 4px; }
+  .graph-info {
+    margin-top: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+  }
+
+  /* Message thread — Eva's call: a single mock message read as thin
+     and purpose-less. Threads now show a short multi-turn exchange
+     (see MOCK_CONVERSATIONS' `thread` field) so Context has something
+     real to summarize, same as a real conversation would. */
+  .thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .thread-msg {
+    max-width: 82%; padding: 11px 14px; border-radius: 14px;
+    font-size: 14.5px; line-height: 1.5;
+  }
+  .thread-msg.them { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .thread-msg.you { align-self: flex-end; background: #eaf1ff; border: 1px solid #cfe0fb; border-bottom-right-radius: 4px; }
+  .thread-time { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
+  .thread-msg.you .thread-time { text-align: right; }
+
+  /* One person's messages can span several channels, and within a
+     channel (especially email) people often start a new thread rather
+     than replying — Eva's ask: stitch it all into one timeline instead
+     of showing only the row's own channel/thread. */
+  .thread-group { margin-bottom: 20px; }
+  .thread-group-head {
+    display: flex; align-items: center; gap: 7px; margin-bottom: 10px;
+    font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.02em;
+  }
+  .thread-group-head .chan-icon { width: 14px; height: 14px; display: flex; }
+  .thread-group-head .chan-icon svg { width: 100%; height: 100%; }
+  .thread-group-head .subject { text-transform: none; font-weight: 500; color: var(--text); letter-spacing: normal; }
 </style>
 
 <div class="app">
@@ -355,42 +398,133 @@ function initials(name) {
 // connected to (mutual connections, teammates) — kept consistent across
 // rows where it makes sense (Odalys <-> Tomasz's mutual connection is
 // the same real relationship shown from both sides).
+// `thread` is a short multi-turn exchange with a real business arc —
+// Eva's call: a single mock line read as thin and purpose-less, and
+// gave Context nothing real to summarize. `message` stays as the
+// last-message text used for the list row preview (kept in sync with
+// `thread`'s final entry by hand here).
 const MOCK_CONVERSATIONS = [
   { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
     tag: { text: "Contract Request", color: "#5b6fd6" },
     message: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week.",
-    context: ["VP Partnerships @ Brightstone Realty", "Last contact: 2 weeks ago (intro call)", "3 prior email threads, no WhatsApp/LinkedIn overlap yet"],
-    graph: { org: "Brightstone Realty", people: [] },
+    threads: [
+      { channel: "outlook", subject: "Q4 rollout — kicking things off", messages: [
+        { from: "them", time: "2 weeks ago", text: "Hi — we spoke last month about bringing your team on for the Q4 rollout, and I'd love to move forward. Could you put together a proposal?" },
+        { from: "you", time: "2 weeks ago", text: "Great to hear! I'll draft a proposal covering scope and pricing based on what we discussed — give me a couple of days." },
+      ] },
+      { channel: "outlook", subject: "Services agreement — pricing by phase", messages: [
+        { from: "them", time: "9 days ago", text: "Starting a fresh thread on this — our finance team wants pricing broken out by phase rather than one flat number, if that's possible." },
+        { from: "you", time: "9 days ago", text: "That's fine, I'll structure it that way." },
+        { from: "them", time: "12m", text: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week." },
+      ] },
+    ],
+    context: [
+      "Priya is VP of Partnerships at Brightstone Realty, a mid-size commercial real estate firm based in Chicago.",
+      "This is an active deal spanning two email threads, not one: she opened a fresh thread 9 days ago for the finance team's phased-pricing request rather than replying on the original kickoff thread, and is now chasing the agreement there.",
+      "All contact so far has been over email — 3 prior threads, no WhatsApp or LinkedIn overlap yet.",
+      "Her outstanding ask right now is the updated services agreement, with a Friday deadline she's mentioned twice.",
+    ],
+    graph: { org: { name: "Brightstone Realty", blurb: "Commercial real estate firm, Chicago — Priya's employer." }, people: [] },
     draft: "Hi Priya — attaching the updated services agreement now, pricing reflects the terms we discussed. Let me know if Friday still works or if you need it sooner." },
   { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
     tag: { text: "Scheduling", color: "#3d8f63" },
     message: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end",
-    context: ["Ops Lead @ Fenwick & Co", "Last contact: yesterday (WhatsApp)", "Recurring biweekly check-in"],
-    graph: { org: "Fenwick & Co", people: [] },
+    threads: [
+      { channel: "whatsapp", subject: null, messages: [
+        { from: "them", time: "3 days ago", text: "hey! quick one — we're behind on the Q3 shipment numbers, can we do a call this week to go through it?" },
+        { from: "you", time: "3 days ago", text: "for sure, how's wednesday afternoon?" },
+        { from: "them", time: "3 days ago", text: "works for me, I'll send a calendar invite" },
+        { from: "them", time: "38m", text: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end" },
+      ] },
+    ],
+    context: [
+      "Marcus is Ops Lead at Fenwick & Co, a logistics consultancy you've worked with for about 6 months.",
+      "This thread is about reviewing Q3 shipment numbers together — you'd already agreed on a Wednesday call.",
+      "Contact with Marcus is almost entirely over WhatsApp — informal tone, quick back-and-forth, rarely email.",
+      "He's now asking to push that same call to Thursday afternoon instead.",
+    ],
+    graph: { org: { name: "Fenwick & Co", blurb: "Logistics consultancy — Marcus's employer, ~6-month working relationship." }, people: [] },
     draft: null },
   { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
     tag: { text: "Intro Request", color: "#a35bc7" },
     message: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along.",
-    context: ["Founder @ Solace Health", "Connected via mutual: Tomasz Kaczmarek", "No prior direct contact"],
-    graph: { org: "Solace Health", people: ["Tomasz Kaczmarek"] },
+    threads: [
+      { channel: "linkedin", subject: null, messages: [
+        { from: "them", time: "6 days ago", text: "Hi! Tomasz mentioned you might be a great person to connect with — we're building in the digital health space and I saw you work closely with a few product teams." },
+        { from: "you", time: "6 days ago", text: "Nice to meet you (virtually) — happy to chat. What are you looking for specifically?" },
+        { from: "them", time: "5 days ago", text: "Mainly an intro to product folks who've dealt with clinician-facing UX — Tomasz thought your product lead might be a good fit." },
+        { from: "them", time: "1h", text: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along." },
+      ] },
+    ],
+    context: [
+      "Odalys is the founder of Solace Health, an early-stage digital health startup.",
+      "This connection came through Tomasz Kaczmarek, who introduced you both on LinkedIn — see his own thread for the WhatsApp message where he told you the intro was coming.",
+      "The ask has been consistent since the first message: an introduction to your product lead, specifically for clinician-facing UX experience.",
+      "She's now following up on that same ask and has offered to send a one-pager first to make forwarding it easier.",
+    ],
+    graph: { org: { name: "Solace Health", blurb: "Early-stage digital health startup — Odalys is the founder." }, people: [{ name: "Tomasz Kaczmarek", relation: "mutual connection" }] },
     draft: "Hi Odalys — happy to make the intro. Send the one-pager over and I'll forward it along with some context." },
   { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Invoice", color: "#c78b3f" },
-    message: "Confirming invoice #4471 was received on our end and is scheduled for payment next week.",
-    context: ["Finance @ Lumen Partners", "Last contact: 3 days ago", "8 prior threads — long-standing vendor relationship"],
-    graph: { org: "Lumen Partners", people: [] },
+    message: "Perfect, thank you for confirming!",
+    threads: [
+      { channel: "outlook", subject: "Invoice #4471", messages: [
+        { from: "them", time: "4 days ago", text: "Hi, sending over invoice #4471 for last month's consulting hours, net-30 as usual." },
+        { from: "you", time: "4 days ago", text: "Got it, forwarding to our finance team now." },
+        { from: "you", time: "3h", text: "Confirmed — #4471 is scheduled for payment next week." },
+        { from: "them", time: "3h", text: "Perfect, thank you for confirming!" },
+      ] },
+    ],
+    context: [
+      "Dae-Ho works in Finance at Lumen Partners, a long-standing vendor relationship — 8 prior email threads over time.",
+      "This thread is routine invoicing: he sent invoice #4471, you confirmed it's scheduled for payment next week, and he's thanked you.",
+      "Nothing outstanding here — the loop is closed and no reply is needed.",
+    ],
+    graph: { org: { name: "Lumen Partners", blurb: "Vendor relationship, long-standing — Dae-Ho handles finance/invoicing on their side." }, people: [] },
     draft: null },
   { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
     tag: { text: "Team Update", color: "#3d8f63" },
     message: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance.",
-    context: ["Teammate", "Last contact: today, earlier", "Daily WhatsApp thread"],
-    graph: { org: null, people: ["Priya Nandakumar", "Marcus Wetherby"] },
+    threads: [
+      { channel: "whatsapp", subject: null, messages: [
+        { from: "them", time: "yesterday", text: "morning! finished up the Q3 client review deck, sharing it in the drive" },
+        { from: "you", time: "yesterday", text: "awesome, will take a look before our sync" },
+        { from: "them", time: "today, earlier", text: "also — heads up, Priya's team asked about extending scope on their contract, might be worth looping me in before you respond" },
+        { from: "them", time: "5h", text: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance." },
+      ] },
+    ],
+    context: [
+      "Ingrid is a teammate — you're on a daily WhatsApp thread together for work coordination.",
+      "She's also in regular contact with Priya Nandakumar and Marcus Wetherby, both showing up elsewhere in your inbox this week.",
+      "She flagged that Priya's team asked about extending contract scope, and wants to be looped in before you respond to Priya.",
+      "This latest message is a routine update — progress notes and a rough sprint plan — informational, no action needed.",
+    ],
+    graph: { org: null, people: [{ name: "Priya Nandakumar", relation: "also works with" }, { name: "Marcus Wetherby", relation: "also works with" }] },
     draft: null },
   { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
     tag: { text: "Networking", color: "#a35bc7" },
     message: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going.",
-    context: ["Partner @ Meridian Ventures", "Met in person: SaaStr conference, last week", "Mutual connection: Odalys Ferreira"],
-    graph: { org: "Meridian Ventures", people: ["Odalys Ferreira"] },
+    threads: [
+      { channel: "linkedin", subject: null, messages: [
+        { from: "them", time: "1 week ago", text: "Hey, great chatting at SaaStr! Small world that we both know people in the digital health space." },
+        { from: "you", time: "1 week ago", text: "Ha, small world indeed! Let me know if there's ever a good reason to connect further." },
+        { from: "them", time: "6 days ago", text: "Actually — I know a founder, Odalys Ferreira, who's building something interesting in that space. Mind if I make an intro?" },
+        { from: "you", time: "6 days ago", text: "Please do, always happy to meet interesting founders." },
+      ] },
+      { channel: "whatsapp", subject: null, messages: [
+        { from: "them", time: "6 days ago", text: "swapped numbers at the conference too — just so you have it. sending Odalys your contact now" },
+        { from: "you", time: "6 days ago", text: "perfect, thanks!" },
+      ] },
+      { channel: "linkedin", subject: null, messages: [
+        { from: "them", time: "1d", text: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going." },
+      ] },
+    ],
+    context: [
+      "Tomasz is a Partner at Meridian Ventures, a VC firm — you met him in person at the SaaStr conference.",
+      "He's the one who introduced you to Odalys Ferreira — the offer was made on LinkedIn, but the actual hand-off happened over WhatsApp the same day, so the full picture of that introduction only shows up when both channels are read together.",
+      "This latest message is a simple stay-in-touch note on LinkedIn — low urgency, but worth a warm reply given he's a potential investor contact who just followed through on an introduction.",
+    ],
+    graph: { org: { name: "Meridian Ventures", blurb: "VC firm — Tomasz is a Partner there. Potential investor contact." }, people: [{ name: "Odalys Ferreira", relation: "introduced you to" }] },
     draft: "Great to meet you too, Tomasz! Would love to stay in touch — let me know if you're ever up for a coffee chat." },
 ];
 
@@ -465,41 +599,77 @@ function renderList() {
 // surface adapters.resolution's actual identity/fact data) + an AI
 // draft reply when one exists. Same overlay pattern as the assistant
 // panel; only one of the two is ever open at a time.
+function nameToId(name) {
+  const found = MOCK_CONVERSATIONS.find(c => c.name === name);
+  return found ? found.id : null;
+}
+
 // Plain radial layout, computed with trig — NOT a real force-directed
 // graph library. Center node = this contact; org + people nodes are
-// placed evenly around it with straight-line edges back to center.
-// Good enough to communicate "here's who/what this person connects to"
-// for a demo; a real version would need actual layout for larger graphs.
+// placed evenly around it, edges labeled with the relationship (not
+// just an unlabeled line), nodes are full readable name chips (not
+// 2-letter initials — Eva flagged those as confusing) and are clickable:
+// a person node that's also a conversation in this inbox re-opens THIS
+// panel for them; an org node shows its blurb inline below the graph.
 function renderGraph(centerName, graph) {
   const others = [
-    ...(graph.org ? [{ label: graph.org, kind: "org" }] : []),
-    ...graph.people.map(p => ({ label: p, kind: "person" })),
+    ...(graph.org ? [{ label: graph.org.name, kind: "org", blurb: graph.org.blurb, relation: "employer" }] : []),
+    ...graph.people.map(p => ({ label: p.name, kind: "person", blurb: "", relation: p.relation })),
   ];
-  const W = 380, H = 260, cx = W / 2, cy = H / 2, r = 70;
   if (others.length === 0) {
     return `<div class="row-preview" style="padding:20px 4px;">No known company or mutual-connection data for this contact.</div>`;
   }
+  const W = 620, H = 380, cx = W / 2, cy = H / 2, r = 150;
   const nodes = others.map((n, i) => {
     const angle = (2 * Math.PI * i) / others.length - Math.PI / 2;
     return { ...n, x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
   });
   const color = k => k === "org" ? "#c78b3f" : "#5b6fd6";
-  const edges = nodes.map(n => `<line x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" stroke="#d8dce2" stroke-width="1.5"/>`).join("");
-  const nodeEls = nodes.map(n => `
-    <g>
-      <circle cx="${n.x}" cy="${n.y}" r="22" fill="${color(n.kind)}22" stroke="${color(n.kind)}" stroke-width="1.5"/>
-      <text x="${n.x}" y="${n.y + 3}" text-anchor="middle" class="graph-node-label" fill="${color(n.kind)}">${escapeHtml(initials(n.label))}</text>
-      <text x="${n.x}" y="${n.y + 38}" text-anchor="middle" class="graph-node-sub">${escapeHtml(n.label)}</text>
-    </g>
-  `).join("");
+  const chipWidth = label => Math.max(76, 30 + label.length * 7.4);
+  const edges = nodes.map(n => {
+    const mx = (cx + n.x) / 2, my = (cy + n.y) / 2;
+    const labelW = n.relation.length * 6.4;
+    return `
+      <line x1="${cx}" y1="${cy}" x2="${n.x}" y2="${n.y}" stroke="#d8dce2" stroke-width="1.5"/>
+      <rect x="${mx - labelW / 2 - 4}" y="${my - 9}" width="${labelW + 8}" height="16" rx="4" fill="var(--panel)"/>
+      <text x="${mx}" y="${my + 3}" text-anchor="middle" font-size="10" fill="#7d8590">${escapeHtml(n.relation)}</text>
+    `;
+  }).join("");
+  const nodeEls = nodes.map(n => {
+    const w = chipWidth(n.label);
+    return `
+      <g class="graph-node" data-kind="${n.kind}" data-label="${escapeHtml(n.label)}" data-blurb="${escapeHtml(n.blurb)}">
+        <rect x="${n.x - w / 2}" y="${n.y - 19}" width="${w}" height="38" rx="19" fill="${color(n.kind)}18" stroke="${color(n.kind)}" stroke-width="1.5"/>
+        <text x="${n.x}" y="${n.y + 5}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${color(n.kind)}">${n.kind === "org" ? "\u{1F3E2}" : "\u{1F464}"} ${escapeHtml(n.label)}</text>
+      </g>
+    `;
+  }).join("");
+  const centerW = Math.max(100, 30 + centerName.length * 7.8);
   return `
-    <svg viewBox="0 0 ${W} ${H}" width="100%" height="240">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="340">
       ${edges}
-      <circle cx="${cx}" cy="${cy}" r="26" fill="var(--accent)" opacity="0.15" stroke="var(--accent)" stroke-width="1.5"/>
-      <text x="${cx}" y="${cy + 4}" text-anchor="middle" class="graph-node-label" fill="var(--accent)">${escapeHtml(initials(centerName))}</text>
+      <rect x="${cx - centerW / 2}" y="${cy - 21}" width="${centerW}" height="42" rx="21" fill="var(--accent)" fill-opacity="0.15" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="13.5" font-weight="700" fill="var(--accent)">${escapeHtml(centerName)}</text>
       ${nodeEls}
     </svg>
+    <div class="graph-hint">Click a node for more, or jump to that person's conversation.</div>
+    <div class="graph-info" id="graph-info" hidden></div>
   `;
+}
+
+function wireGraphNodes() {
+  document.querySelectorAll(".graph-node").forEach(node => {
+    node.addEventListener("click", () => {
+      const kind = node.dataset.kind, label = node.dataset.label, blurb = node.dataset.blurb;
+      if (kind === "person") {
+        const targetId = nameToId(label);
+        if (targetId) { openDetail(targetId); return; }
+      }
+      const info = document.getElementById("graph-info");
+      info.hidden = false;
+      info.innerHTML = `<b>${escapeHtml(label)}</b>${blurb ? ` — ${escapeHtml(blurb)}` : " — no further info available."}`;
+    });
+  });
 }
 
 function openDetail(id) {
@@ -520,7 +690,23 @@ function openDetail(id) {
       </div>
       <div class="detail-body">
         <div class="detail-col">
-          <div class="detail-message">${escapeHtml(c.message)}</div>
+          ${c.threads.map(g => `
+            <div class="thread-group">
+              <div class="thread-group-head">
+                <span class="chan-icon">${CHANNELS[g.channel].icon}</span>
+                <span>${CHANNELS[g.channel].label}</span>
+                ${g.subject ? `<span class="subject">&middot; ${escapeHtml(g.subject)}</span>` : ""}
+              </div>
+              <div class="thread">
+                ${g.messages.map(m => `
+                  <div class="thread-msg ${m.from}">
+                    <div>${escapeHtml(m.text)}</div>
+                    <div class="thread-time">${escapeHtml(m.time)}</div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          `).join("")}
           ${c.draft ? `
             <div class="detail-draft">
               <h3>&#9998; AI draft reply</h3>
@@ -545,6 +731,7 @@ function openDetail(id) {
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
   document.body.appendChild(backdrop);
   document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
+  wireGraphNodes();
 }
 
 document.getElementById("f-unread").addEventListener("change", e => { state.unread = e.target.checked; render(); });
