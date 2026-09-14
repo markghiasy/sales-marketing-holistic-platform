@@ -301,7 +301,7 @@ const MOCK_CONVERSATIONS = [
     tag: { text: "Team Update", color: "#3d8f63" },
     preview: "Shared this week's progress notes and next sprint's rough plan.",
     ai: null },
-  { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 1, unread: false, unanswered: true,
+  { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
     tag: { text: "Networking", color: "#a35bc7" },
     preview: "Great meeting you at the conference — would love to stay in touch.",
     ai: null },
@@ -330,7 +330,13 @@ function filtered() {
   let rows = MOCK_CONVERSATIONS.filter(c => state.channel === "all" || c.channel === state.channel);
   if (state.unread) rows = rows.filter(c => c.unread);
   if (state.unanswered) rows = rows.filter(c => c.unanswered);
-  rows = rows.slice().sort((a, b) => state.sort === "priority" ? b.priority - a.priority : b.id - a.id);
+  // Real bug found by Eva 2026-09-14: this used to sort "Most recent" by
+  // b.id - a.id (descending id), but ids are assigned in the same order
+  // as MOCK_CONVERSATIONS' `time` field — 1 is the newest (12m), 6 the
+  // oldest (1d) — so descending id put the OLDEST conversation first,
+  // the opposite of what "Most recent" means. Ascending id (a.id - b.id)
+  // is correct here.
+  rows = rows.slice().sort((a, b) => state.sort === "priority" ? b.priority - a.priority : a.id - b.id);
   return rows;
 }
 
