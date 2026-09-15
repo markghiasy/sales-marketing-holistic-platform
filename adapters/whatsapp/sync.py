@@ -122,6 +122,7 @@ def run() -> None:
         return
 
     count = 0
+    skipped_groups = 0
     with (
         psycopg.connect(os.environ["DATABASE_URL"]) as conn,
         claimed.open(encoding="utf-8") as f,
@@ -131,6 +132,13 @@ def run() -> None:
             if not line:
                 continue
             record = json.loads(line)
+            # LOCAL REHEARSAL PATCH 2026-09-15 (Mark's harness, uncommitted):
+            # retention rule 1 — one-to-one chats only. Group lines are
+            # counted and dropped here; the claimed queue file is unlinked
+            # below as before, so they do not persist past the drain.
+            if record.get("is_group"):
+                skipped_groups += 1
+                continue
             env = _to_envelope(record, self_jid)
             if env is None:
                 continue
@@ -139,7 +147,7 @@ def run() -> None:
             count += 1
 
     claimed.unlink()
-    print(f"synced {count} messages")
+    print(f"synced {count} messages (skipped {skipped_groups} group-chat lines — retention rule 1)")
 
     from ..resolution.run import run_best_effort as _run_resolution
     _run_resolution()

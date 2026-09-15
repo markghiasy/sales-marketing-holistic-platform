@@ -7,6 +7,7 @@ hand back Graph JSON. envelope.py is the only thing allowed to interpret it.
 from __future__ import annotations
 
 import json
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -23,7 +24,19 @@ GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 # personal mailbox the same way Mail.Read does (no AADSTS530035), so it's
 # safe to fold into the same token rather than keeping a second cache.
 SCOPES = ["Mail.Read", "offline_access", "Contacts.Read"]
-TOKEN_URL = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+# LOCAL REHEARSAL PATCH 2026-09-14 (Mark's harness, NOT committed): the authority
+# used to be hardcoded to "consumers", which Microsoft restricts to personal
+# accounts. OUTLOOK_AUTHORITY lets a work/school tenant be named instead;
+# default preserves the builder's personal-mailbox fixture path unchanged.
+# Resolved at CALL time, not import time: sync.py calls load_dotenv() inside
+# main(), after this module has been imported, so a module-level read would
+# silently see the default and never the .env value.
+def _authority() -> str:
+    return os.environ.get("OUTLOOK_AUTHORITY", "consumers")
+
+
+def _token_url() -> str:
+    return f"https://login.microsoftonline.com/{_authority()}/oauth2/v2.0/token"
 # transient — worth a retry with backoff. 401 is deliberately not here: a
 # missing/expired token needs a fresh login, not a retry with the same bad
 # token.
@@ -72,7 +85,7 @@ def _refresh_access_token(refresh_token: str) -> dict | None:
     itself is no longer valid (expired/revoked) — falls back to a fresh
     device-code login in that case rather than raising."""
     resp = requests.post(
-        TOKEN_URL,
+        _token_url(),
         data={
             "grant_type": "refresh_token",
             "client_id": GRAPH_CLI_CLIENT_ID,
@@ -125,7 +138,7 @@ def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> st
             return refreshed["access_token"]
         # refresh token expired/revoked — fall through to device code
 
-    device_code_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode"
+    device_code_url = f"https://login.microsoftonline.com/{_authority()}/oauth2/v2.0/devicecode"
     resp = requests.post(
         device_code_url,
         data={"client_id": GRAPH_CLI_CLIENT_ID, "scope": " ".join(SCOPES)},
@@ -148,7 +161,7 @@ def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> st
     while result.get("error") == "authorization_pending" and time.time() < deadline:
         time.sleep(interval)
         resp = requests.post(
-            TOKEN_URL,
+            _token_url(),
             data={
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 "client_id": GRAPH_CLI_CLIENT_ID,

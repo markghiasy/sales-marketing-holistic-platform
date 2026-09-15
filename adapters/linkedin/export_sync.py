@@ -146,11 +146,16 @@ def _parse_connections_csv(zip_path: Path) -> list[dict]:
     return [{k.strip().lower(): v for k, v in row.items()} for row in reader]
 
 
-def _parse_connected_on(date_str: str) -> object | None:
+def _parse_connected_on(date_str: str | None) -> object | None:
     # real format confirmed 2026-08-28: "20 Aug 2026" — different from
     # messages.csv's own date format, LinkedIn isn't consistent within its
     # own export
-    date_str = date_str.strip()
+    # LOCAL REHEARSAL PATCH 2026-09-15 (Mark's harness, uncommitted): a SHORT
+    # row (fewer fields than the header — seen twice in a real 7,081-row
+    # export, the shape of an unquoted line break inside a field) makes
+    # csv.DictReader fill the missing trailing columns with None, and one
+    # None here aborted the whole connections ingest with a traceback.
+    date_str = (date_str or "").strip()
     if not date_str:
         return None
     try:
@@ -182,6 +187,9 @@ def _sync_connections(conn, rows: list[dict]) -> int:
     count = 0
     with conn.cursor() as cur:
         for row in rows:
+            # LOCAL REHEARSAL PATCH 2026-09-15: same None-guard as
+            # _parse_connected_on — short rows carry None, not "".
+            row = {k: (v or "") for k, v in row.items() if k is not None}
             first_name = row.get("first name", "").strip()
             last_name = row.get("last name", "").strip()
             profile_url = row.get("url", "").strip()
@@ -305,7 +313,18 @@ def run() -> None:
         # "https://www.linkedin.com/in/evang2" — matched against the CSV's
         # SENDER/RECIPIENT PROFILE URL columns to determine direction
 
-    zip_path = _download_archive(headless=True)
+    # LOCAL REHEARSAL PATCH 2026-09-14 (Mark's harness, uncommitted): let an
+    # archive Mark downloaded himself be handed in, so no LinkedIn browser
+    # session has to exist on the machine just to fetch the zip. Unset ->
+    # behaviour unchanged (download via stored session).
+    zip_env = os.environ.get("LINKEDIN_EXPORT_ZIP")
+    if zip_env:
+        zip_path = Path(zip_env).expanduser()
+        if not zip_path.is_file():
+            raise FileNotFoundError(f"LINKEDIN_EXPORT_ZIP is set but not a file: {zip_path}")
+        print(f"using local archive {zip_path}")
+    else:
+        zip_path = _download_archive(headless=True)
     if zip_path is None:
         print("no archive ready yet")
         return
