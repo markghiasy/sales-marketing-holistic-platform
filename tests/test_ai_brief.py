@@ -9,8 +9,13 @@ from datetime import UTC, datetime
 import psycopg
 import pytest
 
-from adapters.ai_brief import PROMPT_VERSION, generate_brief
-from adapters.ai_brief import person_keys_for_identities, refresh_touched, refresh_touched_best_effort
+from adapters.ai_brief import (
+    PROMPT_VERSION,
+    generate_brief,
+    person_keys_for_identities,
+    refresh_touched,
+    refresh_touched_best_effort,
+)
 
 
 def _make_identity(cur, channel: str, handle: str, is_self: bool = False, display_name: str | None = None) -> str:

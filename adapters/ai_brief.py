@@ -169,15 +169,14 @@ def refresh_touched(person_keys: set[str], client=None) -> None:
     if not person_keys:
         return
     load_dotenv()
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        with conn.cursor() as cur:
-            for person_key in person_keys:
-                try:
-                    generate_brief(cur, person_key, client=client)
-                    conn.commit()
-                except Exception as e:  # noqa: BLE001 — one bad brief must not block the rest
-                    conn.rollback()
-                    print(f"ai_brief generation failed for {person_key}: {e}", file=sys.stderr)
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
+        for person_key in person_keys:
+            try:
+                generate_brief(cur, person_key, client=client)
+                conn.commit()
+            except Exception as e:  # noqa: BLE001 — one bad brief must not block the rest
+                conn.rollback()
+                print(f"ai_brief generation failed for {person_key}: {e}", file=sys.stderr)
 
 
 def refresh_touched_best_effort(person_keys: set[str], client=None) -> None:
