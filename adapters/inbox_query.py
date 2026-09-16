@@ -49,12 +49,12 @@ def list_conversations(cur) -> list[ConversationRow]:
         left join (
             select
                 coalesce(i.person_id, i.id) as contact_key,
-                bool_or(t.last_message_at > coalesce(t.last_read_at, '-infinity'::timestamptz)) as is_unread
+                bool_or(m.sent_at > coalesce(t.last_read_at, '-infinity'::timestamptz)) as is_unread
             from identity i
             join message_participant mp on mp.identity_id = i.id
             join message m on m.id = mp.message_id
             join thread t on t.id = m.thread_id
-            where i.is_self = false
+            where i.is_self = false and m.direction = 'inbound'
             group by coalesce(i.person_id, i.id)
         ) unread on unread.contact_key = cs.contact_key
         order by clm.sent_at desc

@@ -451,10 +451,11 @@ function renderList() {
 }
 
 // Detail panel — opens on row click. Message (raw text) + Context
-// (mock identity/relationship info — this is where a real build would
-// surface adapters.resolution's actual identity/fact data) + an AI
-// draft reply when one exists. Same overlay pattern as the assistant
-// panel; only one of the two is ever open at a time.
+// (real per-contact data: Context/graph/summary/topic all come from the
+// precomputed `ai_brief` row for this person — see the file header
+// comment above for how that's generated and cached) + an AI draft
+// reply when one exists. Same overlay pattern as the assistant panel;
+// only one of the two is ever open at a time.
 function personKeyForName(name) {
   const found = CONVERSATIONS.find(c => c.name === name);
   return found ? found.person_key : null;

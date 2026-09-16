@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import traceback
 from dataclasses import dataclass
 
 import psycopg
@@ -116,7 +117,7 @@ Respond with ONLY a JSON object, no other text, in exactly this shape:
 def generate_brief(cur, person_key: str, client=None) -> AiBrief:
     client = client or _default_client()
     data = _gather_input(cur, person_key)
-    model = os.environ.get("ANTHROPIC_MODEL", _DEFAULT_MODEL)
+    model = os.environ.get("ANTHROPIC_MODEL") or _DEFAULT_MODEL
 
     response = client.messages.create(
         model=model,
@@ -158,7 +159,7 @@ def person_keys_for_identities(cur, identity_ids: set[str]) -> set[str]:
     if not identity_ids:
         return set()
     cur.execute(
-        "select coalesce(person_id, id) from identity where id = any(%s)",
+        "select coalesce(person_id, id) from identity where id = any(%s) and is_self = false",
         (list(identity_ids),),
     )
     return {str(row[0]) for row in cur.fetchall()}
@@ -191,3 +192,4 @@ def refresh_touched_best_effort(person_keys: set[str], client=None) -> None:
         refresh_touched(person_keys, client=client)
     except Exception as e:  # noqa: BLE001 — ai_brief failing must never fail the caller's sync
         print(f"ai_brief refresh failed entirely (the sync itself still succeeded): {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)

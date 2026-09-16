@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import psycopg
+import pytest
 
 from adapters.ai_brief import PROMPT_VERSION, generate_brief
 from adapters.ai_brief import person_keys_for_identities, refresh_touched, refresh_touched_best_effort
@@ -43,6 +44,7 @@ def _make_message(cur, thread_id, channel, direction, from_identity_id, particip
             "insert into message_participant (message_id, identity_id, role) values (%s, %s, %s)",
             (message_id, identity_id, role),
         )
+    return message_id
 
 
 @dataclass
@@ -153,14 +155,52 @@ class TestPersonKeysForIdentities:
         cur = db_conn.cursor()
         assert person_keys_for_identities(cur, set()) == set()
 
+    def test_excludes_self_identities(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com")
+
+        result = person_keys_for_identities(cur, {self_id, contact_id})
+
+        assert result == {contact_id}
+
 
 class TestRefreshTouched:
-    def test_generates_a_brief_for_each_touched_person(self, db_conn: psycopg.Connection, monkeypatch):
+    @pytest.fixture
+    def _created_ids(self, db_conn):
+        # refresh_touched() opens its OWN connection, separate from
+        # db_conn — both tests below must db_conn.commit() their seed
+        # rows so that other connection can see them, which means
+        # db_conn's rollback-on-teardown can never clean them up (same
+        # problem/pattern as tests/test_onboarding_app.py's
+        # _created_identity_ids / _created fixtures). Without this,
+        # every ai_brief/message/thread/identity row these tests commit
+        # accumulates permanently in the local dev Postgres. Tests append
+        # the ids they create; this fixture deletes them afterward.
+        ids = {"identity_ids": [], "thread_ids": [], "message_ids": [], "person_keys": []}
+        yield ids
+        cur = db_conn.cursor()
+        if ids["person_keys"]:
+            cur.execute("delete from ai_brief where person_key = any(%s)", (ids["person_keys"],))
+        if ids["message_ids"]:
+            cur.execute("delete from message_participant where message_id = any(%s)", (ids["message_ids"],))
+            cur.execute("delete from message where id = any(%s)", (ids["message_ids"],))
+        if ids["thread_ids"]:
+            cur.execute("delete from thread where id = any(%s)", (ids["thread_ids"],))
+        if ids["identity_ids"]:
+            cur.execute("delete from identity where id = any(%s)", (ids["identity_ids"],))
+        db_conn.commit()
+
+    def test_generates_a_brief_for_each_touched_person(self, db_conn: psycopg.Connection, monkeypatch, _created_ids):
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
         contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Test")
         thread_id = _make_thread(cur, "outlook")
-        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], datetime.now(UTC), "hi")
+        message_id = _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], datetime.now(UTC), "hi")
+        _created_ids["identity_ids"] += [self_id, contact_id]
+        _created_ids["thread_ids"].append(thread_id)
+        _created_ids["message_ids"].append(message_id)
+        _created_ids["person_keys"].append(contact_id)
         db_conn.commit()  # refresh_touched opens its OWN connection — this test's rows must be visible to it
 
         fake_client = _FakeClient({
@@ -174,12 +214,16 @@ class TestRefreshTouched:
         cur2.execute("select summary from ai_brief where person_key = %s", (contact_id,))
         assert cur2.fetchone()[0] == "s"
 
-    def test_one_bad_person_does_not_block_the_rest(self, db_conn: psycopg.Connection, monkeypatch):
+    def test_one_bad_person_does_not_block_the_rest(self, db_conn: psycopg.Connection, monkeypatch, _created_ids):
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
         good_id = _make_identity(cur, "outlook", f"good-{uuid.uuid4().hex}@example.com", display_name="Good")
         thread_id = _make_thread(cur, "outlook")
-        _make_message(cur, thread_id, "outlook", "inbound", good_id, [good_id, self_id], datetime.now(UTC), "hi")
+        message_id = _make_message(cur, thread_id, "outlook", "inbound", good_id, [good_id, self_id], datetime.now(UTC), "hi")
+        _created_ids["identity_ids"] += [self_id, good_id]
+        _created_ids["thread_ids"].append(thread_id)
+        _created_ids["message_ids"].append(message_id)
+        _created_ids["person_keys"].append(good_id)
         db_conn.commit()
         monkeypatch.setenv("DATABASE_URL", "postgresql://comms:comms@localhost:5432/comms")
 

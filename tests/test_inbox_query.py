@@ -42,8 +42,6 @@ def _make_message(cur, thread_id, channel, direction, from_identity_id, particip
             "insert into message_participant (message_id, identity_id, role) values (%s, %s, %s)",
             (message_id, identity_id, role),
         )
-    # keep thread.last_message_at consistent with what a real sync would set
-    cur.execute("update thread set last_message_at = %s where id = %s", (sent_at, thread_id))
     return message_id
 
 
@@ -140,6 +138,36 @@ class TestListConversations:
         row = next(r for r in rows if r.person_key == contact_id)
         assert row.topic == "General"
         assert row.urgency == 2
+
+    def test_unread_works_through_real_upsert_path(self, db_conn: psycopg.Connection):
+        # Regression test: the unread subquery used to read
+        # thread.last_message_at, a column nothing in the real ingest
+        # path (adapters.store_writer.upsert()) ever writes — so unread
+        # was always false against real data. This test goes through the
+        # actual upsert() function (not the hand-rolled _make_message
+        # helper above, and without ever touching thread.last_message_at)
+        # to prove the query now derives unread correctly on real data.
+        from adapters.envelope import Channel, Direction, Envelope
+        from adapters.store_writer import upsert
+
+        cur = db_conn.cursor()
+        env = Envelope(
+            channel=Channel.outlook,
+            external_id=f"real-upsert-{uuid.uuid4().hex}",
+            thread_external_id=f"real-upsert-thread-{uuid.uuid4().hex}",
+            direction=Direction.inbound,
+            sent_at=datetime.now(UTC),
+            from_handle=f"real-{uuid.uuid4().hex}@example.com",
+            to_handles=[f"me-{uuid.uuid4().hex}@example.com"],
+            from_display_name="Real Upsert Contact",
+            body_text="hello via real upsert",
+        )
+        identity_id = upsert(db_conn, env, self_handle=env.to_handles[0])
+
+        rows = list_conversations(cur)
+
+        row = next(r for r in rows if r.person_key == identity_id)
+        assert row.unread is True
 
 
 class TestGetDetail:

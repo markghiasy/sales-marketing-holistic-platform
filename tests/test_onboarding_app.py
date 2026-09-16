@@ -728,7 +728,6 @@ def _seed_inbox_conversation(db_conn, created_ids: dict) -> str:
     message_id = str(cur.fetchone()[0])
     cur.execute("insert into message_participant (message_id, identity_id, role) values (%s, %s, 'from')", (message_id, contact_id))
     cur.execute("insert into message_participant (message_id, identity_id, role) values (%s, %s, 'to')", (message_id, self_id))
-    cur.execute("update thread set last_message_at = %s where id = %s", (now, thread_id))
     db_conn.commit()
 
     created_ids["identity_ids"] = [self_id, contact_id]
