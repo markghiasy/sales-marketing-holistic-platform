@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 import psycopg
 
 from adapters.ai_brief import PROMPT_VERSION, generate_brief
+from adapters.ai_brief import person_keys_for_identities, refresh_touched, refresh_touched_best_effort
 
 
 def _make_identity(cur, channel: str, handle: str, is_self: bool = False, display_name: str | None = None) -> str:
@@ -137,3 +138,70 @@ class TestGenerateBrief:
             raise AssertionError("expected an exception for malformed JSON")
         except (ValueError, json.JSONDecodeError):
             pass
+
+
+class TestPersonKeysForIdentities:
+    def test_maps_identity_ids_to_person_keys(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com")
+
+        result = person_keys_for_identities(cur, {contact_id})
+
+        assert result == {contact_id}  # no person_id set -> coalesces to the identity's own id
+
+    def test_empty_input_returns_empty_set(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        assert person_keys_for_identities(cur, set()) == set()
+
+
+class TestRefreshTouched:
+    def test_generates_a_brief_for_each_touched_person(self, db_conn: psycopg.Connection, monkeypatch):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Test")
+        thread_id = _make_thread(cur, "outlook")
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], datetime.now(UTC), "hi")
+        db_conn.commit()  # refresh_touched opens its OWN connection — this test's rows must be visible to it
+
+        fake_client = _FakeClient({
+            "summary": "s", "context": [], "topic": "General", "graph": {"org": None, "people": []}, "urgency": 1,
+        })
+        monkeypatch.setenv("DATABASE_URL", "postgresql://comms:comms@localhost:5432/comms")
+
+        refresh_touched({contact_id}, client=fake_client)
+
+        cur2 = db_conn.cursor()
+        cur2.execute("select summary from ai_brief where person_key = %s", (contact_id,))
+        assert cur2.fetchone()[0] == "s"
+
+    def test_one_bad_person_does_not_block_the_rest(self, db_conn: psycopg.Connection, monkeypatch):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        good_id = _make_identity(cur, "outlook", f"good-{uuid.uuid4().hex}@example.com", display_name="Good")
+        thread_id = _make_thread(cur, "outlook")
+        _make_message(cur, thread_id, "outlook", "inbound", good_id, [good_id, self_id], datetime.now(UTC), "hi")
+        db_conn.commit()
+        monkeypatch.setenv("DATABASE_URL", "postgresql://comms:comms@localhost:5432/comms")
+
+        class _BrokenMessages:
+            def create(self, **kwargs):
+                return _FakeResponse(content=[_FakeBlock(text="not json")])
+
+        class _BrokenClient:
+            messages = _BrokenMessages()
+
+        nonexistent_id = str(uuid.uuid4())  # generate_brief will find no messages/facts, but the LLM call still happens
+        refresh_touched({nonexistent_id, good_id}, client=_BrokenClient())  # _BrokenClient always returns malformed JSON
+
+        # both fail with _BrokenClient, but the call must not raise —
+        # rerun with a working client and confirm the good one now succeeds
+        refresh_touched({good_id}, client=_FakeClient({
+            "summary": "recovered", "context": [], "topic": "General", "graph": {"org": None, "people": []}, "urgency": 1,
+        }))
+        cur2 = db_conn.cursor()
+        cur2.execute("select summary from ai_brief where person_key = %s", (good_id,))
+        assert cur2.fetchone()[0] == "recovered"
+
+    def test_refresh_touched_best_effort_never_raises(self, monkeypatch):
+        monkeypatch.setenv("DATABASE_URL", "postgresql://nonexistent-host-for-this-test:5432/comms")
+        refresh_touched_best_effort({str(uuid.uuid4())})  # DB unreachable -> caught, not raised

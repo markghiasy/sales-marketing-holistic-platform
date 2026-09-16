@@ -152,3 +152,42 @@ def generate_brief(cur, person_key: str, client=None) -> AiBrief:
         ),
     )
     return brief
+
+
+def person_keys_for_identities(cur, identity_ids: set[str]) -> set[str]:
+    if not identity_ids:
+        return set()
+    cur.execute(
+        "select coalesce(person_id, id) from identity where id = any(%s)",
+        (list(identity_ids),),
+    )
+    return {str(row[0]) for row in cur.fetchall()}
+
+
+def refresh_touched(person_keys: set[str], client=None) -> None:
+    if not person_keys:
+        return
+    load_dotenv()
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        with conn.cursor() as cur:
+            for person_key in person_keys:
+                try:
+                    generate_brief(cur, person_key, client=client)
+                    conn.commit()
+                except Exception as e:  # noqa: BLE001 — one bad brief must not block the rest
+                    conn.rollback()
+                    print(f"ai_brief generation failed for {person_key}: {e}", file=sys.stderr)
+
+
+def refresh_touched_best_effort(person_keys: set[str], client=None) -> None:
+    """Same as refresh_touched(), except a total failure (e.g. the
+    database is unreachable) is caught and logged rather than raised —
+    called from each channel's sync.py after a successful sync, where an
+    ai_brief problem must never make the calling sync job look like it
+    failed. refresh_touched() already isolates each person's own
+    failure; this is the second, outer layer, matching
+    adapters/resolution/run.py's run()/run_best_effort() pattern."""
+    try:
+        refresh_touched(person_keys, client=client)
+    except Exception as e:  # noqa: BLE001 — ai_brief failing must never fail the caller's sync
+        print(f"ai_brief refresh failed entirely (the sync itself still succeeded): {e}", file=sys.stderr)
