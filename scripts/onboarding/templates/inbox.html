@@ -1,63 +1,35 @@
 <!--
-  Unified inbox prototype — built 2026-09-14 for a same-day demo to Mark,
-  inspired by kinso.ai's UI (Eva and Mark's Phase 2 design reference for
-  a single interface over the three adapters: Outlook/WhatsApp/LinkedIn).
+  Unified inbox — Block C triage inbox (Linear STU-131), built on top of
+  the 2026-09-14 demo prototype for Mark (STU-197). Real data as of
+  2026-09-16: see docs/superpowers/specs/2026-09-16-triage-inbox-real-data-llm-design.md
+  and the implementation plan at
+  docs/superpowers/plans/2026-09-16-triage-inbox-real-data-llm.md.
 
-  Redesigned same day, still same session: Eva pointed out the original
-  right-side "AI suggestion card" panel duplicated what the list preview
-  already showed once the preview text was written to read like a real
-  summary — so that panel is gone. In its place: clicking a row opens a
-  detail panel (full message thread + Context + an AI draft reply when
-  one exists), and rows with a ready draft get a small badge in the
-  list, so "is there something to act on" is visible without opening
-  anything. The list row's own preview text is `summary` — a short
-  third-person AI action-summary, the piece that got dropped when the
-  right-side card was removed — not the raw last message (that's
-  `message`, still used as the newest line inside the detail panel's
-  thread and for the graph/Context copy).
+  Data flow: this page fetches /inbox/conversations.json for the list and
+  /inbox/conversation/<person_key>.json for the detail panel — both
+  backed by adapters/inbox_query.py, reading real message/identity/
+  thread/fact data. `summary`/`context`/`topic`/`graph`/`urgency` come
+  from adapters/ai_brief.py's precomputed per-contact LLM brief (cached
+  in the `ai_brief` table, refreshed after every channel sync — never
+  called live from this page). A contact with no `ai_brief` row yet
+  (e.g. a brand-new contact ahead of the next sync's precompute step)
+  falls back to their latest raw message text as the list preview, and a
+  placeholder Context/Network state in the detail panel.
 
-  DELIBERATELY MOCK DATA ONLY, nothing below is a real integration:
-    - Conversations, topic tags, `context` bullets, and `draft` replies
-      are all hardcoded in MOCK_CONVERSATIONS below — not read from the
-      real `message`/`identity`/`fact` tables. `context` is meant to
-      stand in for what identity resolution + the fact table already
-      extract for real (company/title, last contact, shared history,
-      mutual connections) — this pass just hand-writes plausible values,
-      doesn't query them.
-    - Each contact's `threads` is an array of {channel, subject, messages}
-      groups, not a single conversation — mirrors how a real person's
-      history is actually scattered (a new email thread instead of a
-      reply, a hand-off that moves from LinkedIn to WhatsApp). The detail
-      panel renders every group for that person, in order, labeled by
-      channel/subject, so Context has one stitched cross-channel history
-      to summarize instead of one row's own thread. Still hand-written
-      per contact here — a real version would query all messages for the
-      resolved identity/person across all three adapters, not just the
-      one the inbox row happened to be filed under.
-    - Draft replies are pre-written text, not a real Anthropic API call
-      (ANTHROPIC_API_KEY exists as of today, but wiring this up to a
-      real model call is future work, not this pass). "Use this draft"
-      does nothing.
-    - Filter/sort (Unread/Unanswered/Has draft ready, Priority/Most
-      Recent) run client-side over the mock array — no backend query.
-    - Left icon rail's channel filter is the same idea as kinso's
-      "Accounts" panel, collapsed into one control since this project
-      has exactly three channels, not multiple accounts per channel.
-
-  Explicitly NOT built in this pass, noted for later:
-    - Real data: this UI reading from adapters' actual synced messages,
-      and Context reading from real identity/fact rows instead of a
-      hand-written array.
-    - Real LLM call producing draft replies and the topic tags.
-    - A REAL graph layout for the Network mini-viz (renderGraph()) —
-      what's there is plain trig-based radial placement around a fixed
-      center, not a force-directed/physics layout, and the underlying
-      `graph.org`/`graph.people` data is hand-written per contact, not
-      queried from the real graph tables (contact_stats etc., §10).
-      Fine for 1-6 nodes in a demo; would need real layout work to
-      scale past that.
-    - The top search bar's real semantic search (visual only below).
-    - Actually sending a reply — "Use this draft" is a dead button.
+  Still NOT built, by design (see the design doc's Scope section):
+    - Real draft replies. The "Draft ready" badge/filter and the detail
+      panel's AI draft section stay in the UI but are permanently inert
+      this pass — no field ever makes a row's `has_draft` true, and the
+      draft section always shows "Draft replies — under development."
+      That's the next phase (the project-management/action layer), not
+      this one.
+    - Actually sending anything — "Use this draft" doesn't exist yet.
+    - The top search bar's real semantic search (still visual-only); the
+      assistant overlay's greeting stats are real (CONVERSATIONS-derived)
+      but its suggestions/input still do nothing.
+    - Network graph relationships beyond what the LLM can point to in
+      real message text or a `fact` row — it will not invent a
+      relationship the way earlier mock data did.
 -->
 <title>Inbox</title>
 <style>
@@ -208,9 +180,9 @@
   /* Assistant overlay — opens from the search bar, styled after kinso's
      mobile mockup (their landing page's phone screenshot): a greeting,
      a one-line "N new / M active" stat, a "Today's briefing" button,
-     and an input pinned to the bottom of the card. Mock only — the
-     stats are computed from MOCK_CONVERSATIONS, nothing is a real
-     assistant response. */
+     and an input pinned to the bottom of the card. The stats are real
+     (computed from CONVERSATIONS), but the suggestions/input are still
+     mock — see the top-of-file header comment. */
   .assistant-backdrop {
     position: fixed; inset: 0; background: rgba(20,20,25,0.45);
     display: flex; align-items: center; justify-content: center;
@@ -306,10 +278,10 @@
     background: #fff; border: 1px solid var(--border); border-radius: 10px; color: var(--text);
   }
 
-  /* Message thread — Eva's call: a single mock message read as thin
-     and purpose-less. Threads now show a short multi-turn exchange
-     (see MOCK_CONVERSATIONS' `thread` field) so Context has something
-     real to summarize, same as a real conversation would. */
+  /* Message thread — Eva's call: a single message read as thin and
+     purpose-less. Threads show a short multi-turn exchange (the real
+     `threads`/`messages` data from /inbox/conversation/<person_key>.json)
+     so Context has something real to summarize. */
   .thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .thread-msg {
     max-width: 82%; padding: 11px 14px; border-radius: 14px;
@@ -360,8 +332,6 @@
 </div>
 
 <script>
-// Mock data only — see the file header comment. Nothing here is read
-// from a real adapter/message/fact table.
 // Real brand SVGs (path data from simple-icons), not emoji — emoji glyphs
 // render inconsistently across OSes/fonts and weren't recognizable.
 // Inlined so this page has no runtime dependency on an external icon CDN
@@ -392,152 +362,29 @@ function initials(name) {
   return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-// `message` is the raw excerpt (what they actually wrote, first person) —
-// shown in the list AND at the top of the detail panel. `context` is a
-// short list of the kind of thing identity resolution + the fact table
-// already extract for real (company/title, last contact, shared
-// history) — mocked here as plain strings, not an actual graph query.
-// `draft` is a pre-written AI reply, null when none exists yet.
-// `graph` feeds the network mini-viz in the detail panel: `org` is this
-// person's company/employer, `people` are other identities they're
-// connected to (mutual connections, teammates) — kept consistent across
-// rows where it makes sense (Odalys <-> Tomasz's mutual connection is
-// the same real relationship shown from both sides).
-// `thread` is a short multi-turn exchange with a real business arc —
-// Eva's call: a single mock line read as thin and purpose-less, and
-// gave Context nothing real to summarize. `message` stays as the
-// last-message text used for the list row preview (kept in sync with
-// `thread`'s final entry by hand here).
-const MOCK_CONVERSATIONS = [
-  { id: 1, name: "Priya Nandakumar", channel: "outlook", time: "12m", priority: 3, unread: true, unanswered: true,
-    tag: { text: "Contract Request", color: "#5b6fd6" },
-    message: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week.",
-    summary: "Needs the updated services agreement with phased pricing before Friday to close out the deal.",
-    threads: [
-      { channel: "outlook", subject: "Q4 rollout — kicking things off", messages: [
-        { from: "them", time: "2 weeks ago", text: "Hi — we spoke last month about bringing your team on for the Q4 rollout, and I'd love to move forward. Could you put together a proposal?" },
-        { from: "you", time: "2 weeks ago", text: "Great to hear! I'll draft a proposal covering scope and pricing based on what we discussed — give me a couple of days." },
-      ] },
-      { channel: "outlook", subject: "Services agreement — pricing by phase", messages: [
-        { from: "them", time: "9 days ago", text: "Starting a fresh thread on this — our finance team wants pricing broken out by phase rather than one flat number, if that's possible." },
-        { from: "you", time: "9 days ago", text: "That's fine, I'll structure it that way." },
-        { from: "them", time: "12m", text: "Hi — could you send over the services agreement with the updated pricing? Need it before Friday if possible, we're trying to close this out this week." },
-      ] },
-    ],
-    context: [
-      "Priya is VP of Partnerships at Brightstone Realty, a mid-size commercial real estate firm based in Chicago.",
-      "This is an active deal spanning two email threads, not one: she opened a fresh thread 9 days ago for the finance team's phased-pricing request rather than replying on the original kickoff thread, and is now chasing the agreement there.",
-      "All contact so far has been over email — 3 prior threads, no WhatsApp or LinkedIn overlap yet.",
-      "Her outstanding ask right now is the updated services agreement, with a Friday deadline she's mentioned twice.",
-    ],
-    graph: { org: { name: "Brightstone Realty", blurb: "Commercial real estate firm, Chicago — Priya's employer." }, people: [] },
-    draft: "Hi Priya — attaching the updated services agreement now, pricing reflects the terms we discussed. Let me know if Friday still works or if you need it sooner." },
-  { id: 2, name: "Marcus Wetherby", channel: "whatsapp", time: "38m", priority: 2, unread: true, unanswered: true,
-    tag: { text: "Scheduling", color: "#3d8f63" },
-    message: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end",
-    summary: "Wants to move this week's shipment-review call from Wednesday to Thursday afternoon.",
-    threads: [
-      { channel: "whatsapp", subject: null, messages: [
-        { from: "them", time: "3 days ago", text: "hey! quick one — we're behind on the Q3 shipment numbers, can we do a call this week to go through it?" },
-        { from: "you", time: "3 days ago", text: "for sure, how's wednesday afternoon?" },
-        { from: "them", time: "3 days ago", text: "works for me, I'll send a calendar invite" },
-        { from: "them", time: "38m", text: "hey, can we push our call to thursday afternoon instead of wednesday? something came up on my end" },
-      ] },
-    ],
-    context: [
-      "Marcus is Ops Lead at Fenwick & Co, a logistics consultancy you've worked with for about 6 months.",
-      "This thread is about reviewing Q3 shipment numbers together — you'd already agreed on a Wednesday call.",
-      "Contact with Marcus is almost entirely over WhatsApp — informal tone, quick back-and-forth, rarely email.",
-      "He's now asking to push that same call to Thursday afternoon instead.",
-    ],
-    graph: { org: { name: "Fenwick & Co", blurb: "Logistics consultancy — Marcus's employer, ~6-month working relationship." }, people: [] },
-    draft: null },
-  { id: 3, name: "Odalys Ferreira", channel: "linkedin", time: "1h", priority: 2, unread: false, unanswered: true,
-    tag: { text: "Intro Request", color: "#a35bc7" },
-    message: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along.",
-    summary: "Following up on the promised intro to your product lead; offered to send a one-pager first.",
-    threads: [
-      { channel: "linkedin", subject: null, messages: [
-        { from: "them", time: "6 days ago", text: "Hi! Tomasz mentioned you might be a great person to connect with — we're building in the digital health space and I saw you work closely with a few product teams." },
-        { from: "you", time: "6 days ago", text: "Nice to meet you (virtually) — happy to chat. What are you looking for specifically?" },
-        { from: "them", time: "5 days ago", text: "Mainly an intro to product folks who've dealt with clinician-facing UX — Tomasz thought your product lead might be a good fit." },
-        { from: "them", time: "1h", text: "Following up on the intro to your product lead — happy to send over a one-pager first if that makes it easier to forward along." },
-      ] },
-    ],
-    context: [
-      "Odalys is the founder of Solace Health, an early-stage digital health startup.",
-      "This connection came through Tomasz Kaczmarek, who introduced you both on LinkedIn — see his own thread for the WhatsApp message where he told you the intro was coming.",
-      "The ask has been consistent since the first message: an introduction to your product lead, specifically for clinician-facing UX experience.",
-      "She's now following up on that same ask and has offered to send a one-pager first to make forwarding it easier.",
-    ],
-    graph: { org: { name: "Solace Health", blurb: "Early-stage digital health startup — Odalys is the founder." }, people: [{ name: "Tomasz Kaczmarek", relation: "mutual connection" }] },
-    draft: "Hi Odalys — happy to make the intro. Send the one-pager over and I'll forward it along with some context." },
-  { id: 4, name: "Dae-Ho Lim", channel: "outlook", time: "3h", priority: 1, unread: false, unanswered: false,
-    tag: { text: "Invoice", color: "#c78b3f" },
-    message: "Perfect, thank you for confirming!",
-    summary: "Confirmed invoice #4471 is scheduled for payment next week — no action needed.",
-    threads: [
-      { channel: "outlook", subject: "Invoice #4471", messages: [
-        { from: "them", time: "4 days ago", text: "Hi, sending over invoice #4471 for last month's consulting hours, net-30 as usual." },
-        { from: "you", time: "4 days ago", text: "Got it, forwarding to our finance team now." },
-        { from: "you", time: "3h", text: "Confirmed — #4471 is scheduled for payment next week." },
-        { from: "them", time: "3h", text: "Perfect, thank you for confirming!" },
-      ] },
-    ],
-    context: [
-      "Dae-Ho works in Finance at Lumen Partners, a long-standing vendor relationship — 8 prior email threads over time.",
-      "This thread is routine invoicing: he sent invoice #4471, you confirmed it's scheduled for payment next week, and he's thanked you.",
-      "Nothing outstanding here — the loop is closed and no reply is needed.",
-    ],
-    graph: { org: { name: "Lumen Partners", blurb: "Vendor relationship, long-standing — Dae-Ho handles finance/invoicing on their side." }, people: [] },
-    draft: null },
-  { id: 5, name: "Ingrid Solberg", channel: "whatsapp", time: "5h", priority: 1, unread: false, unanswered: false,
-    tag: { text: "Team Update", color: "#3d8f63" },
-    message: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance.",
-    summary: "Shared this week's progress notes and flagged Priya's contract-scope question for you.",
-    threads: [
-      { channel: "whatsapp", subject: null, messages: [
-        { from: "them", time: "yesterday", text: "morning! finished up the Q3 client review deck, sharing it in the drive" },
-        { from: "you", time: "yesterday", text: "awesome, will take a look before our sync" },
-        { from: "them", time: "today, earlier", text: "also — heads up, Priya's team asked about extending scope on their contract, might be worth looping me in before you respond" },
-        { from: "them", time: "5h", text: "Shared this week's progress notes and a rough plan for next sprint in the doc — take a look when you get a chance." },
-      ] },
-    ],
-    context: [
-      "Ingrid is a teammate — you're on a daily WhatsApp thread together for work coordination.",
-      "She's also in regular contact with Priya Nandakumar and Marcus Wetherby, both showing up elsewhere in your inbox this week.",
-      "She flagged that Priya's team asked about extending contract scope, and wants to be looped in before you respond to Priya.",
-      "This latest message is a routine update — progress notes and a rough sprint plan — informational, no action needed.",
-    ],
-    graph: { org: null, people: [{ name: "Priya Nandakumar", relation: "also works with" }, { name: "Marcus Wetherby", relation: "also works with" }] },
-    draft: null },
-  { id: 6, name: "Tomasz Kaczmarek", channel: "linkedin", time: "1d", priority: 3, unread: false, unanswered: true,
-    tag: { text: "Networking", color: "#a35bc7" },
-    message: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going.",
-    summary: "Wants to stay in touch after the conference — just followed through on introducing you to Odalys Ferreira.",
-    threads: [
-      { channel: "linkedin", subject: null, messages: [
-        { from: "them", time: "1 week ago", text: "Hey, great chatting at SaaStr! Small world that we both know people in the digital health space." },
-        { from: "you", time: "1 week ago", text: "Ha, small world indeed! Let me know if there's ever a good reason to connect further." },
-        { from: "them", time: "6 days ago", text: "Actually — I know a founder, Odalys Ferreira, who's building something interesting in that space. Mind if I make an intro?" },
-        { from: "you", time: "6 days ago", text: "Please do, always happy to meet interesting founders." },
-      ] },
-      { channel: "whatsapp", subject: null, messages: [
-        { from: "them", time: "6 days ago", text: "swapped numbers at the conference too — just so you have it. sending Odalys your contact now" },
-        { from: "you", time: "6 days ago", text: "perfect, thanks!" },
-      ] },
-      { channel: "linkedin", subject: null, messages: [
-        { from: "them", time: "1d", text: "Great meeting you at the conference last week — would love to stay in touch and hear how things are going." },
-      ] },
-    ],
-    context: [
-      "Tomasz is a Partner at Meridian Ventures, a VC firm — you met him in person at the SaaStr conference.",
-      "He's the one who introduced you to Odalys Ferreira — the offer was made on LinkedIn, but the actual hand-off happened over WhatsApp the same day, so the full picture of that introduction only shows up when both channels are read together.",
-      "This latest message is a simple stay-in-touch note on LinkedIn — low urgency, but worth a warm reply given he's a potential investor contact who just followed through on an introduction.",
-    ],
-    graph: { org: { name: "Meridian Ventures", blurb: "VC firm — Tomasz is a Partner there. Potential investor contact." }, people: [{ name: "Odalys Ferreira", relation: "introduced you to" }] },
-    draft: "Great to meet you too, Tomasz! Would love to stay in touch — let me know if you're ever up for a coffee chat." },
-];
+// Real data now — fetched from /inbox/conversations.json (list) and
+// /inbox/conversation/<person_key>.json (detail, on click). See
+// adapters/inbox_query.py and adapters/ai_brief.py for where this comes
+// from. `has_draft` is always false this pass — draft reply generation
+// is the next phase, not this one; the badge/filter below stay wired
+// but inert until that phase adds a real field to key off.
+let CONVERSATIONS = [];
+
+async function loadConversations() {
+  const resp = await fetch("/inbox/conversations.json");
+  CONVERSATIONS = await resp.json();
+  render();
+}
+
+function formatRelativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
 
 let state = { channel: "all", unread: false, unanswered: false, draft: false, sort: "priority" };
 
@@ -558,17 +405,15 @@ function renderRail() {
 }
 
 function filtered() {
-  let rows = MOCK_CONVERSATIONS.filter(c => state.channel === "all" || c.channel === state.channel);
+  let rows = CONVERSATIONS.filter(c => state.channel === "all" || c.channel === state.channel);
   if (state.unread) rows = rows.filter(c => c.unread);
   if (state.unanswered) rows = rows.filter(c => c.unanswered);
-  if (state.draft) rows = rows.filter(c => c.draft);
-  // Real bug found by Eva 2026-09-14: this used to sort "Most recent" by
-  // b.id - a.id (descending id), but ids are assigned in the same order
-  // as MOCK_CONVERSATIONS' `time` field — 1 is the newest (12m), 6 the
-  // oldest (1d) — so descending id put the OLDEST conversation first,
-  // the opposite of what "Most recent" means. Ascending id (a.id - b.id)
-  // is correct here.
-  rows = rows.slice().sort((a, b) => state.sort === "priority" ? b.priority - a.priority : a.id - b.id);
+  if (state.draft) rows = rows.filter(c => c.has_draft);
+  rows = rows.slice().sort((a, b) =>
+    state.sort === "priority"
+      ? b.urgency - a.urgency
+      : new Date(b.last_message_at) - new Date(a.last_message_at)
+  );
   return rows;
 }
 
@@ -586,14 +431,14 @@ function renderList() {
     return;
   }
   list.innerHTML = rows.map(c => `
-    <div class="row" data-id="${c.id}">
+    <div class="row" data-id="${c.person_key}">
       <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
       <div class="row-main">
         <div class="row-top">
           <span class="row-name">${escapeHtml(c.name)}</span>
-          <span class="tag" style="background:${c.tag.color}22;color:${c.tag.color}">${escapeHtml(c.tag.text)}</span>
-          ${c.draft ? `<span class="draft-badge" title="AI draft ready">&#9998; Draft ready</span>` : ""}
-          <span class="row-time">${c.time}</span>
+          <span class="tag" style="background:${avatarColor(c.topic)}22;color:${avatarColor(c.topic)}">${escapeHtml(c.topic)}</span>
+          ${c.has_draft ? `<span class="draft-badge" title="AI draft ready">&#9998; Draft ready</span>` : ""}
+          <span class="row-time">${formatRelativeTime(c.last_message_at)}</span>
         </div>
         <div class="row-preview">${escapeHtml(c.summary)}</div>
       </div>
@@ -601,7 +446,7 @@ function renderList() {
     </div>
   `).join("");
   list.querySelectorAll(".row").forEach(row => {
-    row.addEventListener("click", () => openDetail(Number(row.dataset.id)));
+    row.addEventListener("click", () => openDetail(row.dataset.id));
   });
 }
 
@@ -610,9 +455,9 @@ function renderList() {
 // surface adapters.resolution's actual identity/fact data) + an AI
 // draft reply when one exists. Same overlay pattern as the assistant
 // panel; only one of the two is ever open at a time.
-function nameToId(name) {
-  const found = MOCK_CONVERSATIONS.find(c => c.name === name);
-  return found ? found.id : null;
+function personKeyForName(name) {
+  const found = CONVERSATIONS.find(c => c.name === name);
+  return found ? found.person_key : null;
 }
 
 // Plain radial layout, computed with trig — NOT a real force-directed
@@ -673,8 +518,8 @@ function wireGraphNodes() {
     node.addEventListener("click", () => {
       const kind = node.dataset.kind, label = node.dataset.label, blurb = node.dataset.blurb;
       if (kind === "person") {
-        const targetId = nameToId(label);
-        if (targetId) { openDetail(targetId); return; }
+        const targetKey = personKeyForName(label);
+        if (targetKey) { openDetail(targetKey); return; }
       }
       const info = document.getElementById("graph-info");
       info.hidden = false;
@@ -683,9 +528,10 @@ function wireGraphNodes() {
   });
 }
 
-function openDetail(id) {
-  const c = MOCK_CONVERSATIONS.find(x => x.id === id);
-  if (!c) return;
+async function openDetail(personKey) {
+  const resp = await fetch(`/inbox/conversation/${personKey}.json`);
+  if (!resp.ok) return;
+  const c = await resp.json();
   closeOverlay();
   const backdrop = document.createElement("div");
   backdrop.className = "assistant-backdrop";
@@ -696,7 +542,7 @@ function openDetail(id) {
         <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
         <div>
           <div class="row-name">${escapeHtml(c.name)}</div>
-          <div class="row-time">${CHANNELS[c.channel].label} &middot; ${c.time}</div>
+          <div class="row-time">${CHANNELS[c.channel].label} &middot; ${formatRelativeTime(c.last_message_at)}</div>
         </div>
       </div>
       <div class="detail-body">
@@ -710,21 +556,18 @@ function openDetail(id) {
               </div>
               <div class="thread">
                 ${g.messages.map(m => `
-                  <div class="thread-msg ${m.from}">
+                  <div class="thread-msg ${m.sender}">
                     <div>${escapeHtml(m.text)}</div>
-                    <div class="thread-time">${escapeHtml(m.time)}</div>
+                    <div class="thread-time">${formatRelativeTime(m.sent_at)}</div>
                   </div>
                 `).join("")}
               </div>
             </div>
           `).join("")}
-          ${c.draft ? `
-            <div class="detail-draft">
-              <h3>&#9998; AI draft reply</h3>
-              <div class="draft-text">${escapeHtml(c.draft)}</div>
-              <button class="briefing-btn" type="button">Use this draft &rsaquo;</button>
-            </div>
-          ` : `<div class="detail-draft"><h3>&#9998; AI draft reply</h3><div class="row-preview">No draft yet.</div></div>`}
+          <div class="detail-draft">
+            <h3>&#9998; AI draft reply</h3>
+            <div class="row-preview">Draft replies — under development.</div>
+          </div>
         </div>
         <div class="detail-col">
           <div class="detail-context">
@@ -743,6 +586,11 @@ function openDetail(id) {
   document.body.appendChild(backdrop);
   document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
   wireGraphNodes();
+
+  fetch(`/inbox/conversation/${personKey}/read`, { method: "POST" });
+  const row = CONVERSATIONS.find(x => x.person_key === personKey);
+  if (row) row.unread = false;
+  renderList();
 }
 
 document.getElementById("f-unread").addEventListener("change", e => { state.unread = e.target.checked; render(); });
@@ -750,9 +598,9 @@ document.getElementById("f-unanswered").addEventListener("change", e => { state.
 document.getElementById("s-priority").addEventListener("change", () => { state.sort = "priority"; render(); });
 document.getElementById("s-recent").addEventListener("change", () => { state.sort = "recent"; render(); });
 
-// Assistant overlay — opens on clicking the search bar. Mock only: the
-// greeting stats are computed from MOCK_CONVERSATIONS, the suggestions
-// and input do nothing real when submitted (see file header).
+// Assistant overlay — opens on clicking the search bar. The greeting
+// stats are computed from real CONVERSATIONS data; the suggestions and
+// input still do nothing real when submitted (see file header).
 const ASSISTANT_SUGGESTIONS = [
   "What's most urgent right now?",
   "Who's waiting on a reply from me?",
@@ -761,8 +609,8 @@ const ASSISTANT_SUGGESTIONS = [
 
 function openAssistant() {
   closeOverlay();
-  const unread = MOCK_CONVERSATIONS.filter(c => c.unread).length;
-  const active = MOCK_CONVERSATIONS.filter(c => c.unanswered).length;
+  const unread = CONVERSATIONS.filter(c => c.unread).length;
+  const active = CONVERSATIONS.filter(c => c.unanswered).length;
   const backdrop = document.createElement("div");
   backdrop.className = "assistant-backdrop";
   backdrop.innerHTML = `
@@ -794,5 +642,5 @@ document.getElementById("searchbar").addEventListener("click", openAssistant);
 document.getElementById("f-draft").addEventListener("change", e => { state.draft = e.target.checked; render(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
 
-render();
+loadConversations();
 </script>
