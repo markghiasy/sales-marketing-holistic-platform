@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import psycopg
 
-from adapters.inbox_query import list_conversations
+from adapters.inbox_query import list_conversations, get_detail, mark_read
 
 
 def _make_identity(cur, channel: str, handle: str, is_self: bool = False, display_name: str | None = None) -> str:
@@ -140,3 +140,71 @@ class TestListConversations:
         row = next(r for r in rows if r.person_key == contact_id)
         assert row.topic == "General"
         assert row.urgency == 2
+
+
+class TestGetDetail:
+    def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Priya")
+        now = datetime.now(UTC)
+
+        thread_b = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_b, "outlook", "inbound", contact_id, [contact_id, self_id], now - timedelta(days=9), body_text="pricing by phase")
+        cur.execute("update message set subject = %s where thread_id = %s", ("Services agreement", thread_b))
+
+        thread_a = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_a, "outlook", "inbound", contact_id, [contact_id, self_id], now - timedelta(days=14), body_text="kicking things off")
+        cur.execute("update message set subject = %s where thread_id = %s", ("Q4 rollout", thread_a))
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail is not None
+        assert detail.name == "Priya"
+        assert [g.subject for g in detail.threads] == ["Q4 rollout", "Services agreement"]
+        assert detail.threads[0].messages[0].text == "kicking things off"
+        assert detail.threads[0].messages[0].sender == "them"
+
+    def test_no_subject_for_channels_without_one(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "whatsapp", "15555550001", is_self=True)
+        contact_id = _make_identity(cur, "whatsapp", "15555550002", display_name="Marcus")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "whatsapp", last_read_at=now)
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], now, body_text="hey")
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail.threads[0].subject is None
+
+    def test_no_ai_brief_row_returns_placeholder_context(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Test")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail.context == ["AI brief hasn't been generated for this contact yet — check back after the next sync."]
+        assert detail.graph == {"org": None, "people": []}
+
+    def test_unknown_person_key_returns_none(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        assert get_detail(cur, str(uuid.uuid4())) is None
+
+
+class TestMarkRead:
+    def test_marks_all_threads_for_person_read(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Test")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=None)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+
+        mark_read(cur, contact_id)
+
+        cur.execute("select last_read_at from thread where id = %s", (thread_id,))
+        assert cur.fetchone()[0] is not None
