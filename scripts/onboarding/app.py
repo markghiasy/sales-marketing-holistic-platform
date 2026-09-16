@@ -22,6 +22,7 @@ import psycopg
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file
 
+from adapters import inbox_query
 from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
 from adapters.resolution.merge import apply_merge
@@ -363,10 +364,45 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/inbox")
     def inbox_page():
-        # Prototype for a 2026-09-14 demo to Mark — mock data only, no
-        # DB or LLM call from this route. See inbox.html's own header
-        # comment for what's deliberately out of scope in this pass.
         return render_template("inbox.html")
+
+    @flask_app.get("/inbox/conversations.json")
+    def inbox_conversations_json():
+        with _db_cursor() as cur:
+            rows = inbox_query.list_conversations(cur)
+        return jsonify([
+            {
+                "person_key": r.person_key, "name": r.name, "channel": r.channel,
+                "last_message_at": r.last_message_at, "unread": r.unread, "unanswered": r.unanswered,
+                "summary": r.summary, "topic": r.topic, "urgency": r.urgency, "has_draft": r.has_draft,
+            }
+            for r in rows
+        ])
+
+    @flask_app.get("/inbox/conversation/<person_key>.json")
+    def inbox_conversation_detail_json(person_key):
+        with _db_cursor() as cur:
+            detail = inbox_query.get_detail(cur, person_key)
+        if detail is None:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({
+            "person_key": detail.person_key, "name": detail.name, "channel": detail.channel,
+            "last_message_at": detail.last_message_at,
+            "threads": [
+                {
+                    "channel": t.channel, "subject": t.subject,
+                    "messages": [{"sender": m.sender, "text": m.text, "sent_at": m.sent_at} for m in t.messages],
+                }
+                for t in detail.threads
+            ],
+            "context": detail.context, "graph": detail.graph, "topic": detail.topic, "urgency": detail.urgency,
+        })
+
+    @flask_app.post("/inbox/conversation/<person_key>/read")
+    def inbox_conversation_mark_read(person_key):
+        with _db_cursor() as cur:
+            inbox_query.mark_read(cur, person_key)
+        return jsonify({"status": "ok"})
 
     @flask_app.get("/resolution/candidates.json")
     def resolution_candidates_json():

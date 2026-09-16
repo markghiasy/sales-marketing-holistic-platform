@@ -473,7 +473,10 @@ def test_linkedin_upload_session_concurrent_requests_only_one_accepted(tmp_path,
     assert results.count(403) == n_threads - 1
 
 
+import datetime as _dt
 import uuid as _uuid
+
+import psycopg as _psycopg
 
 # same local Postgres URL tests/conftest.py's db_conn fixture uses,
 # deliberately hardcoded there (not read from .env) because .env's
@@ -679,3 +682,132 @@ class TestResolutionReviewQueue:
         assert resp.status_code == 200
         cur.execute("select status from link_candidate where id = %s", (candidate_id,))
         assert cur.fetchone()[0] == "rejected"  # unchanged, not flipped to confirmed
+
+
+def _seed_inbox_conversation(db_conn, created_ids: dict) -> str:
+    """Seeds one contact identity with a single inbound message, matching
+    the shape adapters/inbox_query.py's list_conversations/get_detail
+    queries expect (contact_stats/contact_last_message views, plus the
+    identity/thread/message/message_participant tables directly for
+    get_detail). Returns the contact identity's id, which is also its
+    person_key (coalesce(person_id, id) — person_id is left null here).
+
+    Commits (rather than relying on db_conn's rollback-on-teardown) because
+    the Flask app's _db_cursor() holds its own, separate connection — an
+    uncommitted insert on db_conn would be invisible to it. created_ids is
+    filled in so the caller's cleanup fixture can delete everything this
+    inserts afterward, same pattern TestResolutionReviewQueue's
+    _created_identity_ids fixture uses for the same reason (a committed row
+    doesn't get cleaned up by db_conn's rollback and would otherwise sit in
+    the local test database forever).
+    """
+    cur = db_conn.cursor()
+    cur.execute(
+        "insert into identity (channel, handle, is_self) values (%s, %s, %s) returning id",
+        ("outlook", f"me-{_uuid.uuid4().hex}@example.com", True),
+    )
+    self_id = str(cur.fetchone()[0])
+    cur.execute(
+        "insert into identity (channel, handle, is_self, display_name) values (%s, %s, %s, %s) returning id",
+        ("outlook", f"c-{_uuid.uuid4().hex}@example.com", False, "Test Contact"),
+    )
+    contact_id = str(cur.fetchone()[0])
+    cur.execute(
+        "insert into thread (channel, external_id, last_read_at) values (%s, %s, %s) returning id",
+        ("outlook", f"thread-{_uuid.uuid4().hex}", None),
+    )
+    thread_id = str(cur.fetchone()[0])
+    now = _dt.datetime.now(_dt.UTC)
+    cur.execute(
+        """
+        insert into message (thread_id, channel, external_id, direction, sent_at, from_identity_id, body_text, raw)
+        values (%s, %s, %s, %s, %s, %s, %s, %s) returning id
+        """,
+        (thread_id, "outlook", f"msg-{_uuid.uuid4().hex}", "inbound", now, contact_id, "hello", _psycopg.types.json.Json({})),
+    )
+    message_id = str(cur.fetchone()[0])
+    cur.execute("insert into message_participant (message_id, identity_id, role) values (%s, %s, 'from')", (message_id, contact_id))
+    cur.execute("insert into message_participant (message_id, identity_id, role) values (%s, %s, 'to')", (message_id, self_id))
+    cur.execute("update thread set last_message_at = %s where id = %s", (now, thread_id))
+    db_conn.commit()
+
+    created_ids["identity_ids"] = [self_id, contact_id]
+    created_ids["thread_id"] = thread_id
+    created_ids["message_id"] = message_id
+    return contact_id
+
+
+class TestInboxRoutes:
+    @pytest.fixture(autouse=True)
+    def _routes_use_local_db(self, monkeypatch):
+        # same rationale as TestResolutionReviewQueue's fixture of the same
+        # name above: /inbox/*.json routes go through _db_cursor(), which
+        # connects to os.environ["DATABASE_URL"] — point that at the local
+        # docker-compose Postgres db_conn also targets, not the real
+        # hosted Supabase instance .env's DATABASE_URL points at.
+        monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
+
+    @pytest.fixture
+    def _created(self, db_conn):
+        # mirrors TestResolutionReviewQueue's _created_identity_ids fixture:
+        # _seed_inbox_conversation commits (see its own docstring), so
+        # db_conn's rollback-on-teardown can't clean these rows up — do it
+        # by hand here instead.
+        created_ids: dict = {}
+        yield created_ids
+        if created_ids:
+            cur = db_conn.cursor()
+            cur.execute("delete from message_participant where message_id = %s", (created_ids["message_id"],))
+            cur.execute("delete from message where id = %s", (created_ids["message_id"],))
+            cur.execute("delete from thread where id = %s", (created_ids["thread_id"],))
+            cur.execute("delete from identity where id = any(%s)", (created_ids["identity_ids"],))
+            db_conn.commit()
+
+    def test_conversations_json_lists_seeded_contact(self, db_conn, _created):
+        contact_id = _seed_inbox_conversation(db_conn, _created)
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.get("/inbox/conversations.json")
+
+        assert resp.status_code == 200
+        rows = resp.get_json()
+        assert any(r["person_key"] == contact_id for r in rows)
+
+    def test_conversation_detail_json_returns_threads(self, db_conn, _created):
+        contact_id = _seed_inbox_conversation(db_conn, _created)
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.get(f"/inbox/conversation/{contact_id}.json")
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["name"] == "Test Contact"
+        assert body["threads"][0]["messages"][0]["text"] == "hello"
+
+    def test_conversation_detail_json_404s_for_unknown_person(self):
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.get(f"/inbox/conversation/{_uuid.uuid4()}.json")
+        assert resp.status_code == 404
+
+    def test_mark_read_updates_thread(self, db_conn, _created):
+        contact_id = _seed_inbox_conversation(db_conn, _created)
+
+        flask_app = onboarding_app.create_app(testing=True)
+        client = flask_app.test_client()
+        resp = client.post(f"/inbox/conversation/{contact_id}/read")
+
+        assert resp.status_code == 200
+        cur = db_conn.cursor()
+        cur.execute(
+            """
+            select last_read_at from thread t
+            join message m on m.thread_id = t.id
+            join message_participant mp on mp.message_id = m.id
+            where mp.identity_id = %s
+            """,
+            (contact_id,),
+        )
+        assert cur.fetchone()[0] is not None
