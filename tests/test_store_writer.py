@@ -168,6 +168,29 @@ class TestUpsert:
         assert row is not None
         assert row[0] is False
 
+    def test_returns_the_sender_identity_id(self, db_conn: psycopg.Connection):
+        env = _make_envelope(from_handle="sender@example.com")
+        identity_id = upsert(db_conn, env, self_handle="me@example.com")
+
+        cur = db_conn.cursor()
+        cur.execute(
+            "select id from identity where channel = %s and handle = %s",
+            (env.channel.value, "sender@example.com"),
+        )
+        assert str(cur.fetchone()[0]) == identity_id
+
+    def test_returns_the_sender_identity_id_even_when_message_already_existed(self, db_conn: psycopg.Connection):
+        env = _make_envelope(from_handle="sender@example.com")
+        upsert(db_conn, env, self_handle="me@example.com")
+        identity_id = upsert(db_conn, env, self_handle="me@example.com")  # same external_id again
+
+        cur = db_conn.cursor()
+        cur.execute(
+            "select id from identity where channel = %s and handle = %s",
+            (env.channel.value, "sender@example.com"),
+        )
+        assert str(cur.fetchone()[0]) == identity_id
+
 
 @pytest.fixture(autouse=True, scope="module")
 def _require_local_db():

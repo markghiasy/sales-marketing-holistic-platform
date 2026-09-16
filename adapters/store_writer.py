@@ -11,7 +11,7 @@ import psycopg
 from .envelope import Envelope
 
 
-def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> None:
+def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -73,7 +73,7 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> None:
         if message_already_existed:
             # message_participant rows were already recorded on first
             # insert — only the identity upserts above needed re-running
-            return
+            return str(from_identity_id)
         message_id = row[0]
 
         # message_participant IS the graph's edge table (§10) — populate it
@@ -89,6 +89,8 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> None:
                 "values (%s, %s, 'to') on conflict do nothing",
                 (message_id, to_identity_id),
             )
+
+        return str(from_identity_id)
 
 
 def _get_or_create_identity(
