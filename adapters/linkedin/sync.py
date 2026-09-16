@@ -18,6 +18,7 @@ from pathlib import Path
 import psycopg
 from dotenv import load_dotenv
 
+from ..ai_brief import person_keys_for_identities, refresh_touched_best_effort
 from ..envelope import Direction
 from ..store_writer import upsert
 from .client import STORAGE_STATE_PATH
@@ -57,6 +58,12 @@ def _run_resolution_best_effort() -> None:
     run_best_effort()
 
 
+def _refresh_ai_briefs_best_effort(touched_identity_ids: set[str]) -> None:
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
+        person_keys = person_keys_for_identities(cur, touched_identity_ids)
+    refresh_touched_best_effort(person_keys)
+
+
 def run() -> None:
     load_dotenv()
 
@@ -72,6 +79,7 @@ def run() -> None:
         )
 
     count = 0
+    touched_identity_ids: set[str] = set()
     try:
         with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
             # commit as each message lands, not once at the end — a scrape
@@ -80,7 +88,8 @@ def run() -> None:
             # partway through should not throw away everything pulled so far
             try:
                 for env in fetch_envelopes(headless=True):
-                    upsert(conn, env, _self_handle(env))
+                    identity_id = upsert(conn, env, _self_handle(env))
+                    touched_identity_ids.add(identity_id)
                     conn.commit()
                     count += 1
             except SessionLimitExceeded as e:
@@ -97,6 +106,7 @@ def run() -> None:
                 print(f"synced {count} messages before hitting the limit")
                 _write_status("capped", f"daily session limit reached — synced {count} before stopping")
                 _run_resolution_best_effort()
+                _refresh_ai_briefs_best_effort(touched_identity_ids)
                 return
     except Exception as e:  # record the real failure, then let it surface
         _write_status("error", f"sync failed: {e}")
@@ -105,6 +115,7 @@ def run() -> None:
     _write_status("ok", f"synced {count} messages")
     print(f"synced {count} messages")
     _run_resolution_best_effort()
+    _refresh_ai_briefs_best_effort(touched_identity_ids)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ from pathlib import Path
 import psycopg
 from dotenv import load_dotenv
 
+from ..ai_brief import person_keys_for_identities, refresh_touched_best_effort
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
 
@@ -123,6 +124,7 @@ def run() -> None:
 
     count = 0
     skipped_groups = 0
+    touched_identity_ids: set[str] = set()
     with (
         psycopg.connect(os.environ["DATABASE_URL"]) as conn,
         claimed.open(encoding="utf-8") as f,
@@ -132,17 +134,14 @@ def run() -> None:
             if not line:
                 continue
             record = json.loads(line)
-            # LOCAL REHEARSAL PATCH 2026-09-15 (Mark's harness, uncommitted):
-            # retention rule 1 — one-to-one chats only. Group lines are
-            # counted and dropped here; the claimed queue file is unlinked
-            # below as before, so they do not persist past the drain.
             if record.get("is_group"):
                 skipped_groups += 1
                 continue
             env = _to_envelope(record, self_jid)
             if env is None:
                 continue
-            upsert(conn, env, self_jid)
+            identity_id = upsert(conn, env, self_jid)
+            touched_identity_ids.add(identity_id)
             conn.commit()
             count += 1
 
@@ -151,6 +150,10 @@ def run() -> None:
 
     from ..resolution.run import run_best_effort as _run_resolution
     _run_resolution()
+
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
+        person_keys = person_keys_for_identities(cur, touched_identity_ids)
+    refresh_touched_best_effort(person_keys)
 
 
 if __name__ == "__main__":

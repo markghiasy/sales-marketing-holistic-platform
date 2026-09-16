@@ -17,6 +17,7 @@ from pathlib import Path
 import psycopg
 from dotenv import load_dotenv
 
+from ..ai_brief import person_keys_for_identities, refresh_touched_best_effort
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
 from .client import fetch_messages
@@ -211,6 +212,7 @@ def run() -> None:
     _migrate_legacy_inbox_delta_link()
 
     count = 0
+    touched_identity_ids: set[str] = set()
     try:
         with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
             for folder in _FOLDERS:
@@ -236,7 +238,8 @@ def run() -> None:
                     env = _to_envelope(raw, self_handles={self_email})
                     if env is None:
                         continue
-                    upsert(conn, env, self_email)
+                    identity_id = upsert(conn, env, self_email)
+                    touched_identity_ids.add(identity_id)
                     count += 1
 
                 if next_delta_link:
@@ -251,6 +254,10 @@ def run() -> None:
 
     from ..resolution.run import run_best_effort as _run_resolution
     _run_resolution()
+
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
+        person_keys = person_keys_for_identities(cur, touched_identity_ids)
+    refresh_touched_best_effort(person_keys)
 
 
 if __name__ == "__main__":
