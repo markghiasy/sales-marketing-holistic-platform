@@ -66,3 +66,71 @@ def rule_linkedin_correlation(cur) -> int:
             )
             count += 1
     return count
+
+
+_SAME_NAME_SCORE = 0.6
+
+
+def rule_linkedin_dedupe(cur) -> int:
+    """LinkedIn contacts can end up as two separate identity rows for the
+    same real person: one from the CSV connections export (handle = their
+    profile URL), one from the live network scraper (handle = their
+    urn:li:fsd_profile:... id) — nothing links the two shapes together.
+    Found 2026-09-18 against real data: 18 real LinkedIn contacts (Tom
+    Nguyen, Chalara Chiarelli, ...) each showed up as two separate rows in
+    the triage inbox as a result. Same "never automatic, always queued"
+    policy as rule_linkedin_correlation above — an exact name match alone
+    isn't enough confidence to auto-merge (two different real people can
+    share a name), so this only ever proposes a link_candidate. Company
+    is only ever known for the profile-URL-shaped identity (via
+    linkedin_connection) — the urn-shaped one carries none — so it can't
+    be cross-checked on both sides; it's included in the reason text as a
+    hint for whoever reviews the candidate, not as a match condition.
+    """
+    cur.execute(
+        """
+        select id, handle, display_name from identity
+        where channel = 'linkedin' and is_self = false
+          and display_name is not null and person_id is null
+        """
+    )
+    identities = cur.fetchall()
+
+    by_name: dict[str, list[tuple[str, str, str]]] = {}
+    for identity_id, handle, display_name in identities:
+        by_name.setdefault(_normalise_name(display_name), []).append(
+            (str(identity_id), handle, display_name)
+        )
+
+    count = 0
+    for group in by_name.values():
+        if len(group) < 2:
+            continue
+        for i in range(len(group)):
+            for j in range(i + 1, len(group)):
+                (id_a, handle_a, name_a), (id_b, handle_b, name_b) = group[i], group[j]
+                if has_existing_candidate(cur, id_a, id_b):
+                    continue
+
+                cur.execute(
+                    "select company from linkedin_connection where id in (lower(%s), lower(%s))",
+                    (handle_a, handle_b),
+                )
+                company_row = cur.fetchone()
+                company = company_row[0] if company_row else None
+
+                reason = (
+                    f"LinkedIn '{name_a}' ({handle_a}) vs '{name_b}' ({handle_b}) — "
+                    "exact normalised name match, same channel, different handle shape "
+                    "(CSV export profile URL vs live-scraper urn)"
+                    + (f". Known company: {company}" if company else "")
+                )
+                cur.execute(
+                    """
+                    insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
+                    values (%s, %s, %s, 'linkedin_same_channel_dedupe', 'pending', %s)
+                    """,
+                    (id_a, id_b, _SAME_NAME_SCORE, reason),
+                )
+                count += 1
+    return count
