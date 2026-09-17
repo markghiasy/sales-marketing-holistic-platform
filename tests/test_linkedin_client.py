@@ -10,6 +10,7 @@ from __future__ import annotations
 from adapters.linkedin.client import (
     _extract_messages,
     _self_urn_from_conversation_urn,
+    _sender_name,
     _to_envelope,
 )
 
@@ -18,7 +19,10 @@ _SENDER_URN = "urn:li:fsd_profile:ACoAAG1CyvMBp8I9emeKkImcQK0x41MFBKOxsNo"
 _CONVERSATION_URN = f"urn:li:msg_conversation:({_SELF_URN},2-OTgwNzRmZGUtYjQ2Yy00NGYzLWFkZmEtNmU5YWNmZTg2NTg0XzEwMA==)"
 
 
-def _real_shaped_response(text: str = "Hello") -> dict:
+def _real_shaped_response(text: str = "Hello", sender_name: dict | None = None) -> dict:
+    sender = {"hostIdentityUrn": _SENDER_URN}
+    if sender_name is not None:
+        sender["participantType"] = sender_name
     return {
         "data": {
             "messengerMessagesBySyncToken": {
@@ -26,7 +30,7 @@ def _real_shaped_response(text: str = "Hello") -> dict:
                     {
                         "entityUrn": "urn:li:msg_message:(x,2-abc)",
                         "body": {"text": text},
-                        "sender": {"hostIdentityUrn": _SENDER_URN},
+                        "sender": sender,
                         "conversation": {"entityUrn": _CONVERSATION_URN},
                         "deliveredAt": 1787864586773,
                     }
@@ -45,6 +49,42 @@ class TestSelfUrnFromConversationUrn:
 
     def test_returns_none_for_empty_string(self):
         assert _self_urn_from_conversation_urn("") is None
+
+
+class TestSenderName:
+    # Real shape captured live 2026-09-17 (see runbook.md) — this is
+    # exactly why _extract_messages() never captured a display name
+    # before now: the name is nested two levels deep as {"text": "..."}
+    # AttributedText objects, not a plain string anywhere on `sender`.
+    def test_extracts_member_full_name(self):
+        sender = {
+            "hostIdentityUrn": _SENDER_URN,
+            "participantType": {
+                "member": {
+                    "firstName": {"text": "Amber"},
+                    "lastName": {"text": "Main"},
+                },
+                "organization": None,
+                "agent": None,
+            },
+        }
+        assert _sender_name(sender) == "Amber Main"
+
+    def test_extracts_organization_name_when_no_member(self):
+        sender = {
+            "hostIdentityUrn": "urn:li:fsd_company:1115",
+            "participantType": {
+                "member": None,
+                "organization": {"name": {"text": "SAP"}},
+                "agent": None,
+            },
+        }
+        assert _sender_name(sender) == "SAP"
+
+    def test_returns_none_when_no_name_data_at_all(self):
+        assert _sender_name({}) is None
+        assert _sender_name({"participantType": {}}) is None
+        assert _sender_name({"participantType": {"member": {}}}) is None
 
 
 class TestExtractMessages:
@@ -71,6 +111,17 @@ class TestExtractMessages:
         payload = _real_shaped_response()
         payload["data"]["messengerMessagesBySyncToken"]["elements"][0]["body"] = {}
         assert _extract_messages(payload) == []
+
+    def test_carries_sender_name_through(self):
+        payload = _real_shaped_response(sender_name={
+            "member": {"firstName": {"text": "Amber"}, "lastName": {"text": "Main"}},
+        })
+        messages = _extract_messages(payload)
+        assert messages[0]["sender_name"] == "Amber Main"
+
+    def test_sender_name_none_when_absent(self):
+        messages = _extract_messages(_real_shaped_response())
+        assert messages[0]["sender_name"] is None
 
 
 class TestToEnvelope:
@@ -106,6 +157,24 @@ class TestToEnvelope:
         assert env is not None
         assert env.direction.value == "outbound"
         assert env.to_handles == []
+
+    def test_inbound_carries_sender_name_as_display_name(self):
+        raw = self._raw(sender_urn=_SENDER_URN)
+        raw["sender_name"] = "Amber Main"
+        env = _to_envelope(raw)
+        assert env is not None
+        assert env.direction.value == "inbound"
+        assert env.from_display_name == "Amber Main"
+
+    def test_outbound_never_carries_sender_name_as_display_name(self):
+        # an outbound message's own sender_name (if ever present) would
+        # describe the self identity, not the contact — must not leak in
+        raw = self._raw(sender_urn=_SELF_URN)
+        raw["sender_name"] = "Eva Ng"
+        env = _to_envelope(raw)
+        assert env is not None
+        assert env.direction.value == "outbound"
+        assert env.from_display_name is None
 
     def test_outbound_uses_other_participant_urn_when_present(self):
         # Regression test for a real bug found 2026-09-17: an outbound

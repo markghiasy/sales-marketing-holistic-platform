@@ -72,6 +72,26 @@ def _self_urn_from_conversation_urn(conversation_urn: str) -> str | None:
     return m.group("self") if m else None
 
 
+def _sender_name(sender: dict) -> str | None:
+    """Real shape verified 2026-09-17 against a live capture (see
+    runbook.md): sender.participantType.member.firstName/lastName are
+    nested {"text": "..."} AttributedText objects, not plain strings —
+    this is why _extract_messages() never captured a name at all before
+    now (33 of 994 real LinkedIn contacts show "(unknown)" in the triage
+    inbox because of exactly this gap). A company/page sender carries the
+    name at participantType.organization.name.text instead."""
+    participant_type = sender.get("participantType") or {}
+    member = participant_type.get("member") or {}
+    first = (member.get("firstName") or {}).get("text", "")
+    last = (member.get("lastName") or {}).get("text", "")
+    full_name = f"{first} {last}".strip()
+    if full_name:
+        return full_name
+    organization = participant_type.get("organization") or {}
+    org_name = (organization.get("name") or {}).get("text")
+    return org_name or None
+
+
 def _extract_messages(payload: dict) -> list[dict]:
     """Pull message entities out of a messengerMessages response.
 
@@ -99,6 +119,7 @@ def _extract_messages(payload: dict) -> list[dict]:
             "conversation_urn": conversation_urn,
             "body_text": text,
             "sender_urn": sender_urn,
+            "sender_name": _sender_name(sender),
             "created_at_ms": msg.get("deliveredAt"),
         })
     return out
@@ -279,6 +300,10 @@ def _to_envelope(raw: dict) -> Envelope | None:
             [self_urn] if direction == Direction.inbound
             else ([raw["other_participant_urn"]] if raw.get("other_participant_urn") else [])
         ),
+        # only meaningful for the actual sender — an outbound message's
+        # `sender_name` (when present at all) would describe the self
+        # identity, not the contact, so it's not used in that branch
+        from_display_name=raw.get("sender_name") if direction == Direction.inbound else None,
         subject=None,  # LinkedIn only — Outlook has this, LinkedIn doesn't (§6)
         body_text=raw["body_text"],
         is_group=False,  # not distinguished yet — LinkedIn group messaging
