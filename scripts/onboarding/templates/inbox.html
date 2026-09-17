@@ -137,6 +137,13 @@
   }
   .channel-icon { flex-shrink: 0; display: flex; }
   .channel-icon svg { width: 15px; height: 15px; }
+  .row-hide-btn {
+    opacity: 0; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: transparent; color: var(--text-dim); cursor: pointer;
+    font-size: 14px; transition: opacity 0.1s ease;
+  }
+  .row:hover .row-hide-btn { opacity: 1; }
+  .row-hide-btn:hover { background: var(--panel-2); color: var(--text); }
 
   /* right filter + AI panel */
   .side-panel { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; overflow-x: hidden; }
@@ -330,6 +337,7 @@
         <label><input type="checkbox" id="f-unread"> Unread</label>
         <label><input type="checkbox" id="f-unanswered"> Unanswered</label>
         <label><input type="checkbox" id="f-draft"> Has draft ready</label>
+        <label><input type="checkbox" id="f-hidden"> Hidden</label>
         <h3 class="spaced">Sort by</h3>
         <label><input type="radio" name="sort" id="s-priority" checked> Priority</label>
         <label><input type="radio" name="sort" id="s-recent"> Most recent</label>
@@ -379,7 +387,7 @@ function initials(name) {
 let CONVERSATIONS = [];
 
 async function loadConversations() {
-  const resp = await fetch("/inbox/conversations.json");
+  const resp = await fetch(`/inbox/conversations.json${state.hidden ? "?hidden=1" : ""}`);
   CONVERSATIONS = await resp.json();
   render();
 }
@@ -394,7 +402,7 @@ function formatRelativeTime(iso) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-let state = { channel: "all", unread: false, unanswered: false, draft: false, sort: "priority" };
+let state = { channel: "all", unread: false, unanswered: false, draft: false, hidden: false, sort: "priority" };
 
 function render() {
   renderRail();
@@ -451,10 +459,22 @@ function renderList() {
         <div class="row-preview">${escapeHtml(c.summary)}</div>
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
+      <button class="row-hide-btn" data-hide-id="${c.person_key}" title="${state.hidden ? "Unhide" : "Hide"}">${state.hidden ? "&#8635;" : "&times;"}</button>
     </div>
   `).join("");
   list.querySelectorAll(".row").forEach(row => {
     row.addEventListener("click", () => openDetail(row.dataset.id));
+  });
+  list.querySelectorAll(".row-hide-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.hideId;
+      const endpoint = state.hidden ? "unhide" : "hide";
+      fetch(`/inbox/conversation/${id}/${endpoint}`, { method: "POST" }).then(() => {
+        CONVERSATIONS = CONVERSATIONS.filter(c => c.person_key !== id);
+        renderList();
+      });
+    });
   });
 }
 
@@ -656,6 +676,7 @@ function closeOverlay() {
 
 document.getElementById("searchbar").addEventListener("click", openAssistant);
 document.getElementById("f-draft").addEventListener("change", e => { state.draft = e.target.checked; render(); });
+document.getElementById("f-hidden").addEventListener("change", e => { state.hidden = e.target.checked; loadConversations(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
 
 loadConversations();
