@@ -134,6 +134,36 @@ class TestStripHtml:
         assert "<p>" not in result
         assert "reacted via Gmail" in result
 
+    def test_strips_style_block_content_not_just_tags(self):
+        # Real shape found 2026-09-17 (Transport Victoria, a real
+        # marketing email) — genuinely clean, uncorrupted markup. The
+        # bug: _TAG_RE alone only strips the <style>/</style> tags
+        # themselves, leaving the raw CSS rules between them as visible
+        # text.
+        body = {
+            "contentType": "html",
+            "content": (
+                "<html><head><style>\n<!--\n"
+                "#layout > tbody > tr > td\n\t{border:none!important}\n"
+                "-->\n</style></head>"
+                "<body><div>Tap and go with the flow</div></body></html>"
+            ),
+        }
+        result = _strip_html(body)
+        assert "Tap and go with the flow" in result
+        assert "border:none" not in result
+        assert "tbody" not in result
+
+    def test_strips_script_block_content_not_just_tags(self):
+        body = {
+            "contentType": "html",
+            "content": '<div>Hello</div><script>var x = "should not appear";</script><div>Bye</div>',
+        }
+        result = _strip_html(body)
+        assert "Hello" in result
+        assert "Bye" in result
+        assert "should not appear" not in result
+
     def test_isolated_equals_sign_survives(self):
         # A single, isolated "=XX"-shaped sequence is common and
         # legitimate (e.g. a query-string parameter visible as link text,

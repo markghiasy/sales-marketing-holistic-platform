@@ -52,6 +52,13 @@ _DELTA_LINK_PATHS = {
 # the whole inbox from scratch.
 _LEGACY_INBOX_DELTA_LINK_PATH = Path(__file__).parent / ".delta_link.txt"
 _TAG_RE = re.compile(r"<[^>]+>")
+# Real bug found 2026-09-17: _TAG_RE alone only strips the <style>/
+# <script> tags themselves, leaving everything between them (raw CSS
+# rules, raw JS) as plain visible text — confirmed against real
+# marketing emails (e.g. Transport Victoria, Holly from Startmate) with
+# genuinely clean, uncorrupted <style> blocks. Must remove the whole
+# block, tag and content together, before the generic tag strip runs.
+_STYLE_OR_SCRIPT_BLOCK_RE = re.compile(r"<(style|script)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
 
 # Where a quoted reply chain starts, checked against this mailbox's real
 # HTML bodies (2026-08-28) before picking these rather than assuming
@@ -167,6 +174,7 @@ def _strip_html(body: dict) -> str:
         match = _QUOTE_START_RE.search(content)
         if match:
             content = content[: match.start()]
+        content = _STYLE_OR_SCRIPT_BLOCK_RE.sub(" ", content)
         content = _TAG_RE.sub(" ", content)
         content = html.unescape(content)
         # Some senders' own tooling (e.g. Gmail's "<name> reacted via
