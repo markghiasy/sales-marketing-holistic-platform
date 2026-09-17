@@ -30,6 +30,12 @@ _DEFAULT_URGENCY = 2
 
 
 def list_conversations(cur) -> list[ConversationRow]:
+    # Eva's call 2026-09-17: contacts with no name AND (stale — no message
+    # in over a year — OR only ever a single message) clutter the list
+    # without adding much — mostly old WhatsApp chats where the platform's
+    # own history sync only ever gave us one message, or long-dead
+    # one-off senders. Hidden here, not deleted — the underlying rows are
+    # untouched, so nothing is lost, this is purely a list-view filter.
     cur.execute(
         """
         select
@@ -57,6 +63,10 @@ def list_conversations(cur) -> list[ConversationRow]:
             where i.is_self = false and m.direction = 'inbound'
             group by coalesce(i.person_id, i.id)
         ) unread on unread.contact_key = cs.contact_key
+        where not (
+            cs.display_name is null
+            and (clm.sent_at < now() - interval '1 year' or cs.total_count = 1)
+        )
         order by clm.sent_at desc
         """
     )

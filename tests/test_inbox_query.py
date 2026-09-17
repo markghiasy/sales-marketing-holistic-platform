@@ -169,6 +169,55 @@ class TestListConversations:
         row = next(r for r in rows if r.person_key == identity_id)
         assert row.unread is True
 
+    def test_hides_stale_unknown_contact(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "whatsapp", f"me-{uuid.uuid4().hex}", is_self=True)
+        contact_id = _make_identity(cur, "whatsapp", f"c-{uuid.uuid4().hex}")  # no display_name
+        old = datetime.now(UTC) - timedelta(days=400)
+        thread_id = _make_thread(cur, "whatsapp", last_read_at=old)
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], old)
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_hides_single_message_unknown_contact_even_if_recent(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "whatsapp", f"me-{uuid.uuid4().hex}", is_self=True)
+        contact_id = _make_identity(cur, "whatsapp", f"c-{uuid.uuid4().hex}")  # no display_name
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "whatsapp", last_read_at=now)
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], now)
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_keeps_stale_contact_with_a_known_name(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "whatsapp", f"me-{uuid.uuid4().hex}", is_self=True)
+        contact_id = _make_identity(cur, "whatsapp", f"c-{uuid.uuid4().hex}", display_name="Old Friend")
+        old = datetime.now(UTC) - timedelta(days=400)
+        thread_id = _make_thread(cur, "whatsapp", last_read_at=old)
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], old)
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
+    def test_keeps_unknown_contact_with_multiple_recent_messages(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "whatsapp", f"me-{uuid.uuid4().hex}", is_self=True)
+        contact_id = _make_identity(cur, "whatsapp", f"c-{uuid.uuid4().hex}")  # no display_name
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "whatsapp", last_read_at=now)
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], now - timedelta(hours=1), body_text="hi")
+        _make_message(cur, thread_id, "whatsapp", "inbound", contact_id, [contact_id, self_id], now, body_text="you there?")
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
 
 class TestGetDetail:
     def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):
