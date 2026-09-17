@@ -6,7 +6,10 @@ See docs/superpowers/specs/2026-09-18-manual-hide-and-contact-editor-design.md.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+
+from .resolution.merge import apply_merge
 
 
 @dataclass
@@ -24,6 +27,19 @@ class ContactInfo:
 
 
 def get_contact_info(cur, person_key: str) -> ContactInfo | None:
+    # person_key may be a bare identity's own id (still unresolved, i.e.
+    # what get_contact_info always accepted) OR that same identity's id
+    # after it has since been resolved into a person elsewhere (link_contact
+    # / add_contact_handle create a *new* person row with its own random
+    # id — see apply_merge — so the identity's original id no longer
+    # equals coalesce(person_id, id) once resolved). Resolve through
+    # identity.id first so a caller holding an identity's own id from
+    # before resolution still finds the contact; falls back to treating
+    # person_key as a person id directly, as before.
+    cur.execute("select coalesce(person_id, id) from identity where id = %s", (person_key,))
+    row = cur.fetchone()
+    effective_key = str(row[0]) if row is not None else person_key
+
     cur.execute(
         """
         select id, channel, handle, display_name
@@ -31,7 +47,7 @@ def get_contact_info(cur, person_key: str) -> ContactInfo | None:
         where coalesce(person_id, id) = %s
         order by channel, handle
         """,
-        (person_key,),
+        (effective_key,),
     )
     rows = cur.fetchall()
     if not rows:
@@ -76,3 +92,61 @@ def update_contact_name(cur, person_key: str, name: str) -> None:
         "update identity set display_name = %s where coalesce(person_id, id) = %s",
         (name, person_key),
     )
+
+
+def link_contact(cur, person_key: str, other_identity_id: str) -> str:
+    cur.execute(
+        "select id from identity where coalesce(person_id, id) = %s limit 1",
+        (person_key,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise ValueError(f"no identity found for person_key {person_key}")
+    representative_id = str(row[0])
+    return apply_merge(cur, representative_id, other_identity_id)
+
+
+_WHATSAPP_SUFFIX = "@s.whatsapp.net"
+
+
+def _guess_channel_and_handle(raw_input: str) -> tuple[str, str]:
+    text = raw_input.strip()
+    if "@" in text:
+        return "outlook", text.lower()
+    digits_only = re.sub(r"[^\d]", "", text)
+    if digits_only and digits_only == text.lstrip("+"):
+        return "whatsapp", f"{digits_only}{_WHATSAPP_SUFFIX}"
+    return "outlook", text.lower()
+
+
+def add_contact_handle(cur, person_key: str, raw_handle: str) -> str:
+    channel, handle = _guess_channel_and_handle(raw_handle)
+
+    cur.execute("select id from identity where channel = %s and handle = %s", (channel, handle))
+    if cur.fetchone() is not None:
+        raise ValueError(f"identity already exists for {channel}:{handle}")
+
+    cur.execute(
+        "select person_id, id from identity where coalesce(person_id, id) = %s limit 1",
+        (person_key,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise ValueError(f"no identity found for person_key {person_key}")
+    person_id, representative_id = row
+
+    if person_id is None:
+        cur.execute("select display_name from identity where id = %s", (representative_id,))
+        (existing_name,) = cur.fetchone()
+        cur.execute(
+            "insert into person (primary_name) values (%s) returning id",
+            (existing_name or "",),
+        )
+        person_id = cur.fetchone()[0]
+        cur.execute("update identity set person_id = %s where id = %s", (person_id, representative_id))
+
+    cur.execute(
+        "insert into identity (channel, handle, person_id) values (%s, %s, %s) returning id",
+        (channel, handle, person_id),
+    )
+    return str(cur.fetchone()[0])

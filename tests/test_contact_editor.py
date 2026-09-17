@@ -4,7 +4,13 @@ import uuid
 
 import psycopg
 
-from adapters.contact_editor import get_contact_info, search_identities, update_contact_name
+from adapters.contact_editor import (
+    add_contact_handle,
+    get_contact_info,
+    link_contact,
+    search_identities,
+    update_contact_name,
+)
 
 
 def _make_identity(cur, channel: str, handle: str, display_name: str | None = None, is_self: bool = False) -> str:
@@ -105,3 +111,74 @@ class TestUpdateContactName:
 
         cur.execute("select distinct display_name from identity where person_id = %s", (person_id,))
         assert [r[0] for r in cur.fetchall()] == ["New Name"]
+
+
+class TestLinkContact:
+    def test_links_an_unresolved_identity_into_the_contact(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Jordan Lee")
+        other_id = _make_identity(cur, "whatsapp", f"{uuid.uuid4().int % 10**10}@s.whatsapp.net")
+
+        link_contact(cur, contact_id, other_id)
+
+        info = get_contact_info(cur, contact_id)
+        assert info is not None
+        assert len(info.handles) == 2
+        cur.execute("select person_id from identity where id = %s", (other_id,))
+        assert cur.fetchone()[0] is not None
+
+    def test_raises_for_unknown_person_key(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        other_id = _make_identity(cur, "outlook", f"b-{uuid.uuid4().hex[:8]}@example.com")
+        try:
+            link_contact(cur, str(uuid.uuid4()), other_id)
+            raise AssertionError("expected ValueError")
+        except ValueError:
+            pass
+
+
+class TestAddContactHandle:
+    def test_adds_a_new_bare_identity_under_the_contact(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Sam Kim")
+        new_email = f"personal-{uuid.uuid4().hex[:8]}@gmail.com"
+
+        add_contact_handle(cur, contact_id, new_email)
+
+        info = get_contact_info(cur, contact_id)
+        assert info is not None
+        assert any(h.handle == new_email.lower() and h.channel == "outlook" for h in info.handles)
+
+    def test_guesses_whatsapp_channel_for_a_bare_phone_number(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Sam Kim")
+        phone = str(61400000000 + (uuid.uuid4().int % 900000))
+
+        add_contact_handle(cur, contact_id, phone)
+
+        info = get_contact_info(cur, contact_id)
+        assert info is not None
+        assert any(h.channel == "whatsapp" and h.handle == f"{phone}@s.whatsapp.net" for h in info.handles)
+
+    def test_raises_when_handle_already_exists(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Sam Kim")
+        existing_email = f"taken-{uuid.uuid4().hex[:8]}@example.com"
+        _make_identity(cur, "outlook", existing_email)
+
+        try:
+            add_contact_handle(cur, contact_id, existing_email)
+            raise AssertionError("expected ValueError")
+        except ValueError:
+            pass
+
+    def test_creates_a_person_row_when_contact_has_none_yet(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Sam Kim")
+        cur.execute("select person_id from identity where id = %s", (contact_id,))
+        assert cur.fetchone()[0] is None  # not yet resolved, confirms this test's premise
+
+        add_contact_handle(cur, contact_id, f"new-{uuid.uuid4().hex[:8]}@example.com")
+
+        cur.execute("select person_id from identity where id = %s", (contact_id,))
+        assert cur.fetchone()[0] is not None
