@@ -368,8 +368,9 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/inbox/conversations.json")
     def inbox_conversations_json():
+        show_hidden = request.args.get("hidden") == "1"
         with _db_cursor() as cur:
-            rows = inbox_query.list_conversations(cur)
+            rows = inbox_query.list_conversations(cur, show_hidden=show_hidden)
         return jsonify([
             {
                 "person_key": r.person_key, "name": r.name, "channel": r.channel,
@@ -408,6 +409,18 @@ def create_app(testing: bool = False) -> Flask:
     def inbox_conversation_mark_read(person_key):
         with _db_cursor() as cur:
             inbox_query.mark_read(cur, person_key)
+        return jsonify({"status": "ok"})
+
+    @flask_app.post("/inbox/conversation/<person_key>/hide")
+    def inbox_conversation_hide(person_key):
+        with _db_cursor() as cur:
+            inbox_query.hide_contact(cur, person_key)
+        return jsonify({"status": "ok"})
+
+    @flask_app.post("/inbox/conversation/<person_key>/unhide")
+    def inbox_conversation_unhide(person_key):
+        with _db_cursor() as cur:
+            inbox_query.unhide_contact(cur, person_key)
         return jsonify({"status": "ok"})
 
     @flask_app.get("/resolution/candidates.json")
