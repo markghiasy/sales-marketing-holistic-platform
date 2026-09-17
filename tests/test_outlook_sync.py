@@ -118,6 +118,22 @@ class TestStripHtml:
         assert "=80" not in result
         assert "=BF" not in result
 
+    def test_strips_html_escaped_tag_exposed_after_unescaping(self):
+        # Real shape found 2026-09-17: a Gmail "<name> reacted via Gmail"
+        # auto-notification (an emoji reaction on a Slack/email thread)
+        # sends a real tag HTML-escaped in the source — literal
+        # "&lt;p&gt;" — which doesn't look like a tag to the first
+        # _TAG_RE pass (no literal "<" yet), then becomes a real "<p>"
+        # only after html.unescape(), too late for that same pass to
+        # catch it. Must not leak into the visible text.
+        body = {
+            "contentType": "html",
+            "content": "<div>\U0001F44D&lt;p&gt; Liu Guilan reacted via Gmail</div>",
+        }
+        result = _strip_html(body)
+        assert "<p>" not in result
+        assert "reacted via Gmail" in result
+
     def test_isolated_equals_sign_survives(self):
         # A single, isolated "=XX"-shaped sequence is common and
         # legitimate (e.g. a query-string parameter visible as link text,

@@ -169,6 +169,17 @@ def _strip_html(body: dict) -> str:
             content = content[: match.start()]
         content = _TAG_RE.sub(" ", content)
         content = html.unescape(content)
+        # Some senders' own tooling (e.g. Gmail's "<name> reacted via
+        # Gmail" auto-notifications on a Slack/email thread) sends a real
+        # tag *HTML-escaped* — literal "&lt;p&gt;" in the source, not a
+        # real "<p>" — so the first pass above never sees it as a tag
+        # (no literal "<" yet), and unescaping only turns it into a real
+        # "<p>" afterward, too late to be stripped. A second pass here
+        # catches exactly that. Safe against the "<3" case (see
+        # test_html_entities_unescaped): a lone "<3" with no matching
+        # ">" anywhere after it never forms a complete tag, so this
+        # second pass leaves it untouched.
+        content = _TAG_RE.sub(" ", content)
     else:
         match = _QUOTE_START_TEXT_RE.search(content)
         if match:
