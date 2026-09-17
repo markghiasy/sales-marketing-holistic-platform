@@ -191,6 +191,13 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         )
         if subject and group["subject"] is None:
             group["subject"] = subject
+        if not body_text or not body_text.strip():
+            # Real case found 2026-09-17: a bare forward with no comment
+            # added above it has nothing left once the quote/forward chain
+            # is correctly cut -- not a stripping bug, the new content
+            # really is empty. Renders as an empty bubble with nothing to
+            # read, so it's dropped here rather than shown blank.
+            continue
         to_cc = to_cc_by_message.get(message_id, {"to": [], "cc": []})
         sender = "you" if direction == "outbound" else "them"
         is_third_party = sender == "them" and str(from_identity_id) not in identity_id_set
@@ -204,7 +211,11 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         ))
 
     ordered_groups = sorted(groups_by_thread.values(), key=lambda g: g["first_sent_at"])
-    threads = [ThreadGroup(channel=g["channel"], subject=g["subject"], messages=g["messages"]) for g in ordered_groups]
+    threads = [
+        ThreadGroup(channel=g["channel"], subject=g["subject"], messages=g["messages"])
+        for g in ordered_groups
+        if g["messages"]  # every message in this thread was empty (see above) -- drop the whole group
+    ]
 
     cur.execute("select max(display_name) from identity where id = any(%s)", (identity_ids,))
     name = cur.fetchone()[0] or "(unknown)"

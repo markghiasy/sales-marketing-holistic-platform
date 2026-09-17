@@ -295,6 +295,40 @@ class TestGetDetail:
         assert msg.sender == "them"
         assert msg.from_name == "Barney Howells"
 
+    def test_drops_empty_body_messages(self, db_conn: psycopg.Connection):
+        # Real case found 2026-09-17: a bare forward with no comment added
+        # above it has nothing left after the (correct) quote/forward cut
+        # -- rendered as an empty bubble with nothing to read.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Sam")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now - timedelta(minutes=1), body_text="real content")
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="")
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail is not None
+        assert len(detail.threads[0].messages) == 1
+        assert detail.threads[0].messages[0].text == "real content"
+
+    def test_drops_whole_thread_when_every_message_in_it_is_empty(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Sam")
+        now = datetime.now(UTC)
+        empty_thread = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, empty_thread, "outlook", "inbound", contact_id, [contact_id, self_id], now - timedelta(minutes=1), body_text="   ")
+        real_thread = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, real_thread, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="hello")
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail is not None
+        assert len(detail.threads) == 1
+        assert detail.threads[0].messages[0].text == "hello"
+
     def test_message_carries_to_and_cc_labels(self, db_conn: psycopg.Connection):
         # Real shape: an outbound email Eva sent to Martin, cc'ing Luisa
         # and a contact with no display_name (should fall back to handle).
