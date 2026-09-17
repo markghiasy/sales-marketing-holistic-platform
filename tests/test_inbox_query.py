@@ -218,6 +218,35 @@ class TestListConversations:
 
         assert any(r.person_key == contact_id for r in rows)
 
+    def test_hides_contact_whose_most_recent_message_is_automated(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Newsletter Bot")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        message_id = _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+        cur.execute("update message set is_automated = true where id = %s", (message_id,))
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_keeps_contact_when_automated_message_is_not_the_most_recent(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Real Person")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        old_automated_id = _make_message(
+            cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now - timedelta(hours=1)
+        )
+        cur.execute("update message set is_automated = true where id = %s", (old_automated_id,))
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="real reply")
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
 
 class TestGetDetail:
     def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):

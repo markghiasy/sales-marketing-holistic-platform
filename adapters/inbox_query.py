@@ -45,6 +45,7 @@ def list_conversations(cur) -> list[ConversationRow]:
             clm.sent_at,
             clm.direction,
             clm.snippet,
+            clm.is_automated,
             ab.summary,
             ab.topic,
             ab.urgency,
@@ -67,13 +68,14 @@ def list_conversations(cur) -> list[ConversationRow]:
             cs.display_name is null
             and (clm.sent_at < now() - interval '1 year' or cs.total_count = 1)
         )
+        and not coalesce(clm.is_automated, false)
         order by clm.sent_at desc
         """
     )
     rows = []
     for r in cur.fetchall():
         (contact_key, display_name, channel, sent_at, direction, snippet,
-         ai_summary, ai_topic, ai_urgency, is_unread) = r
+         _is_automated, ai_summary, ai_topic, ai_urgency, is_unread) = r
         rows.append(ConversationRow(
             person_key=str(contact_key),
             name=display_name or "(unknown)",
