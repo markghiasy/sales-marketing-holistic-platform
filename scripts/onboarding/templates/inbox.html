@@ -295,6 +295,10 @@
     font-size: 10.5px; color: var(--text-dim); margin-bottom: 4px;
     padding-bottom: 4px; border-bottom: 1px solid rgba(0,0,0,0.06);
   }
+  /* Only rendered when the actual sender isn't this conversation's own
+     contact — e.g. a cc'd third party replying in a group email thread —
+     so a "them" bubble is never mistaken for the contact's own words. */
+  .thread-from { font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 2px; }
 
   /* One person's messages can span several channels, and within a
      channel (especially email) people often start a new thread rather
@@ -562,6 +566,7 @@ async function openDetail(personKey) {
               <div class="thread">
                 ${g.messages.map(m => `
                   <div class="thread-msg ${m.sender}">
+                    ${m.from_name ? `<div class="thread-from">${escapeHtml(m.from_name)}</div>` : ""}
                     ${(m.to.length || m.cc.length) ? `
                       <div class="thread-recipients">
                         ${m.to.length ? `To: ${m.to.map(escapeHtml).join(", ")}` : ""}

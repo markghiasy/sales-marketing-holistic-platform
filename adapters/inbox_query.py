@@ -103,6 +103,15 @@ class ThreadMessage:
     to: list[str]  # display name (falling back to handle) per To recipient —
                     # Outlook only, always [] for WhatsApp/LinkedIn
     cc: list[str]  # same, for Cc
+    from_name: str | None  # set only when sender="them" AND the actual
+                            # sender isn't this conversation's own contact —
+                            # e.g. a cc'd third party replying in a group
+                            # email thread. Real bug found 2026-09-17: every
+                            # inbound message rendered as a generic "them"
+                            # bubble with no indication of who actually sent
+                            # it, so a reply from someone other than the
+                            # contact you're viewing looked identical to one
+                            # from the contact themselves.
 
 
 @dataclass
@@ -140,9 +149,11 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
 
     cur.execute(
         """
-        select m.id, t.id, t.channel, m.subject, m.direction, m.body_text, m.sent_at
+        select m.id, t.id, t.channel, m.subject, m.direction, m.body_text, m.sent_at,
+               m.from_identity_id, coalesce(fi.display_name, fi.handle)
         from message m
         join thread t on t.id = m.thread_id
+        left join identity fi on fi.id = m.from_identity_id
         where m.id in (
             select mp.message_id from message_participant mp
             where mp.identity_id = any(%s)
@@ -170,8 +181,9 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         entry = to_cc_by_message.setdefault(str(message_id), {"to": [], "cc": []})
         entry[role].append(label)
 
+    identity_id_set = set(identity_ids)
     groups_by_thread: dict[str, dict] = {}
-    for message_id, thread_id, channel, subject, direction, body_text, sent_at in rows:
+    for message_id, thread_id, channel, subject, direction, body_text, sent_at, from_identity_id, from_label in rows:
         message_id = str(message_id)
         thread_id = str(thread_id)
         group = groups_by_thread.setdefault(
@@ -180,12 +192,15 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         if subject and group["subject"] is None:
             group["subject"] = subject
         to_cc = to_cc_by_message.get(message_id, {"to": [], "cc": []})
+        sender = "you" if direction == "outbound" else "them"
+        is_third_party = sender == "them" and str(from_identity_id) not in identity_id_set
         group["messages"].append(ThreadMessage(
-            sender="you" if direction == "outbound" else "them",
+            sender=sender,
             text=body_text,
             sent_at=sent_at.isoformat(),
             to=to_cc["to"],
             cc=to_cc["cc"],
+            from_name=from_label if is_third_party else None,
         ))
 
     ordered_groups = sorted(groups_by_thread.values(), key=lambda g: g["first_sent_at"])

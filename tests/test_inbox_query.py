@@ -270,6 +270,30 @@ class TestGetDetail:
         assert [g.subject for g in detail.threads] == ["Q4 rollout", "Services agreement"]
         assert detail.threads[0].messages[0].text == "kicking things off"
         assert detail.threads[0].messages[0].sender == "them"
+        assert detail.threads[0].messages[0].from_name is None
+
+    def test_third_party_message_carries_from_name(self, db_conn: psycopg.Connection):
+        # Real bug found 2026-09-17: viewing Dr Sam Donegan's conversation,
+        # a message actually sent by a cc'd third party (Barney) rendered
+        # as an indistinguishable generic "them" bubble -- looked exactly
+        # like a message from Sam, with nothing showing who really sent it.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"sam-{uuid.uuid4().hex}@example.com", display_name="Dr Sam Donegan")
+        third_party_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex}@example.com", display_name="Barney Howells")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(
+            cur, thread_id, "outlook", "inbound", third_party_id,
+            [third_party_id, contact_id, self_id], now, body_text="Hope you're feeling better",
+        )
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail is not None
+        msg = detail.threads[0].messages[0]
+        assert msg.sender == "them"
+        assert msg.from_name == "Barney Howells"
 
     def test_message_carries_to_and_cc_labels(self, db_conn: psycopg.Connection):
         # Real shape: an outbound email Eva sent to Martin, cc'ing Luisa

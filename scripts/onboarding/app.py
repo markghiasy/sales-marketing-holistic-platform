@@ -392,7 +392,10 @@ def create_app(testing: bool = False) -> Flask:
                 {
                     "channel": t.channel, "subject": t.subject,
                     "messages": [
-                        {"sender": m.sender, "text": m.text, "sent_at": m.sent_at, "to": m.to, "cc": m.cc}
+                        {
+                            "sender": m.sender, "text": m.text, "sent_at": m.sent_at,
+                            "to": m.to, "cc": m.cc, "from_name": m.from_name,
+                        }
                         for m in t.messages
                     ],
                 }
