@@ -415,6 +415,22 @@ class TestToEnvelope:
         assert env is not None
         assert env.is_automated is False
 
+    def test_is_automated_true_for_underscore_no_reply_variant(self):
+        # Real gap found 2026-09-18: "no_reply" (underscore) wasn't in the
+        # exact-match set at all -- 9 real senders used it.
+        raw = dict(self._BASE_RAW, **{"from": {"emailAddress": {"address": "no_reply@kfc.com.sg", "name": "KFC"}}})
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
+    def test_is_automated_true_for_noreply_prefix_with_suffix(self):
+        # Real case: "noreply-772@mail.pageuppeople.com" -- a tracking id
+        # tacked onto the base word, missed by exact-match alone.
+        raw = dict(self._BASE_RAW, **{"from": {"emailAddress": {"address": "noreply-772@mail.pageuppeople.com", "name": "PageUp"}}})
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.is_automated is True
+
 
 class TestIsAutomated:
     """Direct tests for the standalone is_automated(raw, from_handle)

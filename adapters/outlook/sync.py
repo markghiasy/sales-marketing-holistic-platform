@@ -106,10 +106,24 @@ _QUOTE_START_TEXT_RE = re.compile(r"^On .{5,80} wrote:\s*$", re.MULTILINE)
 # (identity resolution's safety checks) — this list means "this sender
 # is a machine," not "this address might be shared by several humans."
 _AUTOMATED_SENDER_PATTERNS = frozenset({
-    "noreply", "no-reply", "donotreply", "do-not-reply",
     "notifications", "notification", "alerts", "alert",
     "mailer-daemon", "postmaster",
 })
+
+# Same family as above, but matched as a PREFIX rather than an exact
+# local-part match — found 2026-09-18 against real data: senders like
+# "noreply-772@mail.pageuppeople.com", "no_reply_member@lezhin.com", and
+# "donotreply_wtcsg@aswatson.net" all tack an extra suffix onto the base
+# word (a tracking id, a department code, ...), and "no_reply" itself
+# (underscore, not hyphen) wasn't covered by the exact-match set at all —
+# 9 real senders used it. Kept as a separate, narrower prefix check
+# rather than making every pattern above prefix-matched, since a broader
+# word like "alert" is far more likely to also be the start of a real
+# person's own local part.
+_AUTOMATED_SENDER_PREFIXES = (
+    "noreply", "no-reply", "no_reply",
+    "donotreply", "do-not-reply", "do_not_reply",
+)
 
 # §9 tier 1: known automated/ESP sending domains. Checked against 4,769
 # real ingested Outlook messages: matched 0 of them. ESPs (SendGrid,
@@ -129,7 +143,10 @@ _AUTOMATED_SENDER_DOMAINS = frozenset({
 
 def _sender_looks_automated(from_handle: str) -> bool:
     local_part, _, domain = from_handle.partition("@")
-    if local_part.lower() in _AUTOMATED_SENDER_PATTERNS:
+    local_part = local_part.lower()
+    if local_part in _AUTOMATED_SENDER_PATTERNS:
+        return True
+    if local_part.startswith(_AUTOMATED_SENDER_PREFIXES):
         return True
     return domain.lower() in _AUTOMATED_SENDER_DOMAINS
 
