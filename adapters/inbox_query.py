@@ -88,6 +88,9 @@ class ThreadMessage:
     sender: str  # "you" | "them"
     text: str
     sent_at: str
+    to: list[str]  # display name (falling back to handle) per To recipient —
+                    # Outlook only, always [] for WhatsApp/LinkedIn
+    cc: list[str]  # same, for Cc
 
 
 @dataclass
@@ -125,7 +128,7 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
 
     cur.execute(
         """
-        select t.id, t.channel, m.subject, m.direction, m.body_text, m.sent_at
+        select m.id, t.id, t.channel, m.subject, m.direction, m.body_text, m.sent_at
         from message m
         join thread t on t.id = m.thread_id
         where m.id in (
@@ -140,18 +143,37 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
     if not rows:
         return None
 
+    message_ids = [str(r[0]) for r in rows]
+    cur.execute(
+        """
+        select mp.message_id, mp.role, coalesce(i.display_name, i.handle)
+        from message_participant mp
+        join identity i on i.id = mp.identity_id
+        where mp.message_id = any(%s) and mp.role in ('to', 'cc')
+        """,
+        (message_ids,),
+    )
+    to_cc_by_message: dict[str, dict[str, list[str]]] = {}
+    for message_id, role, label in cur.fetchall():
+        entry = to_cc_by_message.setdefault(str(message_id), {"to": [], "cc": []})
+        entry[role].append(label)
+
     groups_by_thread: dict[str, dict] = {}
-    for thread_id, channel, subject, direction, body_text, sent_at in rows:
+    for message_id, thread_id, channel, subject, direction, body_text, sent_at in rows:
+        message_id = str(message_id)
         thread_id = str(thread_id)
         group = groups_by_thread.setdefault(
             thread_id, {"channel": channel, "subject": None, "messages": [], "first_sent_at": sent_at}
         )
         if subject and group["subject"] is None:
             group["subject"] = subject
+        to_cc = to_cc_by_message.get(message_id, {"to": [], "cc": []})
         group["messages"].append(ThreadMessage(
             sender="you" if direction == "outbound" else "them",
             text=body_text,
             sent_at=sent_at.isoformat(),
+            to=to_cc["to"],
+            cc=to_cc["cc"],
         ))
 
     ordered_groups = sorted(groups_by_thread.values(), key=lambda g: g["first_sent_at"])
@@ -170,12 +192,12 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
     else:
         context, topic, graph, urgency = _PLACEHOLDER_CONTEXT, _DEFAULT_TOPIC, _PLACEHOLDER_GRAPH, _DEFAULT_URGENCY
 
-    last_message = max(rows, key=lambda r: r[5])
+    last_message = max(rows, key=lambda r: r[6])
     return ConversationDetail(
         person_key=person_key,
         name=name,
-        channel=last_message[1],
-        last_message_at=last_message[5].isoformat(),
+        channel=last_message[2],
+        last_message_at=last_message[6].isoformat(),
         threads=threads,
         context=context,
         graph=graph,

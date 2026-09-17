@@ -193,6 +193,29 @@ class TestGetDetail:
         assert detail.threads[0].messages[0].text == "kicking things off"
         assert detail.threads[0].messages[0].sender == "them"
 
+    def test_message_carries_to_and_cc_labels(self, db_conn: psycopg.Connection):
+        # Real shape: an outbound email Eva sent to Martin, cc'ing Luisa
+        # and a contact with no display_name (should fall back to handle).
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        martin_id = _make_identity(cur, "outlook", f"martin-{uuid.uuid4().hex}@example.com", display_name="Martin")
+        luisa_id = _make_identity(cur, "outlook", f"luisa-{uuid.uuid4().hex}@example.com", display_name="Luisa")
+        no_name_handle = f"noname-{uuid.uuid4().hex}@example.com"
+        no_name_id = _make_identity(cur, "outlook", no_name_handle)
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        message_id = _make_message(cur, thread_id, "outlook", "outbound", self_id, [self_id, martin_id], now, body_text="hi")
+        cur.execute(
+            "insert into message_participant (message_id, identity_id, role) values (%s, %s, 'cc'), (%s, %s, 'cc')",
+            (message_id, luisa_id, message_id, no_name_id),
+        )
+
+        detail = get_detail(cur, martin_id)
+
+        msg = detail.threads[0].messages[0]
+        assert msg.to == ["Martin"]
+        assert set(msg.cc) == {"Luisa", no_name_handle}
+
     def test_no_subject_for_channels_without_one(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "whatsapp", "15555550001", is_self=True)

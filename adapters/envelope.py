@@ -56,6 +56,18 @@ class Envelope:
                                            # normalisation, added after
                                            # this exact bug was found in
                                            # the Outlook adapter)
+    cc_handles: list[str] = field(default_factory=list)  # Outlook only —
+                                           # leave empty elsewhere, don't
+                                           # synthesise. Stored as its own
+                                           # message_participant role
+                                           # ('cc', already anticipated in
+                                           # 0001_init.sql's own comment),
+                                           # never merged into to_handles
+                                           # — the UI needs to tell To
+                                           # from Cc apart per message.
+    cc_display_names: list[str | None] = field(default_factory=list)  # parallel
+                                           # to cc_handles, same rules as
+                                           # to_display_names above
     subject: str | None = None  # Outlook only. Leave None elsewhere — don't
                                  # synthesise one
     body_text: str = ""         # plain text, quoted-reply chains stripped

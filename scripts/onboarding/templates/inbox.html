@@ -291,6 +291,10 @@
   .thread-msg.you { align-self: flex-end; background: #eaf1ff; border: 1px solid #cfe0fb; border-bottom-right-radius: 4px; }
   .thread-time { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
   .thread-msg.you .thread-time { text-align: right; }
+  .thread-recipients {
+    font-size: 10.5px; color: var(--text-dim); margin-bottom: 4px;
+    padding-bottom: 4px; border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
 
   /* One person's messages can span several channels, and within a
      channel (especially email) people often start a new thread rather
@@ -558,6 +562,12 @@ async function openDetail(personKey) {
               <div class="thread">
                 ${g.messages.map(m => `
                   <div class="thread-msg ${m.sender}">
+                    ${(m.to.length || m.cc.length) ? `
+                      <div class="thread-recipients">
+                        ${m.to.length ? `To: ${m.to.map(escapeHtml).join(", ")}` : ""}
+                        ${m.cc.length ? `${m.to.length ? " &middot; " : ""}Cc: ${m.cc.map(escapeHtml).join(", ")}` : ""}
+                      </div>
+                    ` : ""}
                     <div>${escapeHtml(m.text)}</div>
                     <div class="thread-time">${formatRelativeTime(m.sent_at)}</div>
                   </div>

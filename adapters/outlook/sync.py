@@ -219,6 +219,8 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
     from_handle = (from_addr.get("address") or "").lower()
     to_addrs = [r.get("emailAddress", {}) for r in raw.get("toRecipients", [])]
     to_handles = [(a.get("address") or "").lower() for a in to_addrs]
+    cc_addrs = [r.get("emailAddress", {}) for r in raw.get("ccRecipients", [])]
+    cc_handles = [(a.get("address") or "").lower() for a in cc_addrs]
 
     direction = Direction.outbound if from_handle in self_handles else Direction.inbound
 
@@ -232,6 +234,8 @@ def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
         to_handles=to_handles,
         from_display_name=from_addr.get("name") or None,
         to_display_names=[a.get("name") or None for a in to_addrs],
+        cc_handles=cc_handles,
+        cc_display_names=[a.get("name") or None for a in cc_addrs],
         subject=raw.get("subject"),
         body_text=_strip_html(raw.get("body", {})),
         is_group=len(to_handles) > 1,

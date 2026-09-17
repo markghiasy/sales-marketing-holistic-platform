@@ -79,6 +79,25 @@ class TestUpsert:
         assert ("to", "a@example.com") in rows
         assert ("to", "b@example.com") in rows
 
+    def test_creates_cc_participant_edges(self, db_conn: psycopg.Connection):
+        env = _make_envelope(cc_handles=["cc1@example.com", "cc2@example.com"])
+        upsert(db_conn, env, self_handle="me@example.com")
+
+        cur = db_conn.cursor()
+        cur.execute(
+            """
+            select role, i.handle from message_participant mp
+            join message m on m.id = mp.message_id
+            join identity i on i.id = mp.identity_id
+            where m.channel = %s and m.external_id = %s
+            order by role, i.handle
+            """,
+            (env.channel.value, env.external_id),
+        )
+        rows = cur.fetchall()
+        assert ("cc", "cc1@example.com") in rows
+        assert ("cc", "cc2@example.com") in rows
+
     def test_marks_self_handle_identity(self, db_conn: psycopg.Connection):
         env = _make_envelope(
             direction=Direction.outbound,

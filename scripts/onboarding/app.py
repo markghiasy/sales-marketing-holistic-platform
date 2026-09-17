@@ -391,7 +391,10 @@ def create_app(testing: bool = False) -> Flask:
             "threads": [
                 {
                     "channel": t.channel, "subject": t.subject,
-                    "messages": [{"sender": m.sender, "text": m.text, "sent_at": m.sent_at} for m in t.messages],
+                    "messages": [
+                        {"sender": m.sender, "text": m.text, "sent_at": m.sent_at, "to": m.to, "cc": m.cc}
+                        for m in t.messages
+                    ],
                 }
                 for t in detail.threads
             ],

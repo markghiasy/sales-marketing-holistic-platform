@@ -180,7 +180,7 @@ def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> st
 
 
 _SELECT_FIELDS = (
-    "subject,body,from,toRecipients,receivedDateTime,"
+    "subject,body,from,toRecipients,ccRecipients,receivedDateTime,"
     "internetMessageId,id,conversationId,internetMessageHeaders,"
     "inferenceClassification"
 )

@@ -206,6 +206,25 @@ class TestToEnvelope:
         assert env is not None
         assert env.direction.value == "outbound"
 
+    def test_captures_cc_recipients(self):
+        raw = dict(
+            self._BASE_RAW,
+            ccRecipients=[
+                {"emailAddress": {"address": "CC1@Example.com", "name": "Cc One"}},
+                {"emailAddress": {"address": "cc2@example.com", "name": None}},
+            ],
+        )
+        env = _to_envelope(raw, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.cc_handles == ["cc1@example.com", "cc2@example.com"]  # lowercased
+        assert env.cc_display_names == ["Cc One", None]
+
+    def test_no_cc_recipients_when_absent(self):
+        env = _to_envelope(self._BASE_RAW, self_handles={"me@example.com"})
+        assert env is not None
+        assert env.cc_handles == []
+        assert env.cc_display_names == []
+
     def test_is_automated_true_for_other_classification(self):
         raw = dict(self._BASE_RAW, inferenceClassification="other")
         env = _to_envelope(raw, self_handles={"me@example.com"})

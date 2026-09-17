@@ -69,6 +69,13 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
             )
             for i, to_handle in enumerate(env.to_handles)
         ]
+        cc_identity_ids = [
+            _get_or_create_identity(
+                cur, env.channel.value, cc_handle, self_handle,
+                env.cc_display_names[i] if i < len(env.cc_display_names) else None,
+            )
+            for i, cc_handle in enumerate(env.cc_handles)
+        ]
 
         if message_already_existed:
             # message_participant rows were already recorded on first
@@ -88,6 +95,12 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
                 "insert into message_participant (message_id, identity_id, role) "
                 "values (%s, %s, 'to') on conflict do nothing",
                 (message_id, to_identity_id),
+            )
+        for cc_identity_id in cc_identity_ids:
+            cur.execute(
+                "insert into message_participant (message_id, identity_id, role) "
+                "values (%s, %s, 'cc') on conflict do nothing",
+                (message_id, cc_identity_id),
             )
 
         return str(from_identity_id)
