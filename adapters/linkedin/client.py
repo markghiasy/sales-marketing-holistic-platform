@@ -219,6 +219,24 @@ def fetch_conversations(page: Page, limits: RateLimits):
         # A response from the *previous* thread's page can still land
         # late after captured.clear(); this filters those out too.
         thread_urn = captured[0]["conversation_urn"]
+        self_urn = _self_urn_from_conversation_urn(thread_urn)
+        # Outbound messages carry no recipient of their own (sender_urn IS
+        # self for those) — found 2026-09-17: this meant every message
+        # *you* sent never recorded a `to` message_participant edge at
+        # all, so any per-contact query (e.g. the triage inbox's thread
+        # reconstruction) silently dropped your own replies. A 1:1
+        # thread's other party is constant across the whole conversation,
+        # so it's recoverable from any inbound message already captured
+        # for this same thread_urn.
+        other_urn = next(
+            (
+                m["sender_urn"] for m in captured
+                if m.get("conversation_urn") == thread_urn
+                and m.get("sender_urn")
+                and m["sender_urn"] != self_urn
+            ),
+            None,
+        )
         seen_urns: set[str] = set()
         for msg in captured:
             if msg.get("conversation_urn") != thread_urn:
@@ -229,6 +247,7 @@ def fetch_conversations(page: Page, limits: RateLimits):
                           # overlapping response — either way skip
             seen_urns.add(urn)
             msg["thread_id"] = thread_urn
+            msg["other_participant_urn"] = other_urn
             yield msg
 
         _pace(limits)
@@ -256,7 +275,10 @@ def _to_envelope(raw: dict) -> Envelope | None:
         direction=direction,
         sent_at=sent_at,
         from_handle=sender,
-        to_handles=[self_urn] if direction == Direction.inbound else [],
+        to_handles=(
+            [self_urn] if direction == Direction.inbound
+            else ([raw["other_participant_urn"]] if raw.get("other_participant_urn") else [])
+        ),
         subject=None,  # LinkedIn only — Outlook has this, LinkedIn doesn't (§6)
         body_text=raw["body_text"],
         is_group=False,  # not distinguished yet — LinkedIn group messaging

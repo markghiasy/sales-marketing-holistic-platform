@@ -106,3 +106,18 @@ class TestToEnvelope:
         assert env is not None
         assert env.direction.value == "outbound"
         assert env.to_handles == []
+
+    def test_outbound_uses_other_participant_urn_when_present(self):
+        # Regression test for a real bug found 2026-09-17: an outbound
+        # message's recipient was never recorded (to_handles always []),
+        # so message_participant never got a 'to' edge for the contact on
+        # your own replies — the triage inbox's thread reconstruction
+        # silently dropped every message you sent. fetch_conversations()
+        # now backfills other_participant_urn from an inbound message
+        # already seen in the same thread; _to_envelope must use it.
+        raw = self._raw(sender_urn=_SELF_URN)
+        raw["other_participant_urn"] = _SENDER_URN
+        env = _to_envelope(raw)
+        assert env is not None
+        assert env.direction.value == "outbound"
+        assert env.to_handles == [_SENDER_URN]
