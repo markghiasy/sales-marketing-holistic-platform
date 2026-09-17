@@ -118,17 +118,40 @@ def link_contact(cur, person_key: str, other_identity_id: str) -> str:
     if row is None:
         raise ValueError(f"no identity found for person_key {person_key}")
     representative_id = str(row[0])
+
+    # The OTHER identity can also already be its own resolved, hidden
+    # contact — apply_merge's cluster-union branch can make either side
+    # survive, so both sides' pre-merge keys need checking, not just the
+    # panel's own.
+    cur.execute("select coalesce(person_id, id) from identity where id = %s", (other_identity_id,))
+    other_row = cur.fetchone()
+    other_old_contact_key = str(other_row[0]) if other_row is not None else None
+
     new_contact_key = apply_merge(cur, representative_id, other_identity_id)
 
-    # #10: if the pre-merge contact_key had a contact_hidden row (this
-    # contact was manually hidden), the merge can move it to a different
-    # (brand-new) resolved key — see apply_merge — leaving the old
-    # contact_hidden row orphaned and the hide silently stopping. Move it
-    # forward to the new key rather than leaving it stranded.
-    cur.execute(
-        "update contact_hidden set contact_key = %s where contact_key = %s and %s != %s",
-        (new_contact_key, old_contact_key, new_contact_key, old_contact_key),
-    )
+    # #10: if either side's pre-merge contact_key had a contact_hidden row
+    # (that contact was manually hidden), the merge can move the surviving
+    # cluster to a DIFFERENT resolved key than either side started with —
+    # see apply_merge's union branch — leaving that contact_hidden row
+    # orphaned and the hide silently stopping. Move every such row forward
+    # to the new key rather than leaving it stranded.
+    #
+    # contact_key is contact_hidden's primary key, so a plain UPDATE can
+    # collide: if the new_contact_key already owns its own row (the
+    # surviving side was itself already hidden), insert-if-missing (on
+    # conflict do nothing) then delete-the-stale-row is idempotent either
+    # way — one hide row survives under the new key regardless of which
+    # side(s), if any, already had one.
+    for stale_key in {old_contact_key, other_old_contact_key} - {new_contact_key, None}:
+        cur.execute(
+            """
+            insert into contact_hidden (contact_key)
+            select %s where exists (select 1 from contact_hidden where contact_key = %s)
+            on conflict (contact_key) do nothing
+            """,
+            (new_contact_key, stale_key),
+        )
+        cur.execute("delete from contact_hidden where contact_key = %s", (stale_key,))
 
     return new_contact_key
 

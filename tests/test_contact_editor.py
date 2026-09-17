@@ -210,6 +210,44 @@ class TestLinkContact:
         rows = list_conversations(cur, show_hidden=True)
         assert any(r.person_key == new_key for r in rows)
 
+    def test_linking_two_already_hidden_resolved_contacts_does_not_collide(
+        self, db_conn: psycopg.Connection
+    ):
+        # Regression for the re-review's Important finding on #10: when
+        # BOTH identities are already resolved (each has its own person_id)
+        # and BOTH are hidden, apply_merge's union branch reuses one side's
+        # existing person_id as new_contact_key -- which already owns its
+        # own contact_hidden row (contact_key is a primary key), so a plain
+        # UPDATE would raise a unique-violation. The fix must survive this
+        # without erroring, leaving exactly one hide row under the surviving key.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex[:8]}@example.com", is_self=True)
+
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Contact A")
+        cur.execute("insert into person (primary_name) values ('Contact A') returning id")
+        person_a = cur.fetchone()[0]
+        cur.execute("update identity set person_id = %s where id = %s", (person_a, contact_id))
+
+        other_id = _make_identity(cur, "outlook", f"b-{uuid.uuid4().hex[:8]}@example.com", display_name="Contact B")
+        cur.execute("insert into person (primary_name) values ('Contact B') returning id")
+        person_b = cur.fetchone()[0]
+        cur.execute("update identity set person_id = %s where id = %s", (person_b, other_id))
+
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+        _make_message(cur, thread_id, "outlook", "inbound", other_id, [other_id, self_id], now)
+
+        hide_contact(cur, str(person_a))
+        hide_contact(cur, str(person_b))
+
+        new_key = link_contact(cur, str(person_a), other_id)  # must not raise
+
+        cur.execute("select count(*) from contact_hidden where contact_key = %s", (new_key,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("select count(*) from contact_hidden")
+        assert cur.fetchone()[0] == 1  # the losing key's row is gone, not just uncounted
+
 
 class TestAddContactHandle:
     def test_adds_a_new_bare_identity_under_the_contact(self, db_conn: psycopg.Connection):
