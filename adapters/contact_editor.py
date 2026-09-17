@@ -69,3 +69,10 @@ def search_identities(cur, query: str, exclude_person_key: str) -> list[SearchRe
         SearchResult(identity_id=str(r[0]), channel=r[1], handle=r[2], display_name=r[3])
         for r in cur.fetchall()
     ]
+
+
+def update_contact_name(cur, person_key: str, name: str) -> None:
+    cur.execute(
+        "update identity set display_name = %s where coalesce(person_id, id) = %s",
+        (name, person_key),
+    )

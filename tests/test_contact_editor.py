@@ -4,7 +4,7 @@ import uuid
 
 import psycopg
 
-from adapters.contact_editor import get_contact_info, search_identities
+from adapters.contact_editor import get_contact_info, search_identities, update_contact_name
 
 
 def _make_identity(cur, channel: str, handle: str, display_name: str | None = None, is_self: bool = False) -> str:
@@ -85,3 +85,23 @@ class TestSearchIdentities:
         cur = db_conn.cursor()
         exclude_id = _make_identity(cur, "outlook", f"exclude3-{uuid.uuid4().hex[:8]}@example.com")
         assert search_identities(cur, "   ", exclude_person_key=exclude_id) == []
+
+
+class TestUpdateContactName:
+    def test_updates_name_for_every_identity_under_the_contact(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        cur.execute("insert into person (primary_name) values ('Old Name') returning id")
+        person_id = cur.fetchone()[0]
+        cur.execute(
+            "insert into identity (channel, handle, display_name, person_id) values (%s, %s, %s, %s) returning id",
+            ("outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", "Old Name", person_id),
+        )
+        cur.execute(
+            "insert into identity (channel, handle, display_name, person_id) values (%s, %s, %s, %s) returning id",
+            ("whatsapp", f"{uuid.uuid4().int % 10**10}@s.whatsapp.net", "Old Name", person_id),
+        )
+
+        update_contact_name(cur, str(person_id), "New Name")
+
+        cur.execute("select distinct display_name from identity where person_id = %s", (person_id,))
+        assert [r[0] for r in cur.fetchall()] == ["New Name"]
