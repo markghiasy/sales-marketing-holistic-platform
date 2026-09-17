@@ -130,11 +130,39 @@ def is_automated(raw: dict, from_handle: str) -> bool:
     )
 
 
+# Some marketing/notification emails' invisible "preview text" padding
+# (zero-width characters used to hide preheader text from bulk-mail spam
+# filters) arrive from Graph itself already mangled — confirmed 2026-09-17
+# against real production mail: raw.body.content already contains stray
+# replacement characters interleaved with undecoded quoted-printable byte
+# escapes (e.g. "=E2��", "�=80�") *before* any of our
+# own code touches it. The original bytes are gone by the time Graph hands
+# them to us — not recoverable, not something quopri.decodestring() can
+# fix (tried against real data: it also corrupts genuine "=" occurrences
+# elsewhere in the same message, e.g. legitimate query-string parameters).
+#
+# Two-pass cleanup, verified against a real captured sample:
+# 1. These specific invisible/placeholder characters are never meaningful
+#    visible content regardless of context — safe to remove unconditionally.
+#    U+034F COMBINING GRAPHEME JOINER, U+00A0 NBSP, U+200B/C/D ZERO WIDTH
+#    SPACE/NON-JOINER/JOINER, U+FEFF BOM, U+FFFD REPLACEMENT CHARACTER.
+# 2. Once those are gone, what's left of the garbled block is a run of
+#    plain "=XX" tokens separated only by whitespace — a shape normal
+#    prose or a URL never produces (a single isolated "=XX", as in a
+#    query-string parameter, is common and legitimate; only a RUN of
+#    several separated purely by whitespace is garbage). Delete those
+#    runs; a single stray "=XX" elsewhere is left untouched.
+_GARBLED_INVISIBLE_CHARS_RE = re.compile("[͏ \u200b‌‍﻿�]")
+_GARBLED_QP_RUN_RE = re.compile(r"(?:=[0-9A-Fa-f]{2}\s+){2,}=[0-9A-Fa-f]{2}")
+
+
 def _strip_html(body: dict) -> str:
     """Graph returns body as {contentType, content}. Plain-text it and cut
     the quoted-reply chain — §6 calls for a clean body, needed for both
     later extraction and the voice corpus (Block E)."""
     content = body.get("content", "") or ""
+    content = _GARBLED_INVISIBLE_CHARS_RE.sub("", content)
+    content = _GARBLED_QP_RUN_RE.sub(" ", content)
     if body.get("contentType") == "html":
         match = _QUOTE_START_RE.search(content)
         if match:

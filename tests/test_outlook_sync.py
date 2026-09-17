@@ -92,6 +92,46 @@ class TestStripHtml:
         body = {"contentType": "html", "content": "<p>Just a normal message, nothing quoted.</p>"}
         assert _strip_html(body) == "Just a normal message, nothing quoted."
 
+    def test_strips_runs_of_garbled_quoted_printable_bytes(self):
+        # Real shape found 2026-09-17 in production mail (a Leukaemia
+        # Foundation marketing email's invisible "preview text" padding):
+        # raw.body.content itself already contains this exact mix of
+        # invisible placeholder characters and undecoded quoted-printable
+        # byte escapes *before* our own code ever touches it - Graph
+        # handed it to us already mangled. Not recoverable (the original
+        # bytes are already gone), so the only safe move is deleting the
+        # padding block rather than attempting to decode it. Excerpted
+        # directly from the real captured content, not idealised.
+        body = {
+            "contentType": "html",
+            "content": (
+                "<div>Because of you, change is happening.</div>"
+                "<div>͏ =E2�� �=80�"
+                " �=BF =80�</div>"
+                "<div>Real readable content follows here.</div>"
+            ),
+        }
+        result = _strip_html(body)
+        assert "Because of you, change is happening." in result
+        assert "Real readable content follows here." in result
+        assert "=E2" not in result
+        assert "=80" not in result
+        assert "=BF" not in result
+
+    def test_isolated_equals_sign_survives(self):
+        # A single, isolated "=XX"-shaped sequence is common and
+        # legitimate (e.g. a query-string parameter visible as link text,
+        # or plain prose that happens to contain one) - only a RUN of
+        # several separated purely by whitespace is garbage. This must
+        # not be touched.
+        body = {
+            "contentType": "html",
+            "content": "<div>See token=ab for details, and also other=cd.</div>",
+        }
+        result = _strip_html(body)
+        assert "token=ab" in result
+        assert "other=cd" in result
+
 
 class TestResolveSentAt:
     def test_prefers_date_header_over_received_date_time(self):
