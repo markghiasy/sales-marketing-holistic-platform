@@ -113,6 +113,24 @@ class TestUpsert:
         )
         assert cur.fetchone()[0] is True
 
+    def test_marks_self_handle_identity_when_self_handle_is_a_set(self, db_conn: psycopg.Connection):
+        # Real bug found 2026-09-17: Outlook sends mail as several
+        # addresses through one connected mailbox — self_handle needs to
+        # accept a set of them, not just a single string.
+        env = _make_envelope(
+            direction=Direction.outbound,
+            from_handle="alt@example.com",
+            to_handles=["other@example.com"],
+        )
+        upsert(db_conn, env, self_handle=frozenset({"me@example.com", "alt@example.com"}))
+
+        cur = db_conn.cursor()
+        cur.execute(
+            "select is_self from identity where channel = %s and handle = %s",
+            (env.channel.value, "alt@example.com"),
+        )
+        assert cur.fetchone()[0] is True
+
     def test_backfills_display_name_on_rerun_for_to_only_contact(
         self, db_conn: psycopg.Connection
     ):

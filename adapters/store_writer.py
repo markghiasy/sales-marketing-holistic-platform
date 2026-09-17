@@ -11,7 +11,13 @@ import psycopg
 from .envelope import Envelope
 
 
-def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
+def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str | frozenset[str]) -> str:
+    # WhatsApp/LinkedIn each have exactly one canonical self identifier (a
+    # phone number, a member URN) and pass a single string. Outlook can
+    # have several -- Eva sends from multiple addresses through the one
+    # connected mailbox -- and passes a set; normalise once here so
+    # _get_or_create_identity only has to do a membership check.
+    self_handles = {self_handle} if isinstance(self_handle, str) else self_handle
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -32,7 +38,7 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
         thread_id = row[0]
 
         from_identity_id = _get_or_create_identity(
-            cur, env.channel.value, env.from_handle, self_handle, env.from_display_name
+            cur, env.channel.value, env.from_handle, self_handles, env.from_display_name
         )
 
         cur.execute(
@@ -64,14 +70,14 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
         # backfilled on re-run.
         to_identity_ids = [
             _get_or_create_identity(
-                cur, env.channel.value, to_handle, self_handle,
+                cur, env.channel.value, to_handle, self_handles,
                 env.to_display_names[i] if i < len(env.to_display_names) else None,
             )
             for i, to_handle in enumerate(env.to_handles)
         ]
         cc_identity_ids = [
             _get_or_create_identity(
-                cur, env.channel.value, cc_handle, self_handle,
+                cur, env.channel.value, cc_handle, self_handles,
                 env.cc_display_names[i] if i < len(env.cc_display_names) else None,
             )
             for i, cc_handle in enumerate(env.cc_handles)
@@ -107,7 +113,7 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str) -> str:
 
 
 def _get_or_create_identity(
-    cur, channel: str, handle: str, self_handle: str, display_name: str | None = None
+    cur, channel: str, handle: str, self_handles: frozenset[str], display_name: str | None = None
 ) -> str:
     # defensive: an empty string is "not null" in SQL, so it would satisfy
     # the `is not null` guard below and permanently block a real name from
@@ -123,7 +129,7 @@ def _get_or_create_identity(
             set display_name = excluded.display_name
             where identity.display_name is null and excluded.display_name is not null
         """,
-        (channel, handle, handle == self_handle, display_name),
+        (channel, handle, handle in self_handles, display_name),
     )
     cur.execute(
         "select id from identity where channel = %s and handle = %s",

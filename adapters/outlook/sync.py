@@ -287,9 +287,25 @@ def _migrate_legacy_inbox_delta_link() -> None:
         _DELTA_LINK_PATHS["inbox"].write_text(_LEGACY_INBOX_DELTA_LINK_PATH.read_text())
 
 
+def _load_self_handles() -> frozenset[str]:
+    """OUTLOOK_MAILBOX identifies the connected account for Graph API auth,
+    but Eva sends mail as several different addresses through that one
+    account (a Gmail alias, a couple of university accounts, ...) — none
+    of which is ever OUTLOOK_MAILBOX's own literal address. Real bug found
+    2026-09-17: direction/is_self were computed against OUTLOOK_MAILBOX
+    alone, so 0 of 4,809 real Outlook messages were ever classified
+    outbound. OUTLOOK_SELF_HANDLES (comma-separated, optional) fills in
+    the rest; confirmed complete against Eva's own account list.
+    """
+    self_email = os.environ["OUTLOOK_MAILBOX"].lower()
+    extra = os.environ.get("OUTLOOK_SELF_HANDLES", "")
+    extra_handles = {addr.strip().lower() for addr in extra.split(",") if addr.strip()}
+    return frozenset({self_email} | extra_handles)
+
+
 def run() -> None:
     load_dotenv()
-    self_email = os.environ["OUTLOOK_MAILBOX"].lower()
+    self_handles = _load_self_handles()
     _migrate_legacy_inbox_delta_link()
 
     count = 0
@@ -316,10 +332,10 @@ def run() -> None:
                     except StopIteration as e:
                         next_delta_link = e.value
                         break
-                    env = _to_envelope(raw, self_handles={self_email})
+                    env = _to_envelope(raw, self_handles=self_handles)
                     if env is None:
                         continue
-                    identity_id = upsert(conn, env, self_email)
+                    identity_id = upsert(conn, env, self_handles)
                     touched_identity_ids.add(identity_id)
                     count += 1
 

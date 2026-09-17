@@ -10,7 +10,36 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import ClassVar
 
-from adapters.outlook.sync import _resolve_sent_at, _strip_html, _to_envelope, is_automated
+from adapters.outlook.sync import (
+    _load_self_handles,
+    _resolve_sent_at,
+    _strip_html,
+    _to_envelope,
+    is_automated,
+)
+
+
+class TestLoadSelfHandles:
+    def test_includes_outlook_mailbox_alone_when_no_extra_configured(self, monkeypatch):
+        monkeypatch.setenv("OUTLOOK_MAILBOX", "Me@Example.com")
+        monkeypatch.delenv("OUTLOOK_SELF_HANDLES", raising=False)
+        assert _load_self_handles() == frozenset({"me@example.com"})
+
+    def test_includes_extra_comma_separated_handles_lowercased(self, monkeypatch):
+        # Real bug found 2026-09-17: OUTLOOK_MAILBOX alone never matched
+        # any real sender, so Eva's own mail (sent from several other
+        # addresses through the same connected mailbox) was always
+        # classified inbound.
+        monkeypatch.setenv("OUTLOOK_MAILBOX", "outlook_ABC@outlook.com")
+        monkeypatch.setenv("OUTLOOK_SELF_HANDLES", "Me@Gmail.com, other@Example.com")
+        assert _load_self_handles() == frozenset({
+            "outlook_abc@outlook.com", "me@gmail.com", "other@example.com",
+        })
+
+    def test_tolerates_missing_or_blank_extra_env_var(self, monkeypatch):
+        monkeypatch.setenv("OUTLOOK_MAILBOX", "me@example.com")
+        monkeypatch.setenv("OUTLOOK_SELF_HANDLES", "")
+        assert _load_self_handles() == frozenset({"me@example.com"})
 
 
 class TestStripHtml:
@@ -144,7 +173,6 @@ class TestStripHtml:
         result = _strip_html(body)
         assert "My reply" in result
         assert "Real Name" not in result
-        assert "Old quoted text" not in result
         assert "Old quoted text" not in result
 
     def test_plain_text_wrote_marker_stripped(self):
@@ -300,6 +328,19 @@ class TestToEnvelope:
 
     def test_direction_outbound_when_sender_is_self(self):
         env = _to_envelope(self._BASE_RAW, self_handles={"sender@example.com"})
+        assert env is not None
+        assert env.direction.value == "outbound"
+
+    def test_direction_outbound_when_sender_is_any_of_several_self_addresses(self):
+        # Real bug found 2026-09-17: self_handles used to be a single
+        # OUTLOOK_MAILBOX address, so mail actually sent from any of Eva's
+        # other own addresses (a Gmail alias, several university/personal
+        # accounts) was silently misclassified as inbound -- 0 of 4,809
+        # real Outlook messages were ever outbound as a result.
+        env = _to_envelope(
+            self._BASE_RAW,
+            self_handles={"someone-else@example.com", "sender@example.com", "another@example.com"},
+        )
         assert env is not None
         assert env.direction.value == "outbound"
 
