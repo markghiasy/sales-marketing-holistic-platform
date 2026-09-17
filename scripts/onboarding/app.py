@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file
 
 from adapters import inbox_query
+from adapters import contact_editor
 from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
 from adapters.resolution.merge import apply_merge
@@ -421,6 +422,68 @@ def create_app(testing: bool = False) -> Flask:
     def inbox_conversation_unhide(person_key):
         with _db_cursor() as cur:
             inbox_query.unhide_contact(cur, person_key)
+        return jsonify({"status": "ok"})
+
+    @flask_app.get("/contact/<person_key>")
+    def contact_info_json(person_key):
+        with _db_cursor() as cur:
+            info = contact_editor.get_contact_info(cur, person_key)
+        if info is None:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({
+            "person_key": info.person_key,
+            "name": info.name,
+            "handles": [
+                {"identity_id": h.identity_id, "channel": h.channel, "handle": h.handle}
+                for h in info.handles
+            ],
+        })
+
+    @flask_app.post("/contact/<person_key>/name")
+    def contact_update_name(person_key):
+        name = (request.get_json(silent=True) or {}).get("name", "").strip()
+        if not name:
+            return jsonify({"error": "name required"}), 400
+        with _db_cursor() as cur:
+            contact_editor.update_contact_name(cur, person_key, name)
+        return jsonify({"status": "ok"})
+
+    @flask_app.get("/contact/search")
+    def contact_search_json():
+        query = request.args.get("q", "")
+        exclude = request.args.get("exclude", "")
+        with _db_cursor() as cur:
+            results = contact_editor.search_identities(cur, query, exclude)
+        return jsonify([
+            {
+                "identity_id": r.identity_id, "channel": r.channel,
+                "handle": r.handle, "display_name": r.display_name,
+            }
+            for r in results
+        ])
+
+    @flask_app.post("/contact/<person_key>/link")
+    def contact_link(person_key):
+        other_id = (request.get_json(silent=True) or {}).get("identity_id", "")
+        if not other_id:
+            return jsonify({"error": "identity_id required"}), 400
+        with _db_cursor() as cur:
+            try:
+                contact_editor.link_contact(cur, person_key, other_id)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+        return jsonify({"status": "ok"})
+
+    @flask_app.post("/contact/<person_key>/add-handle")
+    def contact_add_handle(person_key):
+        handle = (request.get_json(silent=True) or {}).get("handle", "").strip()
+        if not handle:
+            return jsonify({"error": "handle required"}), 400
+        with _db_cursor() as cur:
+            try:
+                contact_editor.add_contact_handle(cur, person_key, handle)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
         return jsonify({"status": "ok"})
 
     @flask_app.get("/resolution/candidates.json")
