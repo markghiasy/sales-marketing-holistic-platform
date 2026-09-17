@@ -1,7 +1,6 @@
 # tests/test_ai_brief.py
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -53,8 +52,9 @@ def _make_message(cur, thread_id, channel, direction, from_identity_id, particip
 
 
 @dataclass
-class _FakeBlock:
-    text: str
+class _FakeToolUseBlock:
+    input: dict
+    type: str = "tool_use"
 
 
 @dataclass
@@ -63,13 +63,18 @@ class _FakeResponse:
 
 
 class _FakeMessages:
+    """Simulates Anthropic's tool-use response shape: a forced tool_choice
+    means the real API always returns a tool_use block whose .input is
+    already a parsed dict matching the tool's input_schema — never text
+    that needs json.loads()."""
+
     def __init__(self, response_json: dict):
         self._response_json = response_json
         self.last_call_kwargs: dict | None = None
 
     def create(self, **kwargs):
         self.last_call_kwargs = kwargs
-        return _FakeResponse(content=[_FakeBlock(text=json.dumps(self._response_json))])
+        return _FakeResponse(content=[_FakeToolUseBlock(input=self._response_json)])
 
 
 class _FakeClient:
@@ -126,7 +131,7 @@ class TestGenerateBrief:
         assert count == 1
         assert summary == "Second summary."
 
-    def test_malformed_json_response_raises(self, db_conn: psycopg.Connection):
+    def test_malformed_tool_input_raises(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
         contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Test")
@@ -135,15 +140,17 @@ class TestGenerateBrief:
 
         class _BrokenMessages:
             def create(self, **kwargs):
-                return _FakeResponse(content=[_FakeBlock(text="not json")])
+                # missing every required field — pydantic.ValidationError
+                # (a ValueError subclass) on model_validate()
+                return _FakeResponse(content=[_FakeToolUseBlock(input={})])
 
         class _BrokenClient:
             messages = _BrokenMessages()
 
         try:
             generate_brief(cur, contact_id, client=_BrokenClient())
-            raise AssertionError("expected an exception for malformed JSON")
-        except (ValueError, json.JSONDecodeError):
+            raise AssertionError("expected an exception for malformed tool input")
+        except ValueError:
             pass
 
 
@@ -234,7 +241,7 @@ class TestRefreshTouched:
 
         class _BrokenMessages:
             def create(self, **kwargs):
-                return _FakeResponse(content=[_FakeBlock(text="not json")])
+                return _FakeResponse(content=[_FakeToolUseBlock(input={})])
 
         class _BrokenClient:
             messages = _BrokenMessages()

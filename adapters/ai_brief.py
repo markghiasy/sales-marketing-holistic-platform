@@ -14,11 +14,46 @@ from dataclasses import dataclass
 
 import psycopg
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 from .reply_signal import reply_signal
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+_TOOL_NAME = "submit_brief"
+
+
+# Real bug found 2026-09-18: the prompt asked for "ONLY a JSON object, no
+# other text," but Haiku routinely wrapped its answer in a ```json ... ```
+# markdown fence anyway, so json.loads() on the raw text failed on every
+# single call — confirmed against the real hosted database: 1530 contacts,
+# 0 ai_brief rows, ever. Anthropic's tool-use with a forced tool_choice
+# guarantees the model's response IS the schema-conformant JSON object (no
+# prose, no markdown wrapper, no parsing needed at all) rather than hoping
+# every model always follows a prose instruction. These pydantic models
+# double as that schema (via model_json_schema()) and as the validator for
+# whatever comes back.
+class _OrgInfo(BaseModel):
+    name: str
+    blurb: str
+
+
+class _PersonRelation(BaseModel):
+    name: str
+    relation: str
+
+
+class _GraphInfo(BaseModel):
+    org: _OrgInfo | None = None
+    people: list[_PersonRelation] = Field(default_factory=list)
+
+
+class _BriefResponse(BaseModel):
+    summary: str
+    context: list[str]
+    topic: str
+    graph: _GraphInfo
+    urgency: int = Field(ge=1, le=3)
 
 
 @dataclass
@@ -100,18 +135,21 @@ Reply signal (this person's own history with this contact): {json.dumps(data["re
 Full message history across every channel (Outlook/WhatsApp/LinkedIn),
 oldest first: {json.dumps(data["messages"])}
 
-Respond with ONLY a JSON object, no other text, in exactly this shape:
-{{
-  "summary": "one short third-person sentence describing what this contact needs or wants right now",
-  "context": ["a full first-person-voice sentence of background", "..."],
-  "topic": "a short 1-3 word topic phrase for this contact's current thread",
-  "graph": {{
-    "org": {{"name": "...", "blurb": "..."}} or null if no employer is known,
-    "people": [{{"name": "...", "relation": "a short phrase, only if the messages or facts actually support it"}}]
-  }},
-  "urgency": 1, 2, or 3 (3 = needs action soon)
-}}
+Call {_TOOL_NAME} with your summary. "summary" is one short third-person
+sentence describing what this contact needs or wants right now. "context"
+is a list of full first-person-voice sentences of background. "topic" is
+a short 1-3 word phrase for this contact's current thread. "graph.org" is
+this contact's employer if known, else omit it. "graph.people" is only
+people the messages or facts actually support a relation for. "urgency"
+is 1, 2, or 3 (3 = needs action soon).
 """
+
+
+_TOOL_SCHEMA = {
+    "name": _TOOL_NAME,
+    "description": "Submit the structured brief for this contact.",
+    "input_schema": _BriefResponse.model_json_schema(),
+}
 
 
 def generate_brief(cur, person_key: str, client=None) -> AiBrief:
@@ -122,18 +160,26 @@ def generate_brief(cur, person_key: str, client=None) -> AiBrief:
     response = client.messages.create(
         model=model,
         max_tokens=1024,
+        tools=[_TOOL_SCHEMA],
+        tool_choice={"type": "tool", "name": _TOOL_NAME},
         messages=[{"role": "user", "content": _build_prompt(data)}],
     )
-    text = response.content[0].text
-    parsed = json.loads(text)  # raises json.JSONDecodeError on malformed output — caller decides how to handle it
+    # tool_choice forces exactly one tool_use block whose .input is
+    # already a dict matching _TOOL_SCHEMA's input_schema — no text to
+    # parse, no markdown fence to strip. model_validate still raises
+    # pydantic.ValidationError on a genuinely malformed input (e.g. a
+    # missing required field); the caller decides how to handle it, same
+    # as the old json.JSONDecodeError contract.
+    tool_block = next(b for b in response.content if b.type == "tool_use")
+    parsed = _BriefResponse.model_validate(tool_block.input)
 
     brief = AiBrief(
         person_key=person_key,
-        summary=parsed["summary"],
-        context=parsed["context"],
-        topic=parsed["topic"],
-        graph=parsed["graph"],
-        urgency=parsed["urgency"],
+        summary=parsed.summary,
+        context=parsed.context,
+        topic=parsed.topic,
+        graph=parsed.graph.model_dump(),
+        urgency=parsed.urgency,
         model=model,
         prompt_version=PROMPT_VERSION,
     )
