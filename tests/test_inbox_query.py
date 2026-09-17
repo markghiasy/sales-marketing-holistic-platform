@@ -293,6 +293,34 @@ class TestListConversations:
 
         assert any(r.person_key == contact_id for r in rows)
 
+    def test_hides_contact_whose_every_message_is_empty(self, db_conn: psycopg.Connection):
+        # Real gap found 2026-09-18: get_detail() already drops empty-body
+        # messages, but this list query didn't -- a contact whose every
+        # message was empty still showed a row here with nothing behind it.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Barney Howells")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "outbound", self_id, [self_id, contact_id], now, body_text="")
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_keeps_contact_with_at_least_one_real_message_among_empty_ones(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Barney Howells")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "outbound", self_id, [self_id, contact_id], now - timedelta(minutes=1), body_text="")
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="real reply")
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
 
 class TestGetDetail:
     def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):

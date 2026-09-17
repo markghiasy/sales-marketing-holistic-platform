@@ -99,6 +99,21 @@ def list_conversations(cur) -> list[ConversationRow]:
                   ) <= 10
             )
         )
+        and exists (
+            -- Real gap found 2026-09-18: get_detail() already drops
+            -- empty-body messages (a bare forward with no comment added
+            -- has nothing left after the quote/forward cut is correctly
+            -- applied) and empty thread groups, but this list query never
+            -- did the same check — a contact whose every message is empty
+            -- still showed a row here, just with nothing behind it once
+            -- clicked open. 18 real Outlook contacts affected.
+            select 1
+            from identity bi
+            join message_participant bmp on bmp.identity_id = bi.id
+            join message bm on bm.id = bmp.message_id
+            where coalesce(bi.person_id, bi.id) = cs.contact_key
+              and trim(coalesce(bm.body_text, '')) <> ''
+        )
         order by clm.sent_at desc
         """
     )
