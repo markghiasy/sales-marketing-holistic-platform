@@ -280,3 +280,74 @@ def rule_signature_phone(cur) -> int:
             )
             count += 1
     return count
+
+
+_OUTLOOK_SAME_NAME_SCORE = 0.6
+
+
+def _normalise_name(name: str) -> str:
+    return " ".join(name.strip().lower().split())
+
+
+def rule_outlook_dedupe(cur) -> int:
+    """Same idea as linkedin_correlation.py's rule_linkedin_dedupe: a real
+    person can email from two different addresses (a Gmail account and an
+    .me.com account, say) that were never linked — found 2026-09-18
+    against real data (Barney Howells, two separate identities, two
+    duplicate rows in the triage inbox). Never automatic, always queued
+    (see rule_linkedin_dedupe) — two different real people sharing a name
+    is common enough that an exact match alone isn't safe to auto-merge.
+
+    Unlike LinkedIn contacts, an exact Outlook display_name match is
+    mostly noise, not signal: confirmed against real data that the
+    overwhelming majority of same-name Outlook identities are a brand
+    sending from several different systems under one name (e.g. "Origin
+    Energy", "Jetstar") rather than the same human with two addresses —
+    100 duplicated names found, all but a handful clearly corporate/bulk
+    senders. Restricting to identities whose most recent message isn't
+    flagged is_automated (the same tier-1 noise signal already used to
+    hide automated senders from the inbox list, see
+    contact_last_message.is_automated) filters almost all of that out.
+    """
+    cur.execute(
+        """
+        select i.id, i.handle, i.display_name
+        from identity i
+        join contact_last_message clm on clm.contact_key = i.id
+        where i.channel = 'outlook' and i.is_self = false
+          and i.display_name is not null and i.person_id is null
+          and not coalesce(clm.is_automated, false)
+        """
+    )
+    identities = cur.fetchall()
+
+    by_name: dict[str, list[tuple[str, str, str]]] = {}
+    for identity_id, handle, display_name in identities:
+        by_name.setdefault(_normalise_name(display_name), []).append(
+            (str(identity_id), handle, display_name)
+        )
+
+    count = 0
+    for group in by_name.values():
+        if len(group) < 2:
+            continue
+        for i in range(len(group)):
+            for j in range(i + 1, len(group)):
+                (id_a, handle_a, name_a), (id_b, handle_b, name_b) = group[i], group[j]
+                if has_existing_candidate(cur, id_a, id_b):
+                    continue
+
+                reason = (
+                    f"Outlook '{name_a}' ({handle_a}) vs '{name_b}' ({handle_b}) — "
+                    "exact normalised name match, same channel, different address, "
+                    "neither identity's most recent message is automated"
+                )
+                cur.execute(
+                    """
+                    insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
+                    values (%s, %s, %s, 'outlook_same_channel_dedupe', 'pending', %s)
+                    """,
+                    (id_a, id_b, _OUTLOOK_SAME_NAME_SCORE, reason),
+                )
+                count += 1
+    return count

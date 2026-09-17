@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 
 from adapters.resolution.rules import (
     rule_contact_bridge,
     rule_exact_email_match,
+    rule_outlook_dedupe,
 )
 
 
@@ -396,3 +398,101 @@ class TestRerunDoesNotDuplicate:
         assert second_count == 0
         cur.execute("select count(*) from link_candidate where method = 'exact_email'")
         assert cur.fetchone()[0] == 1
+
+
+def _make_message_with_participant(
+    cur, thread_id: str, identity_id: str, is_automated: bool = False, sent_at=None
+) -> str:
+    cur.execute(
+        """
+        insert into message (thread_id, channel, external_id, direction, sent_at, from_identity_id, body_text, is_automated, raw)
+        values (%s, 'outlook', %s, 'inbound', coalesce(%s, now()), %s, 'hi', %s, '{}')
+        returning id
+        """,
+        (thread_id, f"msg-{uuid.uuid4().hex}", sent_at, identity_id, is_automated),
+    )
+    message_id = cur.fetchone()[0]
+    cur.execute(
+        "insert into message_participant (message_id, identity_id, role) values (%s, %s, 'from')",
+        (message_id, identity_id),
+    )
+    return str(message_id)
+
+
+class TestRuleOutlookDedupe:
+    def test_same_name_different_address_queues_a_candidate(self, db_conn: psycopg.Connection):
+        # Real case found 2026-09-18: Barney Howells had two separate
+        # identities (barneyhowells@gmail.com, barneyhowells@me.com),
+        # shown as two duplicate rows in the triage inbox.
+        cur = db_conn.cursor()
+        gmail_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@gmail.com", "Barney Howells")
+        me_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@me.com", "Barney Howells")
+        thread = _make_thread(cur)
+        _make_message_with_participant(cur, thread, gmail_id)
+        _make_message_with_participant(cur, thread, me_id)
+
+        count = rule_outlook_dedupe(cur)
+
+        assert count == 1
+        cur.execute(
+            "select status, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            (gmail_id, gmail_id),
+        )
+        status, method = cur.fetchone()
+        assert status == "pending"
+        assert method == "outlook_same_channel_dedupe"
+        cur.execute("select person_id from identity where id in (%s, %s)", (gmail_id, me_id))
+        assert all(row[0] is None for row in cur.fetchall())  # never auto-merged
+
+    def test_excludes_identity_whose_most_recent_message_is_automated(self, db_conn: psycopg.Connection):
+        # Real case found 2026-09-18: 100 same-name Outlook duplicates,
+        # almost all a brand sending from several systems under one name
+        # (e.g. "Origin Energy") rather than the same human with two
+        # addresses -- excluding automated senders filters nearly all of it.
+        cur = db_conn.cursor()
+        a_id = _make_identity(cur, "outlook", f"noreply1-{uuid.uuid4().hex[:8]}@example.com", "Origin Energy")
+        b_id = _make_identity(cur, "outlook", f"noreply2-{uuid.uuid4().hex[:8]}@example.com", "Origin Energy")
+        thread = _make_thread(cur)
+        _make_message_with_participant(cur, thread, a_id, is_automated=True)
+        _make_message_with_participant(cur, thread, b_id, is_automated=True)
+
+        assert rule_outlook_dedupe(cur) == 0
+
+    def test_includes_identity_when_most_recent_message_is_not_automated_even_if_an_older_one_was(
+        self, db_conn: psycopg.Connection
+    ):
+        cur = db_conn.cursor()
+        a_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@gmail.com", "Barney Howells")
+        b_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@me.com", "Barney Howells")
+        thread = _make_thread(cur)
+        now = datetime.now(UTC)
+        _make_message_with_participant(cur, thread, a_id, is_automated=True, sent_at=now - timedelta(days=1))
+        _make_message_with_participant(cur, thread, a_id, is_automated=False, sent_at=now)
+        _make_message_with_participant(cur, thread, b_id, is_automated=False, sent_at=now)
+
+        assert rule_outlook_dedupe(cur) == 1
+
+    def test_no_candidate_for_unrelated_names(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", "Alice Adams")
+        b_id = _make_identity(cur, "outlook", f"b-{uuid.uuid4().hex[:8]}@example.com", "Bob Brown")
+        thread = _make_thread(cur)
+        _make_message_with_participant(cur, thread, a_id)
+        _make_message_with_participant(cur, thread, b_id)
+
+        assert rule_outlook_dedupe(cur) == 0
+
+    def test_rejected_pair_is_not_re_proposed(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        gmail_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@gmail.com", "Barney Howells")
+        me_id = _make_identity(cur, "outlook", f"barney-{uuid.uuid4().hex[:8]}@me.com", "Barney Howells")
+        thread = _make_thread(cur)
+        _make_message_with_participant(cur, thread, gmail_id)
+        _make_message_with_participant(cur, thread, me_id)
+        rule_outlook_dedupe(cur)
+        cur.execute(
+            "update link_candidate set status = 'rejected' where identity_a_id in (%s, %s) or identity_b_id in (%s, %s)",
+            (gmail_id, me_id, gmail_id, me_id),
+        )
+
+        assert rule_outlook_dedupe(cur) == 0

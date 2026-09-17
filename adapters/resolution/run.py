@@ -18,7 +18,12 @@ import psycopg
 from dotenv import load_dotenv
 
 from .linkedin_correlation import rule_linkedin_correlation, rule_linkedin_dedupe
-from .rules import rule_contact_bridge, rule_exact_email_match, rule_signature_phone
+from .rules import (
+    rule_contact_bridge,
+    rule_exact_email_match,
+    rule_outlook_dedupe,
+    rule_signature_phone,
+)
 from .structured_facts import extract_structured_facts
 
 
@@ -33,6 +38,7 @@ def run() -> None:
         ("exact email match", rule_exact_email_match),
         ("contact bridge", rule_contact_bridge),
         ("signature phone", rule_signature_phone),
+        ("Outlook same-channel dedupe", rule_outlook_dedupe),
         ("LinkedIn name+company correlation", rule_linkedin_correlation),
         ("LinkedIn same-channel dedupe", rule_linkedin_dedupe),
         ("structured facts", extract_structured_facts),
