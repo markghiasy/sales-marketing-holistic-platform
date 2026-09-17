@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import psycopg
 
-from adapters.inbox_query import get_detail, list_conversations, mark_read
+from adapters.inbox_query import get_detail, hide_contact, list_conversations, mark_read, unhide_contact
 
 
 def _make_identity(cur, channel: str, handle: str, is_self: bool = False, display_name: str | None = None) -> str:
@@ -316,6 +316,49 @@ class TestListConversations:
         thread_id = _make_thread(cur, "outlook", last_read_at=now)
         _make_message(cur, thread_id, "outlook", "outbound", self_id, [self_id, contact_id], now - timedelta(minutes=1), body_text="")
         _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="real reply")
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
+    def test_manually_hidden_contact_is_excluded_by_default(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Hide Me")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+        hide_contact(cur, contact_id)
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_show_hidden_returns_only_hidden_contacts(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        hidden_id = _make_identity(cur, "outlook", f"h-{uuid.uuid4().hex}@example.com", display_name="Hidden Contact")
+        visible_id = _make_identity(cur, "outlook", f"v-{uuid.uuid4().hex}@example.com", display_name="Visible Contact")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", hidden_id, [hidden_id, self_id], now)
+        _make_message(cur, thread_id, "outlook", "inbound", visible_id, [visible_id, self_id], now)
+        hide_contact(cur, hidden_id)
+
+        rows = list_conversations(cur, show_hidden=True)
+
+        assert any(r.person_key == hidden_id for r in rows)
+        assert all(r.person_key != visible_id for r in rows)
+
+    def test_unhide_makes_contact_visible_again(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Unhide Me")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+        hide_contact(cur, contact_id)
+        unhide_contact(cur, contact_id)
 
         rows = list_conversations(cur)
 

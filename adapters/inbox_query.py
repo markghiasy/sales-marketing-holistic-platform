@@ -29,7 +29,7 @@ _DEFAULT_TOPIC = "General"
 _DEFAULT_URGENCY = 2
 
 
-def list_conversations(cur) -> list[ConversationRow]:
+def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
     # Eva's call 2026-09-17: contacts with no name AND (stale — no message
     # in over a year — OR only ever a single message) clutter the list
     # without adding much — mostly old WhatsApp chats where the platform's
@@ -64,6 +64,7 @@ def list_conversations(cur) -> list[ConversationRow]:
             where i.is_self = false and m.direction = 'inbound'
             group by coalesce(i.person_id, i.id)
         ) unread on unread.contact_key = cs.contact_key
+        left join contact_hidden ch on ch.contact_key = cs.contact_key
         where not (
             cs.display_name is null
             and (clm.sent_at < now() - interval '1 year' or cs.total_count = 1)
@@ -114,8 +115,10 @@ def list_conversations(cur) -> list[ConversationRow]:
             where coalesce(bi.person_id, bi.id) = cs.contact_key
               and trim(coalesce(bm.body_text, '')) <> ''
         )
+        and (ch.contact_key is not null) = %s
         order by clm.sent_at desc
-        """
+        """,
+        (show_hidden,),
     )
     rows = []
     for r in cur.fetchall():
@@ -134,6 +137,17 @@ def list_conversations(cur) -> list[ConversationRow]:
             has_draft=False,  # no real draft generation this pass
         ))
     return rows
+
+
+def hide_contact(cur, contact_key: str) -> None:
+    cur.execute(
+        "insert into contact_hidden (contact_key) values (%s) on conflict (contact_key) do nothing",
+        (contact_key,),
+    )
+
+
+def unhide_contact(cur, contact_key: str) -> None:
+    cur.execute("delete from contact_hidden where contact_key = %s", (contact_key,))
 
 
 _PLACEHOLDER_CONTEXT = ["AI brief hasn't been generated for this contact yet — check back after the next sync."]
