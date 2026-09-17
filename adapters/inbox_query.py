@@ -69,6 +69,36 @@ def list_conversations(cur) -> list[ConversationRow]:
             and (clm.sent_at < now() - interval '1 year' or cs.total_count = 1)
         )
         and not coalesce(clm.is_automated, false)
+        and not (
+            -- Eva's call 2026-09-18: a contact who's only ever a to/cc
+            -- recipient on large group-broadcast emails (mass event
+            -- invites, hackathon photo shares — real examples had 30-80
+            -- recipients), never a sender themselves, clutters the list
+            -- without adding much. Hidden (not deleted) only when BOTH
+            -- hold: they've never personally sent anything (no 'from'
+            -- row anywhere), AND every message they appear on as to/cc
+            -- had a large (>10) combined to+cc recipient count — a real
+            -- 1:1 or small-group email keeps them visible even with zero
+            -- replies so far.
+            not exists (
+                select 1
+                from identity fi
+                join message_participant fmp on fmp.identity_id = fi.id
+                where coalesce(fi.person_id, fi.id) = cs.contact_key and fmp.role = 'from'
+            )
+            and not exists (
+                select 1
+                from identity ti
+                join message_participant tmp on tmp.identity_id = ti.id
+                join message tm on tm.id = tmp.message_id
+                where coalesce(ti.person_id, ti.id) = cs.contact_key
+                  and tmp.role in ('to', 'cc')
+                  and (
+                      select count(*) from message_participant sizemp
+                      where sizemp.message_id = tm.id and sizemp.role in ('to', 'cc')
+                  ) <= 10
+            )
+        )
         order by clm.sent_at desc
         """
     )

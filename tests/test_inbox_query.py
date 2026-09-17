@@ -247,6 +247,52 @@ class TestListConversations:
 
         assert any(r.person_key == contact_id for r in rows)
 
+    def test_hides_contact_who_only_appears_as_a_bulk_recipient_and_never_sent(self, db_conn: psycopg.Connection):
+        # Real case found 2026-09-18: a contact who's only ever a to/cc
+        # recipient on a large group-broadcast email (a hackathon photo
+        # share, an event invite -- real examples had 30-80 recipients),
+        # never a sender themselves, clutters the list without adding much.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        sender_id = _make_identity(cur, "outlook", f"sender-{uuid.uuid4().hex}@example.com", display_name="Bulk Sender")
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Yanan Xie")
+        padding_ids = [_make_identity(cur, "outlook", f"pad{i}-{uuid.uuid4().hex}@example.com") for i in range(12)]
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", sender_id, [sender_id, self_id, contact_id, *padding_ids], now)
+
+        rows = list_conversations(cur)
+
+        assert all(r.person_key != contact_id for r in rows)
+
+    def test_keeps_contact_in_a_small_group_email_even_with_no_reply(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        sender_id = _make_identity(cur, "outlook", f"sender-{uuid.uuid4().hex}@example.com", display_name="Organiser")
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Small Group Member")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", sender_id, [sender_id, self_id, contact_id], now)
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
+    def test_keeps_bulk_recipient_who_has_sent_at_least_one_message(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        sender_id = _make_identity(cur, "outlook", f"sender-{uuid.uuid4().hex}@example.com", display_name="Bulk Sender")
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Yanan Xie")
+        padding_ids = [_make_identity(cur, "outlook", f"pad{i}-{uuid.uuid4().hex}@example.com") for i in range(12)]
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", sender_id, [sender_id, self_id, contact_id, *padding_ids], now - timedelta(days=1))
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now, body_text="Thanks!")
+
+        rows = list_conversations(cur)
+
+        assert any(r.person_key == contact_id for r in rows)
+
 
 class TestGetDetail:
     def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):
