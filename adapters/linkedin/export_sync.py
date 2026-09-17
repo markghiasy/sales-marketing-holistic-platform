@@ -258,12 +258,25 @@ def _to_envelope(row: dict, self_profile_url: str) -> Envelope | None:
     from_name = row.get("from", "").strip()
     from_handle = _handle(from_name, row.get("sender profile url", ""))
     to_name = row.get("to", "").strip()
-    # RECIPIENT PROFILE URLS is plural — comma-separated for group threads,
-    # same order as the (also comma-separated) TO name field
-    to_names = [n.strip() for n in to_name.split(",")] if to_name else []
     to_urls = [
         u.strip() for u in row.get("recipient profile urls", "").split(",")
     ] if row.get("recipient profile urls") else []
+    # RECIPIENT PROFILE URLS is plural — comma-separated for a genuine
+    # group thread, same order as the (also comma-separated) TO name
+    # field. But a single recipient's own display name can itself
+    # contain a comma (e.g. "Jizhizi Li, PhD") — found 2026-09-18:
+    # naively splitting TO by comma treated the credential suffix as a
+    # second, fake recipient named "PhD", which then collapsed onto one
+    # shared "name:phd" identity (export_sync.py has no profile URL for
+    # it to key on instead) regardless of who the real recipient was —
+    # every such message looked like part of the same conversation with
+    # a contact named "PhD". recipient profile urls' own comma count is
+    # the authoritative signal for how many real recipients there are;
+    # only split TO the same way when there's more than one URL.
+    to_names = (
+        [n.strip() for n in to_name.split(",")] if to_name and len(to_urls) > 1
+        else ([to_name] if to_name else [])
+    )
     to_handles = [
         _handle(n, to_urls[i] if i < len(to_urls) else "")
         for i, n in enumerate(to_names)

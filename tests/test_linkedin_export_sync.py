@@ -135,3 +135,36 @@ class TestToEnvelope:
         assert env.sent_at.year == 2026
         assert env.sent_at.month == 8
         assert env.sent_at.day == 20
+
+    def test_recipient_name_containing_a_comma_is_not_split_when_only_one_url(self):
+        # Real bug found 2026-09-18: "to": "Jizhizi Li, PhD" with a single
+        # "recipient profile urls" entry used to split on the comma into
+        # two fake recipients ("Jizhizi Li" and "PhD"), and "PhD" (no URL
+        # of its own) fell back to a shared "name:phd" identity -- every
+        # message to any "..., PhD" recipient collapsed onto that one
+        # fake contact, making unrelated conversations look merged.
+        row = self._row(
+            to="Jizhizi Li, PhD",
+            **{"recipient profile urls": "https://www.linkedin.com/in/jizhizili"},
+        )
+        env = _to_envelope(row, self._SELF_URL)
+        assert env is not None
+        assert env.to_handles == ["https://www.linkedin.com/in/jizhizili"]
+        assert env.to_display_names == ["Jizhizi Li, PhD"]
+
+    def test_recipient_names_still_split_for_a_genuine_multi_recipient_thread(self):
+        row = self._row(
+            to="Jane Doe, John Smith",
+            **{
+                "recipient profile urls": (
+                    "https://www.linkedin.com/in/janedoe,https://www.linkedin.com/in/johnsmith"
+                ),
+            },
+        )
+        env = _to_envelope(row, self._SELF_URL)
+        assert env is not None
+        assert env.to_handles == [
+            "https://www.linkedin.com/in/janedoe",
+            "https://www.linkedin.com/in/johnsmith",
+        ]
+        assert env.to_display_names == ["Jane Doe", "John Smith"]
