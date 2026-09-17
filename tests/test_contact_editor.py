@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import psycopg
 
@@ -11,6 +12,7 @@ from adapters.contact_editor import (
     search_identities,
     update_contact_name,
 )
+from adapters.inbox_query import hide_contact, list_conversations
 
 
 def _make_identity(cur, channel: str, handle: str, display_name: str | None = None, is_self: bool = False) -> str:
@@ -19,6 +21,35 @@ def _make_identity(cur, channel: str, handle: str, display_name: str | None = No
         (channel, handle, display_name, is_self),
     )
     return str(cur.fetchone()[0])
+
+
+def _make_thread(cur, channel: str, last_read_at=None) -> str:
+    external_id = f"thread-{uuid.uuid4().hex}"
+    cur.execute(
+        "insert into thread (channel, external_id, last_read_at) values (%s, %s, %s) returning id",
+        (channel, external_id, last_read_at),
+    )
+    return str(cur.fetchone()[0])
+
+
+def _make_message(cur, thread_id, channel, direction, from_identity_id, participant_ids, sent_at, body_text="hi") -> str:
+    external_id = f"msg-{uuid.uuid4().hex}"
+    cur.execute(
+        """
+        insert into message (thread_id, channel, external_id, direction, sent_at, from_identity_id, body_text, raw)
+        values (%s, %s, %s, %s, %s, %s, %s, %s)
+        returning id
+        """,
+        (thread_id, channel, external_id, direction, sent_at, from_identity_id, body_text, psycopg.types.json.Json({})),
+    )
+    message_id = str(cur.fetchone()[0])
+    for identity_id in participant_ids:
+        role = "from" if identity_id == from_identity_id else "to"
+        cur.execute(
+            "insert into message_participant (message_id, identity_id, role) values (%s, %s, %s)",
+            (message_id, identity_id, role),
+        )
+    return message_id
 
 
 class TestGetContactInfo:
@@ -136,6 +167,49 @@ class TestLinkContact:
         except ValueError:
             pass
 
+    def test_update_name_still_works_after_link_with_the_original_stale_person_key(
+        self, db_conn: psycopg.Connection
+    ):
+        # Regression for finding #2: a bare (unresolved) identity's own id
+        # is what the frontend opened the contact panel with (person_key).
+        # apply_merge() can assign that cluster a brand-new person.id when
+        # linking in a second identity, so the identity's own id no longer
+        # equals coalesce(person_id, id) afterward. update_contact_name
+        # must still resolve the ORIGINAL, now-stale person_key correctly.
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Jordan Lee")
+        other_id = _make_identity(cur, "whatsapp", f"{uuid.uuid4().int % 10**10}@s.whatsapp.net")
+
+        link_contact(cur, contact_id, other_id)
+
+        # contact_id (the original bare identity's own id) is now stale —
+        # use it directly, exactly as a frontend still holding the old
+        # personKey would.
+        update_contact_name(cur, contact_id, "Jordan Renamed")
+
+        info = get_contact_info(cur, contact_id)
+        assert info is not None
+        assert info.name == "Jordan Renamed"
+
+    def test_hidden_contact_stays_hidden_under_the_new_key_after_a_link(self, db_conn: psycopg.Connection):
+        # Regression for finding #10: hiding a contact writes a
+        # contact_hidden row keyed on its pre-merge contact_key. Linking
+        # another identity in can move the cluster to a brand-new
+        # person_id (see apply_merge), which must not orphan the hide.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex[:8]}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Hidden Person")
+        other_id = _make_identity(cur, "whatsapp", f"{uuid.uuid4().int % 10**10}@s.whatsapp.net")
+        now = datetime.now(UTC)
+        thread_id = _make_thread(cur, "outlook", last_read_at=now)
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id, self_id], now)
+
+        hide_contact(cur, contact_id)
+        new_key = link_contact(cur, contact_id, other_id)
+
+        rows = list_conversations(cur, show_hidden=True)
+        assert any(r.person_key == new_key for r in rows)
+
 
 class TestAddContactHandle:
     def test_adds_a_new_bare_identity_under_the_contact(self, db_conn: psycopg.Connection):
@@ -171,6 +245,22 @@ class TestAddContactHandle:
             raise AssertionError("expected ValueError")
         except ValueError:
             pass
+
+    def test_guesses_whatsapp_channel_for_a_formatted_phone_number(self, db_conn: psycopg.Connection):
+        # Regression for finding #11: a human-formatted number like
+        # "+61 400 000 000" has spaces the old digits_only == text.lstrip("+")
+        # check didn't tolerate, so it fell through to the outlook (email)
+        # branch and got stored lowercased as a bogus email-channel handle.
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex[:8]}@example.com", display_name="Sam Kim")
+        digits = str(61400000000 + (uuid.uuid4().int % 900000))
+        formatted = f"+{digits[:2]} {digits[2:5]} {digits[5:8]} {digits[8:]}"
+
+        add_contact_handle(cur, contact_id, formatted)
+
+        info = get_contact_info(cur, contact_id)
+        assert info is not None
+        assert any(h.channel == "whatsapp" and h.handle == f"{digits}@s.whatsapp.net" for h in info.handles)
 
     def test_creates_a_person_row_when_contact_has_none_yet(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()

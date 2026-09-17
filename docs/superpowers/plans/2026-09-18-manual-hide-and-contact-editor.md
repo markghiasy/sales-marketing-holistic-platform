@@ -165,7 +165,7 @@ Replace the `where` clause's final line — currently:
     )
 ```
 
-with (this appends the hide filter as one more parameterized `and`, keeping every existing filter's behavior unchanged for the `show_hidden=False` default, and applying the same filters even when showing hidden ones — a manually-hidden contact whose most recent message also happens to be automated/empty is still a real contact Eva chose to hide, so it should still appear in the Hidden view):
+with (this appends the hide filter as one more parameterized `and`, keeping every existing filter's behavior unchanged for the `show_hidden=False` default, and applying the same automatic filters — stale-unknown, automated-sender, bulk-recipient, empty-body — in `show_hidden=True` mode too: a contact that was never visible enough to manually hide in the first place shouldn't become reachable only through the Hidden view):
 
 ```python
         and (ch.contact_key is not null) = %s

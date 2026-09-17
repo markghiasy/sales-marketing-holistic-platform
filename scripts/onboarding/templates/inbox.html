@@ -480,7 +480,7 @@ function filtered() {
 function escapeHtml(value) {
   const div = document.createElement("div");
   div.textContent = value ?? "";
-  return div.innerHTML;
+  return div.innerHTML.replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
 function renderList() {
@@ -683,6 +683,7 @@ async function openContactPanel(personKey) {
   const resp = await fetch(`/contact/${personKey}`);
   if (!resp.ok) return;
   const contact = await resp.json();
+  closeOverlay();
   const backdrop = document.createElement("div");
   backdrop.className = "assistant-backdrop contact-backdrop";
   backdrop.innerHTML = `
@@ -717,10 +718,15 @@ async function openContactPanel(personKey) {
   document.getElementById("contact-name-save").addEventListener("click", async () => {
     const name = document.getElementById("contact-name-input").value.trim();
     if (!name) return;
-    await fetch(`/contact/${personKey}/name`, {
+    const resp = await fetch(`/contact/${personKey}/name`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
+    if (!resp.ok) {
+      const body = await resp.json();
+      alert(body.error || "Could not save the name.");
+      return;
+    }
     const row = CONVERSATIONS.find(c => c.person_key === personKey);
     if (row) row.name = name;
     closeOverlay();
@@ -747,10 +753,15 @@ async function openContactPanel(personKey) {
     `).join("");
     resultsBox.querySelectorAll(".contact-search-result").forEach(el => {
       el.addEventListener("click", async () => {
-        await fetch(`/contact/${personKey}/link`, {
+        const resp = await fetch(`/contact/${personKey}/link`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ identity_id: el.dataset.identityId }),
         });
+        if (!resp.ok) {
+          const body = await resp.json();
+          alert(body.error || "Could not link that contact.");
+          return;
+        }
         closeOverlay();
         openContactPanel(personKey);
       });
@@ -817,8 +828,7 @@ function openAssistant() {
 }
 
 function closeOverlay() {
-  const el = document.querySelector(".assistant-backdrop");
-  if (el) el.remove();
+  document.querySelectorAll(".assistant-backdrop").forEach(el => el.remove());
 }
 
 document.getElementById("searchbar").addEventListener("click", openAssistant);
