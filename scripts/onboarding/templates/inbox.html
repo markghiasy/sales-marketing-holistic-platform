@@ -128,6 +128,8 @@
   .row-main { flex: 1; min-width: 0; }
   .row-top { display: flex; align-items: baseline; gap: 8px; }
   .row-name { font-weight: 600; font-size: 13.5px; }
+  .contact-link { cursor: pointer; }
+  .contact-link:hover { text-decoration: underline; }
   .row-time { font-size: 11px; color: var(--text-dim); margin-left: auto; }
   .row-preview { font-size: 12.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
   .tag {
@@ -235,6 +237,48 @@
     align-self: flex-end; margin: -8px -6px 4px auto;
     width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent;
     color: var(--text-dim); font-size: 16px; cursor: pointer;
+  }
+
+  /* Contact info panel — opens on clicking a contact's name in the
+     detail panel header (see openContactPanel). Reuses .assistant-
+     backdrop/.assistant-close for the overlay/close-button mechanics;
+     this is its own narrower panel since it's a form, not a message list. */
+  .contact-panel {
+    width: 420px; max-height: 80vh; overflow-y: auto;
+    background: #fff; border-radius: 18px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column;
+    padding: 22px 20px 20px;
+  }
+  .contact-panel h3 {
+    font-size: 12.5px; letter-spacing: 0.06em; color: var(--text-dim);
+    text-transform: uppercase; margin: 18px 0 8px;
+  }
+  .contact-name-row { display: flex; gap: 8px; }
+  .contact-name-row input {
+    flex: 1; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 15px; font-weight: 600; color: var(--text);
+  }
+  .contact-name-row button, .contact-add-new button {
+    border: none; border-radius: 8px; background: var(--text); color: #fff;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .contact-handles { display: flex; flex-direction: column; gap: 6px; }
+  .contact-handle-row, .contact-search-result {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12.5px;
+  }
+  .contact-search-result { cursor: pointer; justify-content: space-between; }
+  .contact-search-result:hover { background: var(--panel-2); }
+  .contact-add-input, #contact-add-input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12.5px; margin-top: 4px; box-sizing: border-box;
+  }
+  .contact-search-results { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .contact-add-new {
+    margin-top: 8px; display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text-dim);
   }
 
   /* Message detail panel — opens on clicking a row, near-fullscreen
@@ -570,7 +614,7 @@ async function openDetail(personKey) {
       <div class="detail-head">
         <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
         <div>
-          <div class="row-name">${escapeHtml(c.name)}</div>
+          <div class="row-name contact-link" data-contact-id="${c.person_key}">${escapeHtml(c.name)}</div>
           <div class="row-time">${CHANNELS[c.channel].label} &middot; ${formatRelativeTime(c.last_message_at)}</div>
         </div>
       </div>
@@ -622,11 +666,114 @@ async function openDetail(personKey) {
   document.body.appendChild(backdrop);
   document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
   wireGraphNodes();
+  document.querySelectorAll(".contact-link").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openContactPanel(el.dataset.contactId);
+    });
+  });
 
   fetch(`/inbox/conversation/${personKey}/read`, { method: "POST" });
   const row = CONVERSATIONS.find(x => x.person_key === personKey);
   if (row) row.unread = false;
   renderList();
+}
+
+async function openContactPanel(personKey) {
+  const resp = await fetch(`/contact/${personKey}`);
+  if (!resp.ok) return;
+  const contact = await resp.json();
+  const backdrop = document.createElement("div");
+  backdrop.className = "assistant-backdrop contact-backdrop";
+  backdrop.innerHTML = `
+    <div class="contact-panel">
+      <button class="assistant-close" id="contact-close-btn">&times;</button>
+      <div class="contact-name-row">
+        <input type="text" id="contact-name-input" value="${escapeHtml(contact.name)}">
+        <button id="contact-name-save" type="button">Save</button>
+      </div>
+      <h3>Known handles</h3>
+      <div class="contact-handles">
+        ${contact.handles.map(h => `
+          <div class="contact-handle-row">
+            <span class="channel-icon">${CHANNELS[h.channel].icon}</span>
+            <span>${escapeHtml(h.handle)}</span>
+          </div>
+        `).join("")}
+      </div>
+      <h3>Add or link a handle</h3>
+      <input type="text" id="contact-add-input" placeholder="Email, phone, or search existing contacts...">
+      <div class="contact-search-results" id="contact-search-results"></div>
+      <div class="contact-add-new" id="contact-add-new" hidden>
+        <span id="contact-add-new-label"></span>
+        <button id="contact-add-new-btn" type="button">Add as new</button>
+      </div>
+    </div>
+  `;
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
+  document.body.appendChild(backdrop);
+  document.getElementById("contact-close-btn").addEventListener("click", closeOverlay);
+
+  document.getElementById("contact-name-save").addEventListener("click", async () => {
+    const name = document.getElementById("contact-name-input").value.trim();
+    if (!name) return;
+    await fetch(`/contact/${personKey}/name`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const row = CONVERSATIONS.find(c => c.person_key === personKey);
+    if (row) row.name = name;
+    closeOverlay();
+    renderList();
+  });
+
+  const addInput = document.getElementById("contact-add-input");
+  const resultsBox = document.getElementById("contact-search-results");
+  const addNewBox = document.getElementById("contact-add-new");
+  const addNewLabel = document.getElementById("contact-add-new-label");
+  const addNewBtn = document.getElementById("contact-add-new-btn");
+
+  addInput.addEventListener("input", async () => {
+    const q = addInput.value.trim();
+    if (!q) { resultsBox.innerHTML = ""; addNewBox.hidden = true; return; }
+    const resp2 = await fetch(`/contact/search?q=${encodeURIComponent(q)}&exclude=${personKey}`);
+    const results = await resp2.json();
+    resultsBox.innerHTML = results.map(r => `
+      <div class="contact-search-result" data-identity-id="${r.identity_id}">
+        <span class="channel-icon">${CHANNELS[r.channel].icon}</span>
+        <span>${escapeHtml(r.display_name || r.handle)}</span>
+        <span class="row-time">${escapeHtml(r.handle)}</span>
+      </div>
+    `).join("");
+    resultsBox.querySelectorAll(".contact-search-result").forEach(el => {
+      el.addEventListener("click", async () => {
+        await fetch(`/contact/${personKey}/link`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identity_id: el.dataset.identityId }),
+        });
+        closeOverlay();
+        openContactPanel(personKey);
+      });
+    });
+    addNewBox.hidden = results.length > 0;
+    addNewLabel.textContent = `No match found for "${q}"`;
+  });
+
+  addNewBtn.addEventListener("click", async () => {
+    const q = addInput.value.trim();
+    if (!q) return;
+    const resp3 = await fetch(`/contact/${personKey}/add-handle`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handle: q }),
+    });
+    if (!resp3.ok) {
+      const body = await resp3.json();
+      alert(body.error || "Could not add that handle.");
+      return;
+    }
+    closeOverlay();
+    openContactPanel(personKey);
+  });
 }
 
 document.getElementById("f-unread").addEventListener("change", e => { state.unread = e.target.checked; render(); });
