@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -53,12 +54,37 @@ def _parse_timestamp(ts) -> datetime:
     return datetime.fromtimestamp(int(ts), tz=UTC)
 
 
+_DEVICE_SUFFIX_RE = re.compile(r":\d+(?=@)")
+
+
+def _strip_device_suffix(jid: str) -> str:
+    """WhatsApp's multi-device protocol tags a jid with ":<device
+    number>" for which of your own linked devices sent/received
+    something — e.g. "61404157396:21@s.whatsapp.net" vs the bare
+    "61404157396@s.whatsapp.net". Found 2026-09-17: a self-chat
+    ("Message Yourself") message's remote_jid is always the bare form,
+    but self_jid (from self_jid.txt) carries whatever device suffix was
+    current when that file was written — different across reconnects —
+    so the two never string-compared equal, and every self-chat message
+    created a phantom "unknown contact" identity for your own bare
+    number. Stripping the suffix everywhere a jid becomes a handle
+    collapses all your own device variants into one real self identity.
+    """
+    return _DEVICE_SUFFIX_RE.sub("", jid)
+
+
 def _to_envelope(record: dict, self_jid: str) -> Envelope | None:
     text = record.get("text")
     remote_jid = record.get("remote_jid")
     msg_id = record.get("id")
     if not text or not remote_jid or not msg_id:
         return None
+
+    remote_jid = _strip_device_suffix(remote_jid)
+    self_jid = _strip_device_suffix(self_jid)
+    participant = record.get("participant")
+    if participant:
+        participant = _strip_device_suffix(participant)
 
     from_me = bool(record.get("from_me"))
     is_group = bool(record.get("is_group"))
@@ -82,7 +108,7 @@ def _to_envelope(record: dict, self_jid: str) -> Envelope | None:
         # you here — a group message's *other* recipients (everyone else
         # in the group) aren't captured, same missing-groupMetadata gap
         # as above.
-        from_handle = record.get("participant") or remote_jid
+        from_handle = participant or remote_jid
         to_handles = [self_jid]
 
     sent_at = _parse_timestamp(record.get("timestamp"))
