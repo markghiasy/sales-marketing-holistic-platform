@@ -22,8 +22,7 @@ import psycopg
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file
 
-from adapters import inbox_query
-from adapters import contact_editor
+from adapters import contact_editor, inbox_query
 from adapters.linkedin import login as linkedin_login
 from adapters.outlook import client as outlook_client
 from adapters.resolution.merge import apply_merge

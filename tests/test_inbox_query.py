@@ -5,7 +5,13 @@ from datetime import UTC, datetime, timedelta
 
 import psycopg
 
-from adapters.inbox_query import get_detail, hide_contact, list_conversations, mark_read, unhide_contact
+from adapters.inbox_query import (
+    get_detail,
+    hide_contact,
+    list_conversations,
+    mark_read,
+    unhide_contact,
+)
 
 
 def _make_identity(cur, channel: str, handle: str, is_self: bool = False, display_name: str | None = None) -> str:
