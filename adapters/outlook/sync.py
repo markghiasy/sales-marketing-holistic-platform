@@ -79,6 +79,23 @@ _QUOTE_START_RE = re.compile(
     r'id="divRplyFwdMsg"|class="[^"]*gmail_quote|<blockquote',
     re.IGNORECASE,
 )
+# Gmail signature blocks (data-smartmail="gmail_signature", or a class
+# attribute containing "gmail_signature") sit at the end of real message
+# content, like the quote chain above — checked against 96 real messages
+# containing this marker (2026-09-17): in every sample, nothing after it
+# was real content. They're also exactly the part of these messages most
+# prone to Graph-side quoted-printable corruption (deeply nested HTML
+# tables) — when corruption eats the opening "<" of a nested tag inside
+# one, it turns into a literal "=", so _TAG_RE can no longer recognise it
+# as a tag at all, and garbage like `=span style="...">` leaks straight
+# into the visible message text. Cutting the whole block from its first
+# occurrence — same approach as _QUOTE_START_RE — discards it wholesale
+# rather than trying to parse markup that's already lost information.
+_SIGNATURE_START_RE = re.compile(
+    r'data-smartmail="gmail_signature"|class="[^"]*gmail_signature',
+    re.IGNORECASE,
+)
+
 # Plain-text fallback (103 of 4,769 real messages here are contentType
 # "text", not "html") — "On <date>, <name> wrote:" is the cross-client
 # convention for where quoted history starts in a plain-text body.
@@ -171,9 +188,22 @@ def _strip_html(body: dict) -> str:
     content = _GARBLED_INVISIBLE_CHARS_RE.sub("", content)
     content = _GARBLED_QP_RUN_RE.sub(" ", content)
     if body.get("contentType") == "html":
-        match = _QUOTE_START_RE.search(content)
-        if match:
-            content = content[: match.start()]
+        # Both patterns can match mid-attribute (e.g. id="divRplyFwdMsg"
+        # or class="gmail_signature" partway through a <div ...> tag), so
+        # cutting at the match's own start leaves the tag's opening "<..."
+        # dangling with no closing ">" — it survives _TAG_RE untouched
+        # since that regex requires both. Found 2026-09-17 while fixing
+        # the gmail_signature case; walk back to the tag's real opening
+        # "<" so the whole tag is discarded, not just the part from the
+        # matched attribute onward.
+        cut_points = []
+        for match in (_QUOTE_START_RE.search(content), _SIGNATURE_START_RE.search(content)):
+            if not match:
+                continue
+            tag_start = content.rfind("<", 0, match.start())
+            cut_points.append(tag_start if tag_start != -1 else match.start())
+        if cut_points:
+            content = content[: min(cut_points)]
         content = _STYLE_OR_SCRIPT_BLOCK_RE.sub(" ", content)
         content = _TAG_RE.sub(" ", content)
         content = html.unescape(content)

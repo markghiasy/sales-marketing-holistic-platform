@@ -78,6 +78,73 @@ class TestStripHtml:
         }
         result = _strip_html(body)
         assert "My comment" in result
+
+    def test_strips_gmail_signature_block_via_data_smartmail_marker(self):
+        # real shape (2026-09-17): a corrupted nested tag inside the
+        # signature loses its opening "<" to Graph-side QP corruption and
+        # leaks as literal text once unescaped — cutting the whole block
+        # avoids ever parsing that corrupted markup.
+        body = {
+            "contentType": "html",
+            "content": (
+                "<div>Thanks, see you then!</div>"
+                '<div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">'
+                '<div dir="ltr"><table><tbody><tr><td>'
+                '=span style=&quot;margin-right:10px&quot;&gt;Dr Sam Donegan'
+                "</td></tr></tbody></table></div></div>"
+            ),
+        }
+        result = _strip_html(body)
+        assert "Thanks, see you then!" in result
+        assert "Dr Sam Donegan" not in result
+        assert "=span style=" not in result
+
+    def test_strips_gmail_signature_block_via_class_marker_alone(self):
+        body = {
+            "contentType": "html",
+            "content": (
+                "<div>My reply</div>"
+                '<div class="gmail_signature"><div>Real Name<br>Some Company</div></div>'
+            ),
+        }
+        result = _strip_html(body)
+        assert "My reply" in result
+        assert "Some Company" not in result
+
+    def test_signature_cut_does_not_leave_dangling_tag_fragment(self):
+        # real shape (2026-09-17): the signature marker sits mid-attribute
+        # inside the enclosing <div ...>, e.g.
+        # <div dir="ltr" class="gmail_signature" ...> — cutting at the
+        # marker's own position instead of the tag's opening "<" used to
+        # leave a dangling '<div dir="ltr"' fragment at the very end of
+        # the result, since it has no closing ">" left to be stripped.
+        body = {
+            "contentType": "html",
+            "content": (
+                "<div>My reply</div>"
+                '<div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">'
+                "Real Name</div>"
+            ),
+        }
+        result = _strip_html(body)
+        assert result == "My reply"
+
+    def test_signature_cut_before_quote_when_signature_comes_first(self):
+        # real shape: signature block, then the gmail_quote chain further
+        # down (a reply that also quotes earlier history) — signature
+        # should win since it's the earlier cut point.
+        body = {
+            "contentType": "html",
+            "content": (
+                "<div>My reply</div>"
+                '<div class="gmail_signature">Real Name</div>'
+                '<div class="gmail_quote gmail_quote_container">Old quoted text</div>'
+            ),
+        }
+        result = _strip_html(body)
+        assert "My reply" in result
+        assert "Real Name" not in result
+        assert "Old quoted text" not in result
         assert "Old quoted text" not in result
 
     def test_plain_text_wrote_marker_stripped(self):
