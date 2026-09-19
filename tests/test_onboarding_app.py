@@ -773,7 +773,7 @@ class TestInboxRoutes:
         rows = resp.get_json()
         assert any(r["person_key"] == contact_id for r in rows)
 
-    def test_conversation_detail_json_returns_threads(self, db_conn, _created):
+    def test_conversation_detail_json_returns_messages(self, db_conn, _created):
         contact_id = _seed_inbox_conversation(db_conn, _created)
 
         flask_app = onboarding_app.create_app(testing=True)
@@ -783,7 +783,7 @@ class TestInboxRoutes:
         assert resp.status_code == 200
         body = resp.get_json()
         assert body["name"] == "Test Contact"
-        assert body["threads"][0]["messages"][0]["text"] == "hello"
+        assert body["messages"][0]["text"] == "hello"
 
     def test_conversation_detail_json_404s_for_unknown_person(self):
         flask_app = onboarding_app.create_app(testing=True)

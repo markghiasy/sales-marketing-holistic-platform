@@ -389,18 +389,13 @@ def create_app(testing: bool = False) -> Flask:
         return jsonify({
             "person_key": detail.person_key, "name": detail.name, "channel": detail.channel,
             "last_message_at": detail.last_message_at,
-            "threads": [
+            "messages": [
                 {
-                    "channel": t.channel, "subject": t.subject,
-                    "messages": [
-                        {
-                            "sender": m.sender, "text": m.text, "sent_at": m.sent_at,
-                            "to": m.to, "cc": m.cc, "from_name": m.from_name,
-                        }
-                        for m in t.messages
-                    ],
+                    "channel": m.channel, "subject": m.subject,
+                    "sender": m.sender, "text": m.text, "sent_at": m.sent_at,
+                    "to": m.to, "cc": m.cc, "from_name": m.from_name,
                 }
-                for t in detail.threads
+                for m in detail.messages
             ],
             "context": detail.context, "graph": detail.graph, "topic": detail.topic, "urgency": detail.urgency,
         })

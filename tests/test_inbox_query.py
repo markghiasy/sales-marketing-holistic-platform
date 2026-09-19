@@ -372,7 +372,12 @@ class TestListConversations:
 
 
 class TestGetDetail:
-    def test_groups_messages_into_threads_ordered_by_first_message(self, db_conn: psycopg.Connection):
+    def test_orders_messages_chronologically_across_separate_threads(self, db_conn: psycopg.Connection):
+        # Real case found 2026-09-19: grouping by thread first, then
+        # ordering the GROUPS by each one's own first message, could put
+        # an old, short-lived thread out of true time order relative to a
+        # long-running thread on another channel. get_detail() returns
+        # one flat, genuinely chronological list instead.
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
         contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Priya")
@@ -390,10 +395,10 @@ class TestGetDetail:
 
         assert detail is not None
         assert detail.name == "Priya"
-        assert [g.subject for g in detail.threads] == ["Q4 rollout", "Services agreement"]
-        assert detail.threads[0].messages[0].text == "kicking things off"
-        assert detail.threads[0].messages[0].sender == "them"
-        assert detail.threads[0].messages[0].from_name is None
+        assert [m.text for m in detail.messages] == ["kicking things off", "pricing by phase"]
+        assert [m.subject for m in detail.messages] == ["Q4 rollout", "Services agreement"]
+        assert detail.messages[0].sender == "them"
+        assert detail.messages[0].from_name is None
 
     def test_third_party_message_carries_from_name(self, db_conn: psycopg.Connection):
         # Real bug found 2026-09-17: viewing Dr Sam Donegan's conversation,
@@ -414,7 +419,7 @@ class TestGetDetail:
         detail = get_detail(cur, contact_id)
 
         assert detail is not None
-        msg = detail.threads[0].messages[0]
+        msg = detail.messages[0]
         assert msg.sender == "them"
         assert msg.from_name == "Barney Howells"
 
@@ -433,10 +438,10 @@ class TestGetDetail:
         detail = get_detail(cur, contact_id)
 
         assert detail is not None
-        assert len(detail.threads[0].messages) == 1
-        assert detail.threads[0].messages[0].text == "real content"
+        assert len(detail.messages) == 1
+        assert detail.messages[0].text == "real content"
 
-    def test_drops_whole_thread_when_every_message_in_it_is_empty(self, db_conn: psycopg.Connection):
+    def test_drops_every_empty_message_across_multiple_threads(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
         contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Sam")
@@ -449,8 +454,8 @@ class TestGetDetail:
         detail = get_detail(cur, contact_id)
 
         assert detail is not None
-        assert len(detail.threads) == 1
-        assert detail.threads[0].messages[0].text == "hello"
+        assert len(detail.messages) == 1
+        assert detail.messages[0].text == "hello"
 
     def test_message_carries_to_and_cc_labels(self, db_conn: psycopg.Connection):
         # Real shape: an outbound email Eva sent to Martin, cc'ing Luisa
@@ -471,7 +476,7 @@ class TestGetDetail:
 
         detail = get_detail(cur, martin_id)
 
-        msg = detail.threads[0].messages[0]
+        msg = detail.messages[0]
         assert msg.to == ["Martin"]
         assert set(msg.cc) == {"Luisa", no_name_handle}
 
@@ -485,7 +490,7 @@ class TestGetDetail:
 
         detail = get_detail(cur, contact_id)
 
-        assert detail.threads[0].subject is None
+        assert detail.messages[0].subject is None
 
     def test_no_ai_brief_row_returns_placeholder_context(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
@@ -503,6 +508,33 @@ class TestGetDetail:
     def test_unknown_person_key_returns_none(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         assert get_detail(cur, str(uuid.uuid4())) is None
+
+    def test_a_single_older_message_on_one_channel_sits_between_newer_messages_on_another(
+        self, db_conn: psycopg.Connection
+    ):
+        # Real case found 2026-09-19 (Mark's merged contact): a long-
+        # running WhatsApp thread (Aug 15 - Sep 17) with one Outlook
+        # message from partway through (Aug 18) used to render the whole
+        # Outlook message AFTER the entire WhatsApp thread, since thread
+        # GROUPS were ordered by their own first message (WhatsApp's
+        # first message, Aug 15, sorts before Outlook's only message,
+        # Aug 18) rather than each message sitting at its own true time.
+        cur = db_conn.cursor()
+        self_id = _make_identity(cur, "outlook", f"me-{uuid.uuid4().hex}@example.com", is_self=True)
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Mark")
+        whatsapp_thread = _make_thread(cur, "whatsapp")
+        outlook_thread = _make_thread(cur, "outlook")
+        _make_message(cur, whatsapp_thread, "whatsapp", "inbound", contact_id, [contact_id, self_id],
+                       datetime(2026, 8, 15, tzinfo=UTC), body_text="wa: aug 15")
+        _make_message(cur, outlook_thread, "outlook", "inbound", contact_id, [contact_id, self_id],
+                       datetime(2026, 8, 18, tzinfo=UTC), body_text="outlook: aug 18")
+        _make_message(cur, whatsapp_thread, "whatsapp", "inbound", contact_id, [contact_id, self_id],
+                       datetime(2026, 9, 17, tzinfo=UTC), body_text="wa: sep 17")
+
+        detail = get_detail(cur, contact_id)
+
+        assert detail is not None
+        assert [m.text for m in detail.messages] == ["wa: aug 15", "outlook: aug 18", "wa: sep 17"]
 
 
 class TestMarkRead:

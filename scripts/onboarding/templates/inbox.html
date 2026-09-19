@@ -353,9 +353,11 @@
 
   /* One person's messages can span several channels, and within a
      channel (especially email) people often start a new thread rather
-     than replying — Eva's ask: stitch it all into one timeline instead
-     of showing only the row's own channel/thread. */
-  .thread-group { margin-bottom: 20px; }
+     than replying — Eva's ask: stitch it all into one genuinely
+     chronological timeline (openDetail() renders c.messages flat, in
+     sent_at order) rather than grouping by thread first and only then
+     ordering the groups, which could put an old, short thread out of
+     real time order relative to a long-running one on another channel. */
   .thread-group-head {
     display: flex; align-items: center; gap: 7px; margin-bottom: 10px;
     font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.02em;
@@ -620,15 +622,30 @@ async function openDetail(personKey) {
       </div>
       <div class="detail-body">
         <div class="detail-col">
-          ${c.threads.map(g => `
-            <div class="thread-group">
-              <div class="thread-group-head">
-                <span class="chan-icon">${CHANNELS[g.channel].icon}</span>
-                <span>${CHANNELS[g.channel].label}</span>
-                ${g.subject ? `<span class="subject">&middot; ${escapeHtml(g.subject)}</span>` : ""}
-              </div>
-              <div class="thread">
-                ${g.messages.map(m => `
+          <div class="thread">
+            ${(() => {
+              // Eva's call 2026-09-19: one genuinely chronological stream
+              // across every channel/thread (c.messages is already sorted
+              // that way by get_detail()), not grouped-then-reordered by
+              // thread. A small channel/subject header is still shown,
+              // but only when it actually CHANGES from the previous
+              // message — same visual context as before, without
+              // reordering messages out of real time order.
+              let lastHeaderKey = null;
+              const parts = [];
+              for (const m of c.messages) {
+                const headerKey = `${m.channel}|${m.subject || ""}`;
+                if (headerKey !== lastHeaderKey) {
+                  parts.push(`
+                    <div class="thread-group-head">
+                      <span class="chan-icon">${CHANNELS[m.channel].icon}</span>
+                      <span>${CHANNELS[m.channel].label}</span>
+                      ${m.subject ? `<span class="subject">&middot; ${escapeHtml(m.subject)}</span>` : ""}
+                    </div>
+                  `);
+                  lastHeaderKey = headerKey;
+                }
+                parts.push(`
                   <div class="thread-msg ${m.sender}">
                     ${m.from_name ? `<div class="thread-from">${escapeHtml(m.from_name)}</div>` : ""}
                     ${(m.to.length || m.cc.length) ? `
@@ -640,10 +657,11 @@ async function openDetail(personKey) {
                     <div>${escapeHtml(m.text)}</div>
                     <div class="thread-time">${formatRelativeTime(m.sent_at)}</div>
                   </div>
-                `).join("")}
-              </div>
-            </div>
-          `).join("")}
+                `);
+              }
+              return parts.join("");
+            })()}
+          </div>
           <div class="detail-draft">
             <h3>&#9998; AI draft reply</h3>
             <div class="row-preview">Draft replies — under development.</div>

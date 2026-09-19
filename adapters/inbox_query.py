@@ -156,6 +156,11 @@ _PLACEHOLDER_GRAPH = {"org": None, "people": []}
 
 @dataclass
 class ThreadMessage:
+    channel: str  # which channel THIS message came from — every message
+                   # carries its own now (see get_detail's Eva's-call
+                   # comment below), not a shared header over a group
+    subject: str | None  # email subject, if any (Outlook only, always
+                          # None for WhatsApp/LinkedIn)
     sender: str  # "you" | "them"
     text: str
     sent_at: str
@@ -174,19 +179,14 @@ class ThreadMessage:
 
 
 @dataclass
-class ThreadGroup:
-    channel: str
-    subject: str | None
-    messages: list[ThreadMessage]
-
-
-@dataclass
 class ConversationDetail:
     person_key: str
     name: str
     channel: str
     last_message_at: str
-    threads: list[ThreadGroup]
+    messages: list[ThreadMessage]  # flat, globally chronological across
+                                     # every channel/thread — see Eva's
+                                     # call 2026-09-19 in get_detail()
     context: list[str]
     graph: dict
     topic: str
@@ -240,16 +240,21 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         entry = to_cc_by_message.setdefault(str(message_id), {"to": [], "cc": []})
         entry[role].append(label)
 
+    # Eva's call 2026-09-19: a real contact's messages can span several
+    # channels (Outlook/WhatsApp/LinkedIn) — this used to group messages
+    # by thread first, then order those GROUPS by each one's own first
+    # message, so an old, short-lived thread from one channel could sit
+    # oddly relative to a long-running, still-active thread on another
+    # channel even though most of that second thread's messages are
+    # actually newer. `rows` is already `order by m.sent_at` from the
+    # query above; building the list directly from it (no grouping step)
+    # gives a single, genuinely chronological stream — each message
+    # carries its own channel/subject so it's still clear where it came
+    # from, without a separate per-thread header.
     identity_id_set = set(identity_ids)
-    groups_by_thread: dict[str, dict] = {}
-    for message_id, thread_id, channel, subject, direction, body_text, sent_at, from_identity_id, from_label in rows:
+    messages: list[ThreadMessage] = []
+    for message_id, _thread_id, channel, subject, direction, body_text, sent_at, from_identity_id, from_label in rows:
         message_id = str(message_id)
-        thread_id = str(thread_id)
-        group = groups_by_thread.setdefault(
-            thread_id, {"channel": channel, "subject": None, "messages": [], "first_sent_at": sent_at}
-        )
-        if subject and group["subject"] is None:
-            group["subject"] = subject
         if not body_text or not body_text.strip():
             # Real case found 2026-09-17: a bare forward with no comment
             # added above it has nothing left once the quote/forward chain
@@ -260,7 +265,9 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         to_cc = to_cc_by_message.get(message_id, {"to": [], "cc": []})
         sender = "you" if direction == "outbound" else "them"
         is_third_party = sender == "them" and str(from_identity_id) not in identity_id_set
-        group["messages"].append(ThreadMessage(
+        messages.append(ThreadMessage(
+            channel=channel,
+            subject=subject,
             sender=sender,
             text=body_text,
             sent_at=sent_at.isoformat(),
@@ -268,13 +275,6 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
             cc=to_cc["cc"],
             from_name=from_label if is_third_party else None,
         ))
-
-    ordered_groups = sorted(groups_by_thread.values(), key=lambda g: g["first_sent_at"])
-    threads = [
-        ThreadGroup(channel=g["channel"], subject=g["subject"], messages=g["messages"])
-        for g in ordered_groups
-        if g["messages"]  # every message in this thread was empty (see above) -- drop the whole group
-    ]
 
     cur.execute("select max(display_name) from identity where id = any(%s)", (identity_ids,))
     name = cur.fetchone()[0] or "(unknown)"
@@ -295,7 +295,7 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         name=name,
         channel=last_message[2],
         last_message_at=last_message[6].isoformat(),
-        threads=threads,
+        messages=messages,
         context=context,
         graph=graph,
         topic=topic,
