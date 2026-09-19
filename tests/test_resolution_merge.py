@@ -174,6 +174,71 @@ class TestApplyMerge:
         assert sorted(moved_identity_ids) == sorted([b, stranded])
         assert prev_primary_name == "Eric Tham"
 
+    def test_relocates_ai_brief_from_a_bare_identitys_own_pre_merge_key(self, db_conn: psycopg.Connection):
+        # Real bug found 2026-09-19: merging two bare (unresolved)
+        # identities each already had its own ai_brief row, keyed on its
+        # own id (its pre-merge contact_key). Neither survived the merge
+        # under the old code -- the contact showed "AI brief hasn't been
+        # generated yet" despite two real ones existing in the table.
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+        cur.execute(
+            """
+            insert into ai_brief (person_key, summary, context, topic, graph, urgency, model, prompt_version)
+            values (%s, 'from a', '[]', 'General', '{}', 1, 'test', 'v1')
+            """,
+            (a,),
+        )
+
+        person_id = apply_merge(cur, a, b)
+
+        cur.execute("select summary from ai_brief where person_key = %s", (person_id,))
+        row = cur.fetchone()
+        assert row is not None
+        assert row[0] == "from a"
+        cur.execute("select count(*) from ai_brief where person_key = %s", (a,))
+        assert cur.fetchone()[0] == 0  # the stale row is gone, not just uncounted
+
+    def test_ai_brief_conflict_keeps_the_survivors_own_row(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+        cur.execute(
+            """
+            insert into ai_brief (person_key, summary, context, topic, graph, urgency, model, prompt_version)
+            values (%s, 'from a', '[]', 'General', '{}', 1, 'test', 'v1')
+            """,
+            (a,),
+        )
+        cur.execute(
+            """
+            insert into ai_brief (person_key, summary, context, topic, graph, urgency, model, prompt_version)
+            values (%s, 'from b', '[]', 'General', '{}', 1, 'test', 'v1')
+            """,
+            (b,),
+        )
+
+        person_id = apply_merge(cur, a, b)  # must not raise a primary-key violation
+
+        cur.execute("select count(*) from ai_brief where person_key = %s", (person_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("select count(*) from ai_brief")
+        assert cur.fetchone()[0] == 1  # both stale rows are gone, exactly one survives
+
+    def test_relocates_contact_hidden_from_a_bare_identitys_own_pre_merge_key(self, db_conn: psycopg.Connection):
+        cur = db_conn.cursor()
+        a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
+        b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
+        cur.execute("insert into contact_hidden (contact_key) values (%s)", (a,))
+
+        person_id = apply_merge(cur, a, b)
+
+        cur.execute("select count(*) from contact_hidden where contact_key = %s", (person_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("select count(*) from contact_hidden where contact_key = %s", (a,))
+        assert cur.fetchone()[0] == 0
+
 
 class TestUndoMerge:
     def test_undoing_a_cluster_union_merge_restores_both_clusters(self, db_conn: psycopg.Connection):

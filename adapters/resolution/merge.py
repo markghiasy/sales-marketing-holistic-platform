@@ -20,6 +20,25 @@ class MergeConflictError(Exception):
 
 
 def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
+    # Real bug found 2026-09-19: any per-contact side table keyed on
+    # contact_key (coalesce(person_id, id)) — ai_brief, contact_hidden —
+    # can be orphaned by a merge, since a merge is exactly what changes
+    # what coalesce(person_id, id) resolves to for the identities
+    # involved. Captured here, before anything else moves, and relocated
+    # at the end — centralized in apply_merge() itself (not in each
+    # merge-triggering caller) so every merge path gets this for free:
+    # the contact panel's link_contact, /resolution's confirm route, and
+    # any automatic rule in adapters/resolution/rules.py. Confirmed
+    # against real data: merging a contact's Outlook and WhatsApp
+    # identities left two separate, already-generated ai_brief rows
+    # (one per identity's own pre-merge key) both orphaned — the contact
+    # showed "AI brief hasn't been generated yet" despite two real ones
+    # existing in the table.
+    cur.execute("select coalesce(person_id, id) from identity where id = %s", (identity_a_id,))
+    pre_merge_key_a = str(cur.fetchone()[0])
+    cur.execute("select coalesce(person_id, id) from identity where id = %s", (identity_b_id,))
+    pre_merge_key_b = str(cur.fetchone()[0])
+
     cur.execute("select person_id from identity where id = %s", (identity_a_id,))
     (person_a,) = cur.fetchone()
     cur.execute("select person_id from identity where id = %s", (identity_b_id,))
@@ -99,7 +118,41 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
         (primary_name, preferred_name, person_id),
     )
 
+    for stale_key in {pre_merge_key_a, pre_merge_key_b} - {str(person_id)}:
+        _relocate_ai_brief(cur, stale_key, str(person_id))
+        _relocate_contact_hidden(cur, stale_key, str(person_id))
+
     return str(person_id)
+
+
+def _relocate_ai_brief(cur, stale_key: str, new_key: str) -> None:
+    # If new_key already has its own ai_brief row (both sides had already
+    # been separately briefed), that row wins arbitrarily and stale_key's
+    # is discarded rather than merged — a full regeneration covering the
+    # combined message history is a separate, later concern (this only
+    # guarantees SOME real brief survives instead of neither).
+    cur.execute(
+        """
+        insert into ai_brief (person_key, summary, context, topic, graph, urgency, model, prompt_version, generated_at)
+        select %s, summary, context, topic, graph, urgency, model, prompt_version, generated_at
+        from ai_brief where person_key = %s
+        on conflict (person_key) do nothing
+        """,
+        (new_key, stale_key),
+    )
+    cur.execute("delete from ai_brief where person_key = %s", (stale_key,))
+
+
+def _relocate_contact_hidden(cur, stale_key: str, new_key: str) -> None:
+    cur.execute(
+        """
+        insert into contact_hidden (contact_key)
+        select %s where exists (select 1 from contact_hidden where contact_key = %s)
+        on conflict (contact_key) do nothing
+        """,
+        (new_key, stale_key),
+    )
+    cur.execute("delete from contact_hidden where contact_key = %s", (stale_key,))
 
 
 def undo_merge(cur, merge_log_id: str) -> None:
