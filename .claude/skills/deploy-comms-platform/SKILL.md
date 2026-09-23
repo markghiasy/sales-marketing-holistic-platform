@@ -77,6 +77,28 @@ there). Everything below assumes Linux — adjust or stop and ask if the
 target turns out to be something else (macOS, a different init system
 than systemd).
 
+**If this is an update to an already-deployed, already-running
+instance** (an existing checkout, not a fresh clone), the steps below
+still apply in order — Steps 2 and 3 are written to be safe to re-run
+against an instance that already has some or all migrations/deps
+applied (see their own notes) — but skip the parts of Step 1 that don't
+make sense for a checkout that already exists: don't `git clone` over
+it or overwrite a working `.env`. Instead:
+```bash
+git pull
+```
+then go straight to Step 1's **field-by-field `.env` check** (a field
+can be new since this instance's `.env` was first created — diff
+against `.env.example` to find any key that's missing outright, not
+just blank, since a genuinely new key like `ANTHROPIC_API_KEY` won't
+even be a line in an older `.env`):
+```bash
+diff <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort)
+```
+Any line only on the left is a key this instance has never had — add
+it (see Step 1's field notes for what each one needs) before
+continuing to Step 2.
+
 ## Step 1: Clone and `.env`
 
 ```bash
@@ -119,16 +141,22 @@ grep -E '^(AZURE_TENANT_ID|AZURE_CLIENT_ID|OUTLOOK_MAILBOX|LINKEDIN_SELF_PROFILE
 This should print nothing. If it prints a line, that field is still
 blank — go back and fill it before continuing.
 
-## Step 2: Supabase — apply all 6 migrations, in order
+## Step 2: Supabase — apply all migrations, in order
 
 **Confirm with the operator first**: this writes schema to their real
 Supabase project. Not reversible by this skill (some migrations create
 tables; none currently drop anything, but treat it as a one-way door).
 
-Migrations are NOT applied automatically the way they are for a local
-Docker Postgres (that only happens via
-`docker-entrypoint-initdb.d` on an empty volume, which doesn't apply
-here) — apply each file by hand, in order:
+There is no migration-tracking table in this schema — nothing records
+which files have already run against a given database. That's fine for
+a fresh database (every file is new), but **on an already-deployed
+instance being updated, re-running an already-applied `create table`
+migration errors** (no `if not exists` in these files) — safe to ignore
+that specific error and move to the next file, since it just means this
+one was already applied; anything else is a real failure and should
+stop the run. Use the Python form below for updates (it distinguishes
+the two); the plain `psql` loop is fine for a first-time/fresh deploy
+where every file is guaranteed new:
 
 ```bash
 for f in db/migrations/*.sql; do
@@ -136,20 +164,30 @@ for f in db/migrations/*.sql; do
   psql "$DATABASE_URL" -f "$f" || { echo "FAILED at $f — stop here"; break; }
 done
 ```
-(No `psql` installed? Same effect via Python:
+Idempotency-safe form (works for both a fresh deploy and an update —
+prefer this one if unsure, or if `psql` isn't installed):
 ```bash
 python3 -c "
-import psycopg, glob, os
+import glob, os
+import psycopg
+from psycopg.errors import DuplicateTable, DuplicateObject, DuplicateColumn
+
 dsn = os.environ.get('DATABASE_URL') or open('.env').read()  # prefer an exported env var
 for f in sorted(glob.glob('db/migrations/*.sql')):
-    print('applying', f)
-    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
-        cur.execute(open(f).read())
-        conn.commit()
+    try:
+        with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+            cur.execute(open(f).read())
+            conn.commit()
+        print('applied', f)
+    except (DuplicateTable, DuplicateObject, DuplicateColumn) as e:
+        print('already applied, skipping', f, '-', e)
 "
 ```
 — but load `DATABASE_URL` from `.env` properly first, e.g. `export
-$(grep DATABASE_URL .env)` before running this.)
+$(grep DATABASE_URL .env)` before running this. Any other exception
+(not one of the three caught above) is a real failure — stop and read
+the actual error rather than assuming it's another "already applied"
+case.
 
 **Verify — all base tables + views exist:**
 ```sql
