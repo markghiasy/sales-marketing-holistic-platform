@@ -810,3 +810,14 @@ class TestInboxRoutes:
             (contact_id,),
         )
         assert cur.fetchone()[0] is not None
+
+
+class TestFormatSseEvent:
+    # The /inbox/events route itself isn't tested here: it wraps an
+    # indefinitely-blocking LISTEN generator (see _listen_for_inbox_updates
+    # in app.py), and Flask's test client fully consumes a response body by
+    # default — hitting that route in a test would hang the suite. The
+    # formatting logic below is the only part of that route worth a unit
+    # test; the streaming/LISTEN wiring is verified live in the browser.
+    def test_formats_payload_as_an_sse_update_event(self):
+        assert onboarding_app._format_sse_event("abc-123") == "event: update\ndata: abc-123\n\n"

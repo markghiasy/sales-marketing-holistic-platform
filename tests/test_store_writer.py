@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 import psycopg
 import pytest
+from conftest import _LOCAL_TEST_DATABASE_URL
 
 from adapters.envelope import Channel, Direction, Envelope
 from adapters.store_writer import upsert
@@ -227,6 +228,67 @@ class TestUpsert:
             (env.channel.value, "sender@example.com"),
         )
         assert str(cur.fetchone()[0]) == identity_id
+
+
+class TestUpsertNotifies:
+    """Postgres only delivers a NOTIFY once the sending transaction
+    commits, so these need a real commit — unlike every other test in
+    this file, which relies on conftest.py's db_conn fixture rolling
+    back. Each test here opens its own connections and cleans up the
+    row it inserted manually.
+    """
+
+    @staticmethod
+    def _delete_message(writer: psycopg.Connection, env: Envelope) -> None:
+        writer.execute(
+            """
+            delete from message_participant where message_id in (
+                select id from message where channel = %s and external_id = %s
+            )
+            """,
+            (env.channel.value, env.external_id),
+        )
+        writer.execute(
+            "delete from message where channel = %s and external_id = %s",
+            (env.channel.value, env.external_id),
+        )
+        writer.commit()
+
+    def test_notifies_inbox_updated_on_a_genuinely_new_message(self):
+        listener = psycopg.connect(_LOCAL_TEST_DATABASE_URL, autocommit=True)
+        writer = psycopg.connect(_LOCAL_TEST_DATABASE_URL)
+        try:
+            listener.execute("listen inbox_updated")
+            env = _make_envelope()
+            upsert(writer, env, self_handle="me@example.com")
+            writer.commit()
+
+            notify = next(listener.notifies(timeout=5))
+            assert notify is not None
+            assert notify.channel == "inbox_updated"
+        finally:
+            self._delete_message(writer, env)
+            writer.close()
+            listener.close()
+
+    def test_does_not_notify_again_on_idempotent_rerun(self):
+        listener = psycopg.connect(_LOCAL_TEST_DATABASE_URL, autocommit=True)
+        writer = psycopg.connect(_LOCAL_TEST_DATABASE_URL)
+        try:
+            env = _make_envelope()
+            upsert(writer, env, self_handle="me@example.com")
+            writer.commit()
+
+            listener.execute("listen inbox_updated")
+            upsert(writer, env, self_handle="me@example.com")  # same external_id again
+            writer.commit()
+
+            notifications = list(listener.notifies(timeout=2))
+            assert notifications == []
+        finally:
+            self._delete_message(writer, env)
+            writer.close()
+            listener.close()
 
 
 @pytest.fixture(autouse=True, scope="module")

@@ -109,6 +109,14 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str | frozenset
                 (message_id, cc_identity_id),
             )
 
+        # Lets the inbox page push new messages to an open browser tab
+        # instead of requiring a manual refresh (SSE listener in
+        # scripts/onboarding/app.py). Postgres only delivers a NOTIFY once
+        # the enclosing transaction commits, so this is safe to fire here
+        # even though the caller (sync.py's run loop, or app.py's
+        # _db_cursor()) hasn't committed yet.
+        cur.execute("select pg_notify('inbox_updated', %s)", (str(message_id),))
+
         return str(from_identity_id)
 
 

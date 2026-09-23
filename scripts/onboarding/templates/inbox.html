@@ -854,5 +854,18 @@ document.getElementById("f-draft").addEventListener("change", e => { state.draft
 document.getElementById("f-hidden").addEventListener("change", e => { state.hidden = e.target.checked; loadConversations(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
 
+// Live updates: adapters/store_writer.py NOTIFYs "inbox_updated" whenever
+// any channel writes a genuinely new message; scripts/onboarding/app.py's
+// /inbox/events streams that as SSE. EventSource reconnects on its own if
+// the connection drops (e.g. dev server restart), so no manual retry here.
+// Debounced because a WhatsApp queue drain can land several messages in
+// one sync run, each firing its own event — one reload covers all of them.
+let _reloadTimer = null;
+function scheduleConversationsReload() {
+  clearTimeout(_reloadTimer);
+  _reloadTimer = setTimeout(loadConversations, 300);
+}
+new EventSource("/inbox/events").addEventListener("update", scheduleConversationsReload);
+
 loadConversations();
 </script>
