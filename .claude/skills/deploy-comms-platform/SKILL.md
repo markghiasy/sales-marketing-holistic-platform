@@ -62,42 +62,67 @@ Every verification step below that touches the database is phrased as
 Never assume one is available — check at the start of this run, once,
 and use whichever is real.
 
-## Step 0: Confirm the target environment
+## Step 0: Detect current state — scan, don't ask
 
-Ask the operator (don't guess): what OS is this machine running, and is
-this a fresh checkout or an existing one being updated?
+Don't ask the operator whether this is a fresh box or an existing
+instance being updated; they may not remember precisely, and this repo
+already carries the real signal everywhere it matters. Check directly:
 
 ```bash
-uname -a          # Linux/macOS — shows the kernel + distro hints
-cat /etc/os-release 2>/dev/null  # Linux — exact distro + version
+uname -a; cat /etc/os-release 2>/dev/null   # OS — Linux assumed below;
+  # on Windows, runbook.md's "Deploying a clean instance" / scheduling
+  # sections apply instead
+cd <repo-dir> 2>/dev/null && git rev-parse --is-inside-work-tree 2>/dev/null \
+  && echo "existing checkout" || echo "no checkout here — fresh deploy"
 ```
-On Windows, `runbook.md`'s existing "Deploying a clean instance" /
-scheduling sections apply as written (they were built and verified
-there). Everything below assumes Linux — adjust or stop and ask if the
-target turns out to be something else (macOS, a different init system
-than systemd).
 
-**If this is an update to an already-deployed, already-running
-instance** (an existing checkout, not a fresh clone), the steps below
-still apply in order — Steps 2 and 3 are written to be safe to re-run
-against an instance that already has some or all migrations/deps
-applied (see their own notes) — but skip the parts of Step 1 that don't
-make sense for a checkout that already exists: don't `git clone` over
-it or overwrite a working `.env`. Instead:
+**If it's an existing checkout**, the directory already tells you
+exactly what it's missing — don't guess, diff it against the real
+source of truth:
+
 ```bash
-git pull
+git fetch origin
+git log --oneline HEAD..origin/main
 ```
-then go straight to Step 1's **field-by-field `.env` check** (a field
-can be new since this instance's `.env` was first created — diff
-against `.env.example` to find any key that's missing outright, not
-just blank, since a genuinely new key like `ANTHROPIC_API_KEY` won't
-even be a line in an older `.env`):
-```bash
-diff <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort)
-```
-Any line only on the left is a key this instance has never had — add
-it (see Step 1's field notes for what each one needs) before
-continuing to Step 2.
+This commit list *is* the gap. Read through it (`git log -p` on any
+commit touching `db/migrations/`, `pyproject.toml`, or anything else
+you're unsure about) before changing anything — it tells you which
+migrations, dependencies, and behavior changes this instance doesn't
+have yet, the same way the pydantic incident (Step 3's note below)
+should have been caught by checking this instead of assuming a `git
+pull` alone was enough.
+
+Then gather the rest of the picture the same way — compare reality
+against the repo's current expectations, not against what anyone
+remembers configuring:
+- **`.env` gaps** (a key can be missing outright, not just blank, if it
+  postdates this instance's first deploy — `ANTHROPIC_API_KEY` is a
+  real example):
+  ```bash
+  diff <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort)
+  ```
+  Any line only on the left needs adding — see Step 1's field notes.
+- **DB gaps**: run Step 2's table-list verification query now, before
+  applying anything, to see which migrations are already in effect —
+  there's no migration-tracking table, so the actual schema is the only
+  reliable record.
+- **Dependency gaps**: `pip install -e .` is cheap and idempotent —
+  just re-run it (Step 3) rather than trying to diagnose which specific
+  package is missing.
+- **Service gaps**: Step 7's `systemctl`/`journalctl` checks show
+  whether the running services reflect the code that was just pulled,
+  or still need a restart.
+
+Turn what actually came back from these checks into a concrete list —
+which commits arrived, which `.env` keys are missing, which migrations
+aren't applied, whether services need restarting — and work through
+each with the matching step below (Step 1 for env fields, Step 2 for
+migrations, Step 3 for deps, Step 7 for restarting services). The steps
+below are the "how" for each category of gap; this scan is the
+"whether," decided from the real state of this machine, not asked.
+
+**If there's no existing checkout**, this is a fresh deploy — continue
+through Step 1 onward in order, as written.
 
 ## Step 1: Clone and `.env`
 
