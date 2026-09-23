@@ -101,12 +101,20 @@ one at a time — don't dump the whole file at them:
 - `MONITOR_NTFY_TOPIC` — a long random string they pick (this becomes
   their alert channel — subscribe to `https://ntfy.sh/<topic>` on their
   phone once it's set)
+- `ANTHROPIC_API_KEY` — their own key from console.anthropic.com, not a
+  shared one. Powers `ai_brief` (the per-contact summary/context/urgency
+  shown in the `/inbox` triage view) — every channel sync calls into it
+  after ingesting, so a blank key doesn't just disable summaries, it logs
+  a swallowed exception on every sync run (`refresh_touched_best_effort`
+  is deliberately best-effort and never fails the sync itself — see
+  adapters/ai_brief.py). `ANTHROPIC_MODEL` is fine to leave blank; the
+  code falls back to a default.
 
 **Verify:** `.env` has no blank `=` lines left for the fields above
 (`MONITOR_ALERT_WEBHOOK_URL` and the `LINKEDIN_*` rate-limit vars are
 fine to leave at their defaults):
 ```bash
-grep -E '^(AZURE_TENANT_ID|AZURE_CLIENT_ID|OUTLOOK_MAILBOX|LINKEDIN_SELF_PROFILE_URL|DATABASE_URL|WHATSAPP_AUTH_ENCRYPTION_KEY|MONITOR_NTFY_TOPIC)=$' .env
+grep -E '^(AZURE_TENANT_ID|AZURE_CLIENT_ID|OUTLOOK_MAILBOX|LINKEDIN_SELF_PROFILE_URL|DATABASE_URL|WHATSAPP_AUTH_ENCRYPTION_KEY|MONITOR_NTFY_TOPIC|ANTHROPIC_API_KEY)=$' .env
 ```
 This should print nothing. If it prints a line, that field is still
 blank — go back and fill it before continuing.
@@ -143,17 +151,19 @@ for f in sorted(glob.glob('db/migrations/*.sql')):
 — but load `DATABASE_URL` from `.env` properly first, e.g. `export
 $(grep DATABASE_URL .env)` before running this.)
 
-**Verify — all 9 tables + 4 views + the tables added since exist:**
+**Verify — all base tables + views exist:**
 ```sql
 select table_name from information_schema.tables where table_schema = 'public' order by 1;
 ```
-Expect: `action, contact_graph_strength, contact_last_message,
-contact_reciprocity, contact_stats, event, fact, graph_contact,
-identity, link_candidate, linkedin_connection, merge_log, message,
-message_participant, organization, outreach, person, thread` (18 names
-— re-run `ls db/migrations/` and re-check this list if migrations have
-been added since this skill was written; the count should track
-1:1-ish with what the migrations create).
+Expect: `action, ai_brief, contact_graph_strength, contact_hidden,
+contact_last_message, contact_reciprocity, contact_stats, event, fact,
+graph_contact, identity, link_candidate, linkedin_connection, merge_log,
+message, message_participant, organization, outreach, person, thread`
+(20 names as of migration 0009 — re-run `ls db/migrations/` and
+`grep -h '^create table\|^create.*view' db/migrations/*.sql` to
+regenerate this list if migrations have been added since this skill was
+last updated; the count should track 1:1-ish with what the migrations
+create).
 
 If a migration fails partway: read the actual error (don't guess) —
 common causes are running an later migration before an earlier one
@@ -176,6 +186,21 @@ pip install -e .
 python3 -c "import adapters.envelope; print('ok')"
 ```
 Should print `ok` with no import errors.
+
+**If this is an update to an already-deployed instance (`git pull` on an
+existing checkout, not a fresh clone), always re-run `pip install -e .`
+after pulling — even if the pulled commits "don't look dependency
+related."** A real incident: a new `pydantic` dependency was added to
+`pyproject.toml` alongside an `ai_brief.py` change, tested successfully
+in a separate dev session, but never installed into the actual `.venv`
+the deployed scheduled tasks/services use. Every channel's sync crashed
+at import time for ~2 days before anyone noticed, because Outlook,
+WhatsApp, and LinkedIn sync all import `ai_brief` at module load —
+one missing dependency broke all three, not just the feature that
+needed it. Verify after every update, not just the first deploy:
+```bash
+python3 -c "import adapters.outlook.sync, adapters.whatsapp.sync, adapters.linkedin.sync; print('ok')"
+```
 
 ## Step 4: Connect Outlook
 
@@ -284,9 +309,16 @@ recent, real run driven by the service, not the manual runs from Steps
 ## Step 8: Access the dashboard — SSH tunnel, not a public port
 
 The ops dashboard (`/status`, `/outlook`, `/whatsapp`, `/linkedin`,
-`/resolution`) is one Flask app on one port with **no login of its
-own**. It's meant to be reached via an SSH tunnel, never exposed
-publicly:
+`/resolution`) and the **`/inbox` triage frontend** (the actual client-
+facing UI — contact list, per-contact detail/context panel, merge/hide
+tools) are the same Flask app on the same port (`scripts/onboarding/app.py`)
+— there is no separate frontend service or build step to deploy.
+`comms-dashboard.service` from Step 7 already serves both. `/inbox`
+pushes new messages to an open browser tab live (Server-Sent Events on
+`/inbox/events`, triggered by a Postgres `NOTIFY` any adapter fires on a
+new message) — no polling, no manual refresh needed once a tab is open.
+It has **no login of its own**, so it's meant to be reached via an SSH
+tunnel, never exposed publicly:
 ```bash
 ssh -L 5000:localhost:5000 <user>@<aws-ip>
 ```
@@ -304,6 +336,16 @@ python scripts/monitor.py
 Supabase MCP is available, run `get_advisors` once here too — free
 signal on anything security/performance related worth knowing about
 before calling this deploy done.
+
+**Also open `/inbox` itself through the SSH tunnel from Step 8** and
+confirm real contacts and their AI-generated context/summary render (not
+just that the page loads empty) — this is the actual client-facing
+surface, not just plumbing, and an empty-looking page with no console
+errors is exactly what a blank `ANTHROPIC_API_KEY` (Step 1) looks like,
+since `ai_brief` failures are silent by design. Leave the tab open,
+trigger a sync manually (`python -m adapters.whatsapp.sync` or wait for
+the next scheduled run), and confirm the list updates on its own —
+that's the SSE push from Step 8 working end to end, not just registered.
 
 **This deploy isn't "done" until all of the above pass for real** — not
 "the commands didn't error," but the verification command in each step
