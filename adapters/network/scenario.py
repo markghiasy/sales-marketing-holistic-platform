@@ -29,7 +29,17 @@ class ScenarioStore:
     def reply(self):
         with self._condition:
             for direction, minute in [("out", "00"), ("in", "05")]:
-                self._data["messages"].append({"id": f"reply:{self.version}:{direction}", "contact_id": "person:maya", "channel": "whatsapp", "direction": direction, "direct": True, "at": f"2026-09-27T10:{minute}:00Z", "text": "Fictional reply: Yes, I can help with the Harbour finance review this week."})
+                self._data["messages"].append(
+                    {
+                        "id": f"reply:{self.version}:{direction}",
+                        "contact_id": "person:maya",
+                        "channel": "whatsapp",
+                        "direction": direction,
+                        "direct": True,
+                        "at": f"2026-09-27T10:{minute}:00Z",
+                        "text": "Fictional reply: Yes, I can help with the Harbour finance review this week.",
+                    }
+                )
             self.version += 1
             self._condition.notify_all()
             return self.version

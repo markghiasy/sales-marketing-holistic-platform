@@ -1030,7 +1030,10 @@
       "evidence_ids": [
         "evidence:job-alex-old"
       ],
-      "end_observed_at": "2026-09-03T09:00:00Z"
+      "end_observed_at": "2026-09-03T09:00:00Z",
+      "correction_evidence_ids": [
+        "evidence:job-alex-new"
+      ]
     },
     {
       "id": "job-alex-new",

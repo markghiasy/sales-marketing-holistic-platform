@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Explorer</title><link rel="stylesheet" href="/static/network/network.css">
+<script src="/static/vendor/cytoscape.min.js"></script></head>
+<body class="network-app">
+<header class="network-header"><a class="wordmark" href="/inbox">Comms<span> / Network</span></a><span class="demo-label">Synthetic demo</span><a id="return-link" href="/inbox">Return to conversation</a><span class="owner-avatar">JE</span></header>
+<main>
+<div class="page-heading"><div><h1>Your network</h1><p>People, shared work, and the evidence that connects them.</p></div><div class="heading-actions"><button id="reset">Reset scenario</button><button class="primary" id="reply">Simulate reply</button></div></div>
+<form class="network-filters" id="filters" autocomplete="off">
+<label class="search-label">Find a person<input name="search" type="search" placeholder="Search name or expertise"></label>
+<label>Function<select name="function"><option value="">All functions</option></select></label>
+<label>Organization<select name="organization"><option value="">All organizations</option></select></label>
+<label>Project<select name="project"><option value="">All projects</option></select></label>
+<button type="button" id="clear-filters">Clear filters</button>
+</form>
+<div class="network-workspace">
+<aside class="people-panel"><div class="panel-heading"><h2>People</h2><span id="people-count"></span></div><p class="panel-caption" id="ranking-caption">Ordered by recent direct activity</p><div id="people" aria-label="Matching people"></div></aside>
+<section class="graph-panel" aria-label="Relationship network"><div class="graph-toolbar"><div class="segmented" aria-label="Ranking view"><button data-mode="current" class="active">Current relevance</button><button data-mode="history">Relationship history</button></div><button id="fit" title="Fit all visible nodes">Fit view</button></div>
+<div id="graph" class="network-canvas"></div><div class="graph-empty" id="graph-empty" hidden>No matching connections. Clear a filter to explore more of your network.</div>
+<div class="graph-legend"><span><i class="dot person"></i>Person</span><span><i class="dot organization"></i>Organization</span><span><i class="dot project"></i>Project</span><span class="muted">Select a connection to inspect its evidence</span></div>
+<div class="timeline"><label>Known by <input id="as-of" type="date" min="2026-01-01" max="2026-09-27" value="2026-09-27"></label><span id="snapshot-count"></span><label class="hypotheses"><input id="hypotheses" type="checkbox">Show unconfirmed</label></div>
+</section>
+<aside class="evidence-panel" id="inspector" aria-live="polite"><div class="inspector-placeholder"><div class="connection-symbol">◎</div><h2>Follow a connection</h2><p>Select a person or relationship to see why it is here, what changed, and the original evidence.</p><p class="muted">Network owner: Jordan Ellis<br>All names and messages are fictional.</p></div></aside>
+</div><div id="network-status" class="network-status" role="status">Loading network…</div>
+</main><script type="module" src="/static/network/explorer.js"></script></body></html>

@@ -32,6 +32,13 @@
       relationship the way earlier mock data did.
 -->
 <title>Inbox</title>
+{% if network_demo %}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/network/network.css">
+<script src="/static/vendor/cytoscape.min.js"></script>
+<style>.row-hide-btn,.detail-draft{display:none!important}.detail-body{gap:24px!important}@media(max-width:800px){.detail-body{flex-direction:column}.detail-col{min-height:240px}.detail-panel{overflow:auto}}</style>
+<div class="demo-inbox-banner">Synthetic demo · Jordan Ellis's network <a href="/network">Explore network</a></div>
+{% endif %}
 <style>
   :root {
     /* Light app theme — matches kinso's actual product screenshot
@@ -431,6 +438,9 @@ function initials(name) {
 // is the next phase, not this one; the badge/filter below stay wired
 // but inert until that phase adds a real field to key off.
 let CONVERSATIONS = [];
+const NETWORK_DEMO = {{ (network_demo|default(false))|tojson }};
+let embeddedNetwork = null;
+let detailGeneration = 0;
 
 async function loadConversations() {
   const resp = await fetch(`/inbox/conversations.json${state.hidden ? "?hidden=1" : ""}`);
@@ -604,9 +614,11 @@ function wireGraphNodes() {
 }
 
 async function openDetail(personKey) {
+  const ticket = ++detailGeneration;
   const resp = await fetch(`/inbox/conversation/${personKey}.json`);
   if (!resp.ok) return;
   const c = await resp.json();
+  if (ticket !== detailGeneration) return;
   closeOverlay();
   const backdrop = document.createElement("div");
   backdrop.className = "assistant-backdrop";
@@ -674,7 +686,7 @@ async function openDetail(personKey) {
           </div>
           <div class="detail-context">
             <h3>Network</h3>
-            <div class="graph-box">${renderGraph(c.name, c.graph)}</div>
+            <div class="graph-box" id="contact-network">${NETWORK_DEMO ? '' : renderGraph(c.name, c.graph)}</div>
           </div>
         </div>
       </div>
@@ -683,6 +695,11 @@ async function openDetail(personKey) {
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeOverlay(); });
   document.body.appendChild(backdrop);
   document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
+  if (NETWORK_DEMO) {
+    const container = document.getElementById('contact-network');
+    const { mountEmbedded } = await import('/static/network/embed.js');
+    if (container.isConnected) embeddedNetwork = mountEmbedded(container, personKey);
+  }
   wireGraphNodes();
   document.querySelectorAll(".contact-link").forEach(el => {
     el.addEventListener("click", (e) => {
@@ -691,7 +708,7 @@ async function openDetail(personKey) {
     });
   });
 
-  fetch(`/inbox/conversation/${personKey}/read`, { method: "POST" });
+  if (!NETWORK_DEMO) fetch(`/inbox/conversation/${personKey}/read`, { method: "POST" });
   const row = CONVERSATIONS.find(x => x.person_key === personKey);
   if (row) row.unread = false;
   renderList();
@@ -846,6 +863,9 @@ function openAssistant() {
 }
 
 function closeOverlay() {
+  detailGeneration++;
+  embeddedNetwork?.destroy();
+  embeddedNetwork = null;
   document.querySelectorAll(".assistant-backdrop").forEach(el => el.remove());
 }
 
@@ -867,5 +887,10 @@ function scheduleConversationsReload() {
 }
 new EventSource("/inbox/events").addEventListener("update", scheduleConversationsReload);
 
-loadConversations();
+loadConversations().then(() => {
+  if (NETWORK_DEMO) {
+    const focus = new URLSearchParams(location.search).get('focus');
+    if (focus) openDetail(focus);
+  }
+});
 </script>

@@ -1,4 +1,5 @@
 """Local synthetic demo. Run: python -m scripts.network_demo [--port 5055]."""
+
 import argparse
 import json
 from pathlib import Path
@@ -12,7 +13,9 @@ from adapters.network.scenario import ScenarioStore
 
 def create_app(*, testing=False):
     root = Path(__file__).resolve().parent / "onboarding"
-    app = Flask(__name__, template_folder=str(root / "templates"), static_folder=str(root / "static"))
+    app = Flask(
+        __name__, template_folder=str(root / "templates"), static_folder=str(root / "static")
+    )
     app.testing = testing
     store = ScenarioStore()
     app.extensions["network_store"] = store
@@ -43,8 +46,19 @@ def create_app(*, testing=False):
     @app.get("/network/evidence/<evidence_id>.json")
     def evidence(evidence_id):
         q = query()
-        row = next((e for e in store.data()["evidence"] if e["id"] == evidence_id and timestamp(e["at"]) <= q.as_of), None)
-        return (jsonify(row), 200) if row else (jsonify(error="Evidence not available at this time."), 404)
+        row = next(
+            (
+                e
+                for e in store.data()["evidence"]
+                if e["id"] == evidence_id and timestamp(e["at"]) <= q.as_of
+            ),
+            None,
+        )
+        return (
+            (jsonify(row), 200)
+            if row
+            else (jsonify(error="Evidence not available at this time."), 404)
+        )
 
     @app.post("/network/demo/reply")
     def reply():
@@ -62,29 +76,74 @@ def create_app(*, testing=False):
             while True:
                 yield f"event: update\ndata: {json.dumps({'version': version})}\n\n"
                 version = store.wait_for_version(version, 15)
-        return Response(stream_with_context(generate()), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
 
     def contact_row(node, data):
         messages = [m for m in data["messages"] if m["contact_id"] == node["id"]]
-        return {"person_key": node["id"], "name": node["name"], "channel": "outlook",
-                "last_message_at": max((m["at"] for m in messages), default="2026-01-15T09:00:00Z"),
-                "summary": node["role"], "topic": node.get("functions", ["Contact"])[0],
-                "urgency": 2 if node["id"] == "person:maya" else 1, "unread": False, "unanswered": False, "has_draft": False}
+        return {
+            "person_key": node["id"],
+            "name": node["name"],
+            "channel": "outlook",
+            "last_message_at": max((m["at"] for m in messages), default="2026-01-15T09:00:00Z"),
+            "summary": node["role"],
+            "topic": node.get("functions", ["Contact"])[0],
+            "urgency": 2 if node["id"] == "person:maya" else 1,
+            "unread": False,
+            "unanswered": False,
+            "has_draft": False,
+        }
 
     @app.get("/inbox/conversations.json")
     def conversations():
         data = store.data()
-        return jsonify([contact_row(n, data) for n in data["nodes"] if n["kind"] == "person" and n["id"] != data["owner_id"]])
+        return jsonify(
+            [
+                contact_row(n, data)
+                for n in data["nodes"]
+                if n["kind"] == "person" and n["id"] != data["owner_id"]
+            ]
+        )
 
     @app.get("/inbox/conversation/<person_key>.json")
     def detail(person_key):
         data = store.data()
-        node = next((n for n in data["nodes"] if n["id"] == person_key and n["kind"] == "person"), None)
+        node = next(
+            (n for n in data["nodes"] if n["id"] == person_key and n["kind"] == "person"), None
+        )
         if node is None:
             return jsonify(error="Contact not found"), 404
-        messages = [{"channel": m["channel"], "subject": "Fictional project discussion", "sender": "me" if m["direction"] == "out" else "them", "text": m["text"], "sent_at": m["at"], "to": [], "cc": [], "from_name": "Jordan Ellis" if m["direction"] == "out" else node["name"]} for m in data["messages"] if m["contact_id"] == person_key]
-        context = ["This is a fictional contact in Jordan Ellis's demonstration network.", node["role"] + ".", "Inspect the Network below to see separately supported roles, projects and source messages."]
-        return jsonify({**contact_row(node, data), "messages": sorted(messages, key=lambda m: m["sent_at"]), "context": context, "graph": {"people": []}})
+        messages = [
+            {
+                "channel": m["channel"],
+                "subject": "Fictional project discussion",
+                "sender": "you" if m["direction"] == "out" else "them",
+                "text": m["text"],
+                "sent_at": m["at"],
+                "to": [],
+                "cc": [],
+                "from_name": "Jordan Ellis" if m["direction"] == "out" else node["name"],
+            }
+            for m in data["messages"]
+            if m["contact_id"] == person_key
+        ]
+        context = [
+            "This is a fictional contact in Jordan Ellis's demonstration network.",
+            node["role"] + ".",
+            "Inspect the Network below to see separately supported roles, projects and source messages.",
+        ]
+        return jsonify(
+            {
+                **contact_row(node, data),
+                "messages": sorted(messages, key=lambda m: m["sent_at"]),
+                "context": context,
+                "graph": {"people": []},
+            }
+        )
 
     return app
 
@@ -93,4 +152,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5055)
     args = parser.parse_args()
-    create_app().run(host="127.0.0.1", port=args.port, debug=False, threaded=True, use_reloader=False)
+    create_app().run(
+        host="127.0.0.1", port=args.port, debug=False, threaded=True, use_reloader=False
+    )

@@ -1,0 +1,9 @@
+[
+  {"id":"accountants-for-harbour","query":{"function":"Accounting","project":"project:harbour"},"expected_ids":["person:maya","person:priya"]},
+  {"id":"research-partners","query":{"function":"Research","project":"project:bridge"},"expected_ids":["person:sam","person:grace","person:aisha"]},
+  {"id":"current-employer","query":{"function":"Operations","organization":"org:atlas"},"expected_ids":["person:alex","person:oliver","person:jack"]},
+  {"id":"historical-employer","query":{"function":"Operations","organization":"org:north","as_of":"2026-07-01T12:00:00Z"},"expected_ids":["person:alex"]},
+  {"id":"late-arriving-evidence","query":{"function":"Operations","organization":"org:north","as_of":"2026-08-20T12:00:00Z"},"expected_ids":["person:alex"]},
+  {"id":"same-name-people","query":{"search":"Alex Morgan"},"expected_ids":["person:alex","person:alex2"]},
+  {"id":"no-supported-expertise","query":{"function":"Procurement"},"expected_ids":[]}
+]

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -29,6 +29,50 @@ def test_late_evidence_is_not_known_before_observation():
     assert "job-alex-new" not in {e["id"] for e in middle["edges"]}
     # Leaving the old role was learned in September, not in August.
     assert "job-alex-old" in {e["id"] for e in middle["edges"]}
+
+
+def test_role_end_has_later_evidence_without_leaking_it_early():
+    early = next(
+        e for e in snapshot(as_of="2026-08-20T00:00:00Z")["edges"] if e["id"] == "job-alex-old"
+    )
+    later = next(e for e in snapshot(mode="history")["edges"] if e["id"] == "job-alex-old")
+    assert "evidence:job-alex-new" not in early["evidence_ids"]
+    assert "evidence:job-alex-new" in later["evidence_ids"]
+
+
+def test_sessions_collapse_bursts_and_preserve_reciprocity():
+    from adapters.network.projection import sessions
+
+    now = datetime(2026, 9, 27, tzinfo=UTC)
+    rows = [
+        {
+            "id": "a",
+            "contact_id": "p",
+            "channel": "outlook",
+            "direction": "in",
+            "direct": True,
+            "at": "2026-09-26T10:00:00Z",
+        },
+        {
+            "id": "b",
+            "contact_id": "p",
+            "channel": "outlook",
+            "direction": "out",
+            "direct": True,
+            "at": "2026-09-26T10:30:00Z",
+        },
+        {
+            "id": "c",
+            "contact_id": "p",
+            "channel": "outlook",
+            "direction": "in",
+            "direct": True,
+            "at": "2026-09-26T11:01:00Z",
+        },
+    ]
+    result = sessions(rows, now)
+    assert len(result) == 2
+    assert result[0]["directions"] == {"in", "out"}
 
 
 def test_names_do_not_define_identity_and_roles_are_separate():
@@ -66,8 +110,15 @@ def test_filtering_returns_known_candidates_with_honest_history():
 
 
 def test_activity_deduplicates_excludes_future_and_non_direct():
-    now = datetime(2026, 9, 27, tzinfo=timezone.utc)
-    base = {"id": "m1", "contact_id": "p", "channel": "outlook", "direction": "in", "direct": True, "at": "2026-08-28T00:00:00Z"}
+    now = datetime(2026, 9, 27, tzinfo=UTC)
+    base = {
+        "id": "m1",
+        "contact_id": "p",
+        "channel": "outlook",
+        "direction": "in",
+        "direct": True,
+        "at": "2026-08-28T00:00:00Z",
+    }
     assert activity([base], now, 30) == pytest.approx(0.5)
     assert activity([base, base], now, 30) == pytest.approx(0.5)
     assert activity([{**base, "direct": False}], now, 30) == 0
@@ -83,3 +134,17 @@ def test_query_validation_and_unknown_focus():
         GraphQuery(as_of="broken")
     with pytest.raises(KeyError):
         snapshot(focus="person:missing")
+
+
+def test_explicit_identity_rebinding_and_undo_preserve_source_ids():
+    data = load_scenario()
+    data["identity_bindings"] = {"person:alex2": "person:alex"}
+    merged = build_snapshot(data, GraphQuery(), 2)
+    assert "person:alex2" not in {n["id"] for n in merged["nodes"]}
+    researcher = next(e for e in merged["edges"] if e["id"] == "job-alex2")
+    assert researcher["source"] == "person:alex"
+    assert researcher["evidence_ids"] == ["evidence:job-alex2"]
+    data["identity_bindings"] = {}
+    undone = build_snapshot(data, GraphQuery(), 3)
+    assert "person:alex2" in {n["id"] for n in undone["nodes"]}
+    assert next(e for e in undone["edges"] if e["id"] == "job-alex2")["source"] == "person:alex2"

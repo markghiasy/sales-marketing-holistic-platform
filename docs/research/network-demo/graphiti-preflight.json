@@ -1,0 +1,15 @@
+{
+  "status": "unexecuted",
+  "stage": "prerequisite check",
+  "missing": [
+    "graphiti_core",
+    "isolated graph store"
+  ],
+  "reason": "Extraction/retrieval trial requires an isolated graph store, pinned SDK and explicitly bounded model-call configuration. This preflight performs no model calls.",
+  "next_checks": [
+    "Canonical UUID preservation under deduplication",
+    "Concurrent roles versus superseded employer",
+    "Late evidence and source references",
+    "Review-state separation and correction/undo"
+  ]
+}
