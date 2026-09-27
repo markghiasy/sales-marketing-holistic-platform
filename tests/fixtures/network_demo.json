@@ -1,0 +1,3305 @@
+{
+  "owner_id": "person:owner",
+  "nodes": [
+    {
+      "id": "person:owner",
+      "name": "Jordan Ellis",
+      "kind": "person",
+      "role": "Your network",
+      "functions": [
+        "Founder"
+      ]
+    },
+    {
+      "id": "person:maya",
+      "name": "Maya Chen",
+      "kind": "person",
+      "role": "CFO & project adviser",
+      "functions": [
+        "Accounting"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:priya",
+      "name": "Priya Shah",
+      "kind": "person",
+      "role": "Logistics finance specialist",
+      "functions": [
+        "Accounting"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:alex",
+      "name": "Alex Morgan",
+      "kind": "person",
+      "role": "Operations director",
+      "functions": [
+        "Operations"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:sam",
+      "name": "Sam Rivera",
+      "kind": "person",
+      "role": "University partnerships",
+      "functions": [
+        "Research"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:nora",
+      "name": "Nora Bennett",
+      "kind": "person",
+      "role": "Investment partner",
+      "functions": [
+        "Investment"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:leo",
+      "name": "Leo Park",
+      "kind": "person",
+      "role": "New inbound contact",
+      "functions": [
+        "Sales"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:alex2",
+      "name": "Alex Morgan",
+      "kind": "person",
+      "role": "Research fellow \u00b7 different person",
+      "functions": [
+        "Research"
+      ],
+      "cluster": "uni",
+      "coverage": "partial"
+    },
+    {
+      "id": "person:oliver",
+      "name": "Oliver Reed",
+      "kind": "person",
+      "role": "Supply chain adviser",
+      "functions": [
+        "Operations"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:ella",
+      "name": "Ella Brooks",
+      "kind": "person",
+      "role": "Commercial counsel",
+      "functions": [
+        "Legal"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:amir",
+      "name": "Amir Khan",
+      "kind": "person",
+      "role": "Platform engineering",
+      "functions": [
+        "Engineering"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:grace",
+      "name": "Grace Liu",
+      "kind": "person",
+      "role": "Applied AI researcher",
+      "functions": [
+        "Research"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:ben",
+      "name": "Ben Walsh",
+      "kind": "person",
+      "role": "Partnerships lead",
+      "functions": [
+        "Sales"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:sofia",
+      "name": "Sofia Costa",
+      "kind": "person",
+      "role": "Service designer",
+      "functions": [
+        "Design"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:theo",
+      "name": "Theo Martin",
+      "kind": "person",
+      "role": "Venture analyst",
+      "functions": [
+        "Investment"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:aisha",
+      "name": "Aisha Rahman",
+      "kind": "person",
+      "role": "Industry research lead",
+      "functions": [
+        "Research"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:jack",
+      "name": "Jack Wilson",
+      "kind": "person",
+      "role": "Warehouse systems",
+      "functions": [
+        "Operations"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:lily",
+      "name": "Lily James",
+      "kind": "person",
+      "role": "Financial controller",
+      "functions": [
+        "Accounting"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:daniel",
+      "name": "Daniel Kim",
+      "kind": "person",
+      "role": "Data engineering",
+      "functions": [
+        "Engineering"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:ruby",
+      "name": "Ruby Thomas",
+      "kind": "person",
+      "role": "Product researcher",
+      "functions": [
+        "Design"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:ethan",
+      "name": "Ethan Scott",
+      "kind": "person",
+      "role": "Technology contracts",
+      "functions": [
+        "Legal"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:isla",
+      "name": "Isla Wright",
+      "kind": "person",
+      "role": "Enterprise accounts",
+      "functions": [
+        "Sales"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:noah",
+      "name": "Noah Patel",
+      "kind": "person",
+      "role": "Integration engineer",
+      "functions": [
+        "Engineering"
+      ],
+      "cluster": "atlas",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:chloe",
+      "name": "Chloe Evans",
+      "kind": "person",
+      "role": "Program manager",
+      "functions": [
+        "Operations"
+      ],
+      "cluster": "uni",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "person:max",
+      "name": "Max Turner",
+      "kind": "person",
+      "role": "Angel investor",
+      "functions": [
+        "Investment"
+      ],
+      "cluster": "north",
+      "coverage": "observed channels only"
+    },
+    {
+      "id": "org:north",
+      "name": "Northline Advisory",
+      "kind": "organization",
+      "role": "Finance & investment",
+      "functions": []
+    },
+    {
+      "id": "org:atlas",
+      "name": "Atlas Logistics",
+      "kind": "organization",
+      "role": "Logistics & operations",
+      "functions": []
+    },
+    {
+      "id": "org:uni",
+      "name": "Coastal University",
+      "kind": "organization",
+      "role": "Research & industry",
+      "functions": []
+    },
+    {
+      "id": "project:harbour",
+      "name": "Harbour expansion",
+      "kind": "project",
+      "role": "Logistics finance & delivery",
+      "functions": []
+    },
+    {
+      "id": "project:bridge",
+      "name": "Research bridge",
+      "kind": "project",
+      "role": "Industry research partnership",
+      "functions": []
+    }
+  ],
+  "claims": [
+    {
+      "id": "job-maya",
+      "source": "person:maya",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-maya"
+      ]
+    },
+    {
+      "id": "contact-maya",
+      "source": "person:owner",
+      "target": "person:maya",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-maya"
+      ]
+    },
+    {
+      "id": "job-priya",
+      "source": "person:priya",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-priya"
+      ]
+    },
+    {
+      "id": "contact-priya",
+      "source": "person:owner",
+      "target": "person:priya",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-priya"
+      ]
+    },
+    {
+      "id": "contact-alex",
+      "source": "person:owner",
+      "target": "person:alex",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-alex"
+      ]
+    },
+    {
+      "id": "job-sam",
+      "source": "person:sam",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-sam"
+      ]
+    },
+    {
+      "id": "contact-sam",
+      "source": "person:owner",
+      "target": "person:sam",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-sam"
+      ]
+    },
+    {
+      "id": "job-nora",
+      "source": "person:nora",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-nora"
+      ]
+    },
+    {
+      "id": "contact-nora",
+      "source": "person:owner",
+      "target": "person:nora",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-nora"
+      ]
+    },
+    {
+      "id": "job-leo",
+      "source": "person:leo",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-leo"
+      ]
+    },
+    {
+      "id": "contact-leo",
+      "source": "person:owner",
+      "target": "person:leo",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-leo"
+      ]
+    },
+    {
+      "id": "job-alex2",
+      "source": "person:alex2",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-alex2"
+      ]
+    },
+    {
+      "id": "contact-alex2",
+      "source": "person:owner",
+      "target": "person:alex2",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-alex2"
+      ]
+    },
+    {
+      "id": "job-oliver",
+      "source": "person:oliver",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-oliver"
+      ]
+    },
+    {
+      "id": "contact-oliver",
+      "source": "person:owner",
+      "target": "person:oliver",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-oliver"
+      ]
+    },
+    {
+      "id": "job-ella",
+      "source": "person:ella",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-ella"
+      ]
+    },
+    {
+      "id": "contact-ella",
+      "source": "person:owner",
+      "target": "person:ella",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-ella"
+      ]
+    },
+    {
+      "id": "job-amir",
+      "source": "person:amir",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-amir"
+      ]
+    },
+    {
+      "id": "contact-amir",
+      "source": "person:owner",
+      "target": "person:amir",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-amir"
+      ]
+    },
+    {
+      "id": "job-grace",
+      "source": "person:grace",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-grace"
+      ]
+    },
+    {
+      "id": "contact-grace",
+      "source": "person:owner",
+      "target": "person:grace",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-grace"
+      ]
+    },
+    {
+      "id": "job-ben",
+      "source": "person:ben",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-ben"
+      ]
+    },
+    {
+      "id": "contact-ben",
+      "source": "person:owner",
+      "target": "person:ben",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-ben"
+      ]
+    },
+    {
+      "id": "job-sofia",
+      "source": "person:sofia",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-sofia"
+      ]
+    },
+    {
+      "id": "contact-sofia",
+      "source": "person:owner",
+      "target": "person:sofia",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-sofia"
+      ]
+    },
+    {
+      "id": "job-theo",
+      "source": "person:theo",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-theo"
+      ]
+    },
+    {
+      "id": "contact-theo",
+      "source": "person:owner",
+      "target": "person:theo",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-theo"
+      ]
+    },
+    {
+      "id": "job-aisha",
+      "source": "person:aisha",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-aisha"
+      ]
+    },
+    {
+      "id": "contact-aisha",
+      "source": "person:owner",
+      "target": "person:aisha",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-aisha"
+      ]
+    },
+    {
+      "id": "job-jack",
+      "source": "person:jack",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-jack"
+      ]
+    },
+    {
+      "id": "contact-jack",
+      "source": "person:owner",
+      "target": "person:jack",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-jack"
+      ]
+    },
+    {
+      "id": "job-lily",
+      "source": "person:lily",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-lily"
+      ]
+    },
+    {
+      "id": "contact-lily",
+      "source": "person:owner",
+      "target": "person:lily",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-lily"
+      ]
+    },
+    {
+      "id": "job-daniel",
+      "source": "person:daniel",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-daniel"
+      ]
+    },
+    {
+      "id": "contact-daniel",
+      "source": "person:owner",
+      "target": "person:daniel",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-daniel"
+      ]
+    },
+    {
+      "id": "job-ruby",
+      "source": "person:ruby",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-ruby"
+      ]
+    },
+    {
+      "id": "contact-ruby",
+      "source": "person:owner",
+      "target": "person:ruby",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-ruby"
+      ]
+    },
+    {
+      "id": "job-ethan",
+      "source": "person:ethan",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-ethan"
+      ]
+    },
+    {
+      "id": "contact-ethan",
+      "source": "person:owner",
+      "target": "person:ethan",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-ethan"
+      ]
+    },
+    {
+      "id": "job-isla",
+      "source": "person:isla",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-isla"
+      ]
+    },
+    {
+      "id": "contact-isla",
+      "source": "person:owner",
+      "target": "person:isla",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-isla"
+      ]
+    },
+    {
+      "id": "job-noah",
+      "source": "person:noah",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-noah"
+      ]
+    },
+    {
+      "id": "contact-noah",
+      "source": "person:owner",
+      "target": "person:noah",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-noah"
+      ]
+    },
+    {
+      "id": "job-chloe",
+      "source": "person:chloe",
+      "target": "org:uni",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-chloe"
+      ]
+    },
+    {
+      "id": "contact-chloe",
+      "source": "person:owner",
+      "target": "person:chloe",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-chloe"
+      ]
+    },
+    {
+      "id": "job-max",
+      "source": "person:max",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-max"
+      ]
+    },
+    {
+      "id": "contact-max",
+      "source": "person:owner",
+      "target": "person:max",
+      "relation": "In contact",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:contact-max"
+      ]
+    },
+    {
+      "id": "job-alex-old",
+      "source": "person:alex",
+      "target": "org:north",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": "2026-08-01T00:00:00Z",
+      "evidence_ids": [
+        "evidence:job-alex-old"
+      ],
+      "end_observed_at": "2026-09-03T09:00:00Z"
+    },
+    {
+      "id": "job-alex-new",
+      "source": "person:alex",
+      "target": "org:atlas",
+      "relation": "Works at",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-09-03T09:00:00Z",
+      "valid_from": "2026-08-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-alex-new"
+      ]
+    },
+    {
+      "id": "job-alex-advisor",
+      "source": "person:alex",
+      "target": "org:north",
+      "relation": "Advises",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-09-03T09:00:00Z",
+      "valid_from": "2026-08-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:job-alex-advisor"
+      ]
+    },
+    {
+      "id": "harbour-owner",
+      "source": "person:owner",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-owner"
+      ]
+    },
+    {
+      "id": "harbour-maya",
+      "source": "person:maya",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-maya"
+      ]
+    },
+    {
+      "id": "harbour-priya",
+      "source": "person:priya",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-priya"
+      ]
+    },
+    {
+      "id": "harbour-alex",
+      "source": "person:alex",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-alex"
+      ]
+    },
+    {
+      "id": "harbour-oliver",
+      "source": "person:oliver",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-oliver"
+      ]
+    },
+    {
+      "id": "harbour-jack",
+      "source": "person:jack",
+      "target": "project:harbour",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:harbour-jack"
+      ]
+    },
+    {
+      "id": "bridge-owner",
+      "source": "person:owner",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-owner"
+      ]
+    },
+    {
+      "id": "bridge-sam",
+      "source": "person:sam",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-sam"
+      ]
+    },
+    {
+      "id": "bridge-grace",
+      "source": "person:grace",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-grace"
+      ]
+    },
+    {
+      "id": "bridge-aisha",
+      "source": "person:aisha",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-aisha"
+      ]
+    },
+    {
+      "id": "bridge-daniel",
+      "source": "person:daniel",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-daniel"
+      ]
+    },
+    {
+      "id": "bridge-chloe",
+      "source": "person:chloe",
+      "target": "project:bridge",
+      "relation": "Project member",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:bridge-chloe"
+      ]
+    },
+    {
+      "id": "client-maya",
+      "source": "person:maya",
+      "target": "person:owner",
+      "relation": "Client of",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:client-maya"
+      ]
+    },
+    {
+      "id": "collab-maya",
+      "source": "person:owner",
+      "target": "person:maya",
+      "relation": "Collaborates with",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "ego_relative",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:collab-maya"
+      ]
+    },
+    {
+      "id": "intro-sam",
+      "source": "person:sam",
+      "target": "person:priya",
+      "relation": "Introduced",
+      "status": "confirmed",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:intro-sam"
+      ]
+    },
+    {
+      "id": "intro-pending",
+      "source": "person:nora",
+      "target": "person:priya",
+      "relation": "Possible introduction",
+      "status": "pending",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:intro-pending"
+      ]
+    },
+    {
+      "id": "rejected-role",
+      "source": "person:leo",
+      "target": "person:maya",
+      "relation": "Reports to",
+      "status": "rejected",
+      "origin": "manual",
+      "scope": "world",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:rejected-role"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence:job-maya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional relationship record",
+      "text": "I am Maya Chen, working at Northline Advisory in accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-maya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Maya Chen exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-priya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Priya Shah",
+      "subject": "Fictional relationship record",
+      "text": "I am Priya Shah, working at Atlas Logistics in accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-priya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Priya Shah exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-alex",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Alex Morgan exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-sam",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sam Rivera",
+      "subject": "Fictional relationship record",
+      "text": "I am Sam Rivera, working at Coastal University in research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-sam",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Sam Rivera exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-nora",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Nora Bennett",
+      "subject": "Fictional relationship record",
+      "text": "I am Nora Bennett, working at Northline Advisory in investment.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-nora",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Nora Bennett exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-leo",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Leo Park",
+      "subject": "Fictional relationship record",
+      "text": "I am Leo Park, working at Atlas Logistics in sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-leo",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Leo Park exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-alex2",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional relationship record",
+      "text": "I am Alex Morgan, working at Coastal University in research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-alex2",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Alex Morgan exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-oliver",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Oliver Reed",
+      "subject": "Fictional relationship record",
+      "text": "I am Oliver Reed, working at Atlas Logistics in operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-oliver",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Oliver Reed exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-ella",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ella Brooks",
+      "subject": "Fictional relationship record",
+      "text": "I am Ella Brooks, working at Northline Advisory in legal.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-ella",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Ella Brooks exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-amir",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Amir Khan",
+      "subject": "Fictional relationship record",
+      "text": "I am Amir Khan, working at Atlas Logistics in engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-amir",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Amir Khan exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-grace",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Grace Liu",
+      "subject": "Fictional relationship record",
+      "text": "I am Grace Liu, working at Coastal University in research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-grace",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Grace Liu exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-ben",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ben Walsh",
+      "subject": "Fictional relationship record",
+      "text": "I am Ben Walsh, working at Northline Advisory in sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-ben",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Ben Walsh exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-sofia",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sofia Costa",
+      "subject": "Fictional relationship record",
+      "text": "I am Sofia Costa, working at Atlas Logistics in design.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-sofia",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Sofia Costa exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-theo",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Theo Martin",
+      "subject": "Fictional relationship record",
+      "text": "I am Theo Martin, working at Northline Advisory in investment.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-theo",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Theo Martin exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-aisha",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Aisha Rahman",
+      "subject": "Fictional relationship record",
+      "text": "I am Aisha Rahman, working at Coastal University in research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-aisha",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Aisha Rahman exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-jack",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jack Wilson",
+      "subject": "Fictional relationship record",
+      "text": "I am Jack Wilson, working at Atlas Logistics in operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-jack",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Jack Wilson exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-lily",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Lily James",
+      "subject": "Fictional relationship record",
+      "text": "I am Lily James, working at Northline Advisory in accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-lily",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Lily James exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-daniel",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Daniel Kim",
+      "subject": "Fictional relationship record",
+      "text": "I am Daniel Kim, working at Coastal University in engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-daniel",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Daniel Kim exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-ruby",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ruby Thomas",
+      "subject": "Fictional relationship record",
+      "text": "I am Ruby Thomas, working at Coastal University in design.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-ruby",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Ruby Thomas exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-ethan",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ethan Scott",
+      "subject": "Fictional relationship record",
+      "text": "I am Ethan Scott, working at Northline Advisory in legal.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-ethan",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Ethan Scott exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-isla",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Isla Wright",
+      "subject": "Fictional relationship record",
+      "text": "I am Isla Wright, working at Atlas Logistics in sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-isla",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Isla Wright exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-noah",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Noah Patel",
+      "subject": "Fictional relationship record",
+      "text": "I am Noah Patel, working at Atlas Logistics in engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-noah",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Noah Patel exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-chloe",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Chloe Evans",
+      "subject": "Fictional relationship record",
+      "text": "I am Chloe Evans, working at Coastal University in operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-chloe",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Chloe Evans exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-max",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Max Turner",
+      "subject": "Fictional relationship record",
+      "text": "I am Max Turner, working at Northline Advisory in investment.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:contact-max",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan and Max Turner exchanged contact details for industry work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-alex-old",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional relationship record",
+      "text": "I work at Northline Advisory as an operations adviser.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-alex-new",
+      "channel": "outlook",
+      "at": "2026-09-03T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional relationship record",
+      "text": "I joined Atlas on 1 August, after leaving my Northline employee role at the end of July.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:job-alex-advisor",
+      "channel": "outlook",
+      "at": "2026-09-03T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional relationship record",
+      "text": "I still advise Northline one day each month alongside my role at Atlas.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-owner",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan Ellis is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-maya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional relationship record",
+      "text": "Maya Chen is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-priya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Priya Shah",
+      "subject": "Fictional relationship record",
+      "text": "Priya Shah is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-alex",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional relationship record",
+      "text": "Alex Morgan is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-oliver",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Oliver Reed",
+      "subject": "Fictional relationship record",
+      "text": "Oliver Reed is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:harbour-jack",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jack Wilson",
+      "subject": "Fictional relationship record",
+      "text": "Jack Wilson is on the Harbour expansion working group.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-owner",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Jordan Ellis is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-sam",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sam Rivera",
+      "subject": "Fictional relationship record",
+      "text": "Sam Rivera is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-grace",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Grace Liu",
+      "subject": "Fictional relationship record",
+      "text": "Grace Liu is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-aisha",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Aisha Rahman",
+      "subject": "Fictional relationship record",
+      "text": "Aisha Rahman is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-daniel",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Daniel Kim",
+      "subject": "Fictional relationship record",
+      "text": "Daniel Kim is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:bridge-chloe",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Chloe Evans",
+      "subject": "Fictional relationship record",
+      "text": "Chloe Evans is part of Research bridge.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:client-maya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional relationship record",
+      "text": "Jordan, our advisory team would like to engage you for the project discovery work.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:collab-maya",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jordan Ellis",
+      "subject": "Fictional relationship record",
+      "text": "Maya and I co-designed the Harbour finance workshop.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:intro-sam",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sam Rivera",
+      "subject": "Fictional relationship record",
+      "text": "Jordan, please meet Priya. She has led finance work for logistics operators.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:intro-pending",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Nora Bennett",
+      "subject": "Fictional relationship record",
+      "text": "I think Nora might know Priya; this has not been checked.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:rejected-role",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Leo Park",
+      "subject": "Fictional relationship record",
+      "text": "Unverified claim rejected in the demo review.",
+      "synthetic": true
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg:maya:0:in",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-09T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:0:out",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-09T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:1:in",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-05-10T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:1:out",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-05-10T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:2:in",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-04-10T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:2:out",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-04-10T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:3:in",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-03-11T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:3:out",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-03-11T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:4:in",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-02-09T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:4:out",
+      "contact_id": "person:maya",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-02-09T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:5:in",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-01-10T09:00:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:maya:5:out",
+      "contact_id": "person:maya",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-01-10T09:05:00+00:00",
+      "text": "Fictional exchange with Maya Chen about accounting and shared work."
+    },
+    {
+      "id": "msg:priya:0:in",
+      "contact_id": "person:priya",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-25T09:00:00+00:00",
+      "text": "Fictional exchange with Priya Shah about accounting and shared work."
+    },
+    {
+      "id": "msg:priya:0:out",
+      "contact_id": "person:priya",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-25T09:05:00+00:00",
+      "text": "Fictional exchange with Priya Shah about accounting and shared work."
+    },
+    {
+      "id": "msg:alex:0:in",
+      "contact_id": "person:alex",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-19T09:00:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:alex:0:out",
+      "contact_id": "person:alex",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-19T09:05:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:alex:1:in",
+      "contact_id": "person:alex",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-27T09:00:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:alex:1:out",
+      "contact_id": "person:alex",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-27T09:05:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:alex:2:in",
+      "contact_id": "person:alex",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-15T09:00:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:alex:2:out",
+      "contact_id": "person:alex",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-15T09:05:00+00:00",
+      "text": "Fictional exchange with Alex Morgan about operations and shared work."
+    },
+    {
+      "id": "msg:sam:0:in",
+      "contact_id": "person:sam",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-17T09:00:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:sam:0:out",
+      "contact_id": "person:sam",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-17T09:05:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:sam:1:in",
+      "contact_id": "person:sam",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-24T09:00:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:sam:1:out",
+      "contact_id": "person:sam",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-24T09:05:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:sam:2:in",
+      "contact_id": "person:sam",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-13T09:00:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:sam:2:out",
+      "contact_id": "person:sam",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-13T09:05:00+00:00",
+      "text": "Fictional exchange with Sam Rivera about research and shared work."
+    },
+    {
+      "id": "msg:nora:0:in",
+      "contact_id": "person:nora",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-15T09:00:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:nora:0:out",
+      "contact_id": "person:nora",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-15T09:05:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:nora:1:in",
+      "contact_id": "person:nora",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-21T09:00:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:nora:1:out",
+      "contact_id": "person:nora",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-21T09:05:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:nora:2:in",
+      "contact_id": "person:nora",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-11T09:00:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:nora:2:out",
+      "contact_id": "person:nora",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-11T09:05:00+00:00",
+      "text": "Fictional exchange with Nora Bennett about investment and shared work."
+    },
+    {
+      "id": "msg:leo:0:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-26T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:1:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-25T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:2:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-24T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:3:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-23T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:4:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-22T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:5:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-21T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:6:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-20T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:7:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-19T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:8:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-18T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:9:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-17T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:10:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-16T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:11:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-15T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:12:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-14T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:13:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-13T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:14:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-12T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:15:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-11T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:16:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-10T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:17:in",
+      "contact_id": "person:leo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-09T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:leo:18:in",
+      "contact_id": "person:leo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-08T09:00:00+00:00",
+      "text": "Fictional exchange with Leo Park about sales and shared work."
+    },
+    {
+      "id": "msg:oliver:0:in",
+      "contact_id": "person:oliver",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-09T09:00:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:oliver:0:out",
+      "contact_id": "person:oliver",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-09T09:05:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:oliver:1:in",
+      "contact_id": "person:oliver",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-12T09:00:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:oliver:1:out",
+      "contact_id": "person:oliver",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-12T09:05:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:oliver:2:in",
+      "contact_id": "person:oliver",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-05T09:00:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:oliver:2:out",
+      "contact_id": "person:oliver",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-05T09:05:00+00:00",
+      "text": "Fictional exchange with Oliver Reed about operations and shared work."
+    },
+    {
+      "id": "msg:ella:0:in",
+      "contact_id": "person:ella",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-07T09:00:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:ella:0:out",
+      "contact_id": "person:ella",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-07T09:05:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:ella:1:in",
+      "contact_id": "person:ella",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-09T09:00:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:ella:1:out",
+      "contact_id": "person:ella",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-09T09:05:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:ella:2:in",
+      "contact_id": "person:ella",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-03T09:00:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:ella:2:out",
+      "contact_id": "person:ella",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-03T09:05:00+00:00",
+      "text": "Fictional exchange with Ella Brooks about legal and shared work."
+    },
+    {
+      "id": "msg:amir:0:in",
+      "contact_id": "person:amir",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-05T09:00:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:amir:0:out",
+      "contact_id": "person:amir",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-05T09:05:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:amir:1:in",
+      "contact_id": "person:amir",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-06T09:00:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:amir:1:out",
+      "contact_id": "person:amir",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-06T09:05:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:amir:2:in",
+      "contact_id": "person:amir",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-01T09:00:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:amir:2:out",
+      "contact_id": "person:amir",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-01T09:05:00+00:00",
+      "text": "Fictional exchange with Amir Khan about engineering and shared work."
+    },
+    {
+      "id": "msg:grace:0:in",
+      "contact_id": "person:grace",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-03T09:00:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:grace:0:out",
+      "contact_id": "person:grace",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-03T09:05:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:grace:1:in",
+      "contact_id": "person:grace",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-03T09:00:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:grace:1:out",
+      "contact_id": "person:grace",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-03T09:05:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:grace:2:in",
+      "contact_id": "person:grace",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-29T09:00:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:grace:2:out",
+      "contact_id": "person:grace",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-29T09:05:00+00:00",
+      "text": "Fictional exchange with Grace Liu about research and shared work."
+    },
+    {
+      "id": "msg:ben:0:in",
+      "contact_id": "person:ben",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-09-01T09:00:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:ben:0:out",
+      "contact_id": "person:ben",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-09-01T09:05:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:ben:1:in",
+      "contact_id": "person:ben",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-31T09:00:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:ben:1:out",
+      "contact_id": "person:ben",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-31T09:05:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:ben:2:in",
+      "contact_id": "person:ben",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-27T09:00:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:ben:2:out",
+      "contact_id": "person:ben",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-27T09:05:00+00:00",
+      "text": "Fictional exchange with Ben Walsh about sales and shared work."
+    },
+    {
+      "id": "msg:sofia:0:in",
+      "contact_id": "person:sofia",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-30T09:00:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:sofia:0:out",
+      "contact_id": "person:sofia",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-30T09:05:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:sofia:1:in",
+      "contact_id": "person:sofia",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-28T09:00:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:sofia:1:out",
+      "contact_id": "person:sofia",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-28T09:05:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:sofia:2:in",
+      "contact_id": "person:sofia",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-25T09:00:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:sofia:2:out",
+      "contact_id": "person:sofia",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-25T09:05:00+00:00",
+      "text": "Fictional exchange with Sofia Costa about design and shared work."
+    },
+    {
+      "id": "msg:theo:0:in",
+      "contact_id": "person:theo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-28T09:00:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:theo:0:out",
+      "contact_id": "person:theo",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-28T09:05:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:theo:1:in",
+      "contact_id": "person:theo",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-25T09:00:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:theo:1:out",
+      "contact_id": "person:theo",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-25T09:05:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:theo:2:in",
+      "contact_id": "person:theo",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-23T09:00:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:theo:2:out",
+      "contact_id": "person:theo",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-23T09:05:00+00:00",
+      "text": "Fictional exchange with Theo Martin about investment and shared work."
+    },
+    {
+      "id": "msg:aisha:0:in",
+      "contact_id": "person:aisha",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-26T09:00:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:aisha:0:out",
+      "contact_id": "person:aisha",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-26T09:05:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:aisha:1:in",
+      "contact_id": "person:aisha",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-22T09:00:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:aisha:1:out",
+      "contact_id": "person:aisha",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-22T09:05:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:aisha:2:in",
+      "contact_id": "person:aisha",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-21T09:00:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:aisha:2:out",
+      "contact_id": "person:aisha",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-21T09:05:00+00:00",
+      "text": "Fictional exchange with Aisha Rahman about research and shared work."
+    },
+    {
+      "id": "msg:jack:0:in",
+      "contact_id": "person:jack",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-24T09:00:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:jack:0:out",
+      "contact_id": "person:jack",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-24T09:05:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:jack:1:in",
+      "contact_id": "person:jack",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-19T09:00:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:jack:1:out",
+      "contact_id": "person:jack",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-19T09:05:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:jack:2:in",
+      "contact_id": "person:jack",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-19T09:00:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:jack:2:out",
+      "contact_id": "person:jack",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-19T09:05:00+00:00",
+      "text": "Fictional exchange with Jack Wilson about operations and shared work."
+    },
+    {
+      "id": "msg:lily:0:in",
+      "contact_id": "person:lily",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-22T09:00:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:lily:0:out",
+      "contact_id": "person:lily",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-22T09:05:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:lily:1:in",
+      "contact_id": "person:lily",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-16T09:00:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:lily:1:out",
+      "contact_id": "person:lily",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-16T09:05:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:lily:2:in",
+      "contact_id": "person:lily",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-17T09:00:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:lily:2:out",
+      "contact_id": "person:lily",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-17T09:05:00+00:00",
+      "text": "Fictional exchange with Lily James about accounting and shared work."
+    },
+    {
+      "id": "msg:daniel:0:in",
+      "contact_id": "person:daniel",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-20T09:00:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:daniel:0:out",
+      "contact_id": "person:daniel",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-20T09:05:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:daniel:1:in",
+      "contact_id": "person:daniel",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-13T09:00:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:daniel:1:out",
+      "contact_id": "person:daniel",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-13T09:05:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:daniel:2:in",
+      "contact_id": "person:daniel",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-15T09:00:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:daniel:2:out",
+      "contact_id": "person:daniel",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-15T09:05:00+00:00",
+      "text": "Fictional exchange with Daniel Kim about engineering and shared work."
+    },
+    {
+      "id": "msg:ruby:0:in",
+      "contact_id": "person:ruby",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-18T09:00:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ruby:0:out",
+      "contact_id": "person:ruby",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-18T09:05:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ruby:1:in",
+      "contact_id": "person:ruby",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-10T09:00:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ruby:1:out",
+      "contact_id": "person:ruby",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-10T09:05:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ruby:2:in",
+      "contact_id": "person:ruby",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-13T09:00:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ruby:2:out",
+      "contact_id": "person:ruby",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-13T09:05:00+00:00",
+      "text": "Fictional exchange with Ruby Thomas about design and shared work."
+    },
+    {
+      "id": "msg:ethan:0:in",
+      "contact_id": "person:ethan",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-16T09:00:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:ethan:0:out",
+      "contact_id": "person:ethan",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-16T09:05:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:ethan:1:in",
+      "contact_id": "person:ethan",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-07T09:00:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:ethan:1:out",
+      "contact_id": "person:ethan",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-07T09:05:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:ethan:2:in",
+      "contact_id": "person:ethan",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-11T09:00:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:ethan:2:out",
+      "contact_id": "person:ethan",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-11T09:05:00+00:00",
+      "text": "Fictional exchange with Ethan Scott about legal and shared work."
+    },
+    {
+      "id": "msg:isla:0:in",
+      "contact_id": "person:isla",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-14T09:00:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:isla:0:out",
+      "contact_id": "person:isla",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-14T09:05:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:isla:1:in",
+      "contact_id": "person:isla",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-04T09:00:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:isla:1:out",
+      "contact_id": "person:isla",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-04T09:05:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:isla:2:in",
+      "contact_id": "person:isla",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-09T09:00:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:isla:2:out",
+      "contact_id": "person:isla",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-09T09:05:00+00:00",
+      "text": "Fictional exchange with Isla Wright about sales and shared work."
+    },
+    {
+      "id": "msg:noah:0:in",
+      "contact_id": "person:noah",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-12T09:00:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:noah:0:out",
+      "contact_id": "person:noah",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-12T09:05:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:noah:1:in",
+      "contact_id": "person:noah",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-07-01T09:00:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:noah:1:out",
+      "contact_id": "person:noah",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-07-01T09:05:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:noah:2:in",
+      "contact_id": "person:noah",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-07T09:00:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:noah:2:out",
+      "contact_id": "person:noah",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-07T09:05:00+00:00",
+      "text": "Fictional exchange with Noah Patel about engineering and shared work."
+    },
+    {
+      "id": "msg:chloe:0:in",
+      "contact_id": "person:chloe",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-10T09:00:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:chloe:0:out",
+      "contact_id": "person:chloe",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-10T09:05:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:chloe:1:in",
+      "contact_id": "person:chloe",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-28T09:00:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:chloe:1:out",
+      "contact_id": "person:chloe",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-28T09:05:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:chloe:2:in",
+      "contact_id": "person:chloe",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-05T09:00:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:chloe:2:out",
+      "contact_id": "person:chloe",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-05T09:05:00+00:00",
+      "text": "Fictional exchange with Chloe Evans about operations and shared work."
+    },
+    {
+      "id": "msg:max:0:in",
+      "contact_id": "person:max",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-08-08T09:00:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    },
+    {
+      "id": "msg:max:0:out",
+      "contact_id": "person:max",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-08-08T09:05:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    },
+    {
+      "id": "msg:max:1:in",
+      "contact_id": "person:max",
+      "channel": "whatsapp",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-25T09:00:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    },
+    {
+      "id": "msg:max:1:out",
+      "contact_id": "person:max",
+      "channel": "whatsapp",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-25T09:05:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    },
+    {
+      "id": "msg:max:2:in",
+      "contact_id": "person:max",
+      "channel": "outlook",
+      "direction": "in",
+      "direct": true,
+      "at": "2026-06-03T09:00:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    },
+    {
+      "id": "msg:max:2:out",
+      "contact_id": "person:max",
+      "channel": "outlook",
+      "direction": "out",
+      "direct": true,
+      "at": "2026-06-03T09:05:00+00:00",
+      "text": "Fictional exchange with Max Turner about investment and shared work."
+    }
+  ]
+}
