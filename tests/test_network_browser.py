@@ -47,3 +47,42 @@ def test_embedded_slice_round_trip(page):
     page.get_by_role("link", name="Return to conversation").click()
     page.get_by_role("link", name="Open full network").wait_for()
     assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")
+
+
+def test_compact_all_claims_and_selection_survive_round_trip(page):
+    page.goto(page.base_url + "/inbox?focus=person:maya&claim=collab-maya")
+    page.locator(".embed-status").filter(has_text="entities").wait_for()
+    assert page.locator('[data-evidence="collab-maya"]').count() == 1
+    assert page.locator('[data-evidence="client-maya"]').count() == 1
+    page.locator('[data-evidence="collab-maya"]').click()
+    link = page.get_by_role("link", name="Open full network")
+    assert "claim=collab-maya" in link.get_attribute("href")
+    link.click()
+    page.get_by_role("link", name="Return to conversation").click()
+    page.locator(".embed-status").filter(has_text="entities").wait_for()
+    assert "claim=collab-maya" in page.get_by_role("link", name="Open full network").get_attribute(
+        "href"
+    )
+
+
+def test_evidence_and_keyboard_focus_survive_real_revision(page):
+    page.goto(page.base_url + "/network?focus=person:maya&claim=collab-maya")
+    button = page.locator('[data-evidence="collab-maya"]')
+    button.click()
+    page.locator(".evidence-quote").wait_for()
+    button.focus()
+    page.request.post(page.base_url + "/network/demo/reset")
+    page.get_by_text("Synthetic demo · Snapshot 2", exact=False).wait_for()
+    page.locator(".evidence-quote").wait_for(timeout=3000)
+    assert page.locator('[data-evidence="collab-maya"]').evaluate("(e)=>e===document.activeElement")
+
+
+def test_neighborhood_focus_does_not_replace_origin_conversation(page):
+    page.goto(page.base_url + "/inbox?focus=person:maya")
+    page.get_by_role("link", name="Open full network").click()
+    page.locator('[data-person="person:priya"]').click()
+    page.get_by_role("button", name="Focus neighborhood").click()
+    page.wait_for_url("**focus=person%3Apriya**")
+    page.get_by_role("link", name="Return to conversation").click()
+    page.get_by_role("link", name="Open full network").wait_for()
+    assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")

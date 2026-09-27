@@ -157,4 +157,4 @@
 
 Recommended method: **Native** implementation in this session, followed by the workflow's independent final review. The renderer, query contract and host integration are tightly coupled; one implementer reduces coordination overhead for this prototype. Subagent-driven implementation remains an option if Eva prefers per-task independent review.
 
-Design confirmed. Plan saved and self-reviewed for scope coverage, API consistency, observable checks and honest result reporting. Awaiting plan review and execution-method selection; no product implementation has started.
+Native execution was approved and completed in `codex/network-demo-paper`. Tasks 1–5 and 7 have deliverables; Task 6 produced an explicit unexecuted prerequisite report rather than a live Graphiti experiment. The original granular checklist is retained as planning scope, not a claim that every suggested stress test was executed. See `docs/demos/network-verification.md` for actual verification, review findings, fixes, scope rulings and remaining research.
