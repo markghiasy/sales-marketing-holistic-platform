@@ -42,3 +42,11 @@ The project virtual environment and installed headless Microsoft Edge were used.
 - Fixture functions are human-authored attributes. Production temporal extraction, identity review integration, authorization and realistic channel coverage need validation before connecting private data.
 
 Next decision: use Mark's real business questions to define the target task and expected useful contacts, then agree on the controlled evaluation with the supervisor. Keep live data integration separate from this synthetic presentation.
+
+## Visual revision following Eva's Obsidian reference
+
+The graph now uses a charcoal canvas, small lavender points, muted gold organizations and sage projects. A force-directed layout replaces overview columns and compact rings. Names appear progressively with zoom, hover and selection; selected edges show relationship labels and direction. The evidence dock is initially closed in the overview and opens on selection. Both hosts retain the same renderer and graph records, with no decorative entities added.
+
+Typography uses the local Segoe UI Variable/Segoe UI stack. The compact view scopes its dark palette locally inside the existing light Inbox. On narrow screens the contact list scrolls horizontally above a full-width map.
+
+Validation: five existing browser acceptance tests passed in 19.09 seconds after the interaction/style changes. Additional actual browser checks covered dock close/reopen, a 390-pixel viewport without horizontal page overflow, and zero JavaScript errors or Cytoscape warnings. Desktop, selected, embedded and mobile screenshots were inspected. The paper was rebuilt with the new figures; the two affected pages were rendered and visually checked. The earlier 330-test full-suite result predates this presentation-only revision.
