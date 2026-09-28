@@ -1,57 +1,59 @@
 // Both hosts share the same graph, palette, layout and interaction rules.
 export function mountGraph(container, {mode = 'explorer', onNodeSelect = () => {}, onEdgeSelect = () => {}} = {}) {
   const compact = mode === 'compact';
+  const theme = getComputedStyle(container);
+  const color = name => theme.getPropertyValue('--net-' + name).trim();
   const cy = window.cytoscape({
     container, elements: [], minZoom: .2, maxZoom: 3.5,
     style: [
       {selector: 'node', style: {
         'label': 'data(name)', 'font-family': 'Segoe UI', 'font-size': 11,
-        'color': '#aaa6b8', 'text-opacity': 0, 'text-valign': 'bottom',
+        'color': color('muted'), 'text-opacity': 0, 'text-valign': 'bottom',
         'text-margin-y': 9, 'text-wrap': 'wrap', 'text-max-width': 120,
-        'background-color': '#a697d7', 'width': 9, 'height': 9,
-        'border-width': 1, 'border-color': '#cfc4f1', 'border-opacity': .35,
-        'overlay-opacity': 0, 'underlay-color': '#a697d7', 'underlay-opacity': .055,
+        'background-color': color('teal'), 'width': 9, 'height': 9,
+        'border-width': 1, 'border-color': '#ffffff', 'border-opacity': .8,
+        'overlay-opacity': 0, 'underlay-color': color('teal'), 'underlay-opacity': .055,
         'underlay-padding': 5, 'underlay-shape': 'ellipse',
-        'text-background-color': '#111114', 'text-background-opacity': .75, 'text-background-padding': 3,
+        'text-background-color': color('canvas'), 'text-background-opacity': .85, 'text-background-padding': 3,
       }},
       {selector: 'node[kind="organization"]', style: {
-        'shape': 'round-rectangle', 'background-color': '#d2ae71', 'border-color': '#ecd8b5',
-        'underlay-color': '#d2ae71', 'width': 14, 'height': 14,
-        'text-opacity': 1, 'color': '#d4bd97',
+        'shape': 'round-rectangle', 'background-color': color('gold'), 'border-color': '#ffffff',
+        'underlay-color': color('gold'), 'width': 14, 'height': 14,
+        'text-opacity': 1, 'color': color('org-label'),
       }},
       {selector: 'node[kind="project"]', style: {
-        'shape': 'diamond', 'background-color': '#83b8ae', 'border-color': '#b8dcd3',
-        'underlay-color': '#83b8ae', 'width': 17, 'height': 17,
-        'text-opacity': 1, 'color': '#a9c9c0',
+        'shape': 'diamond', 'background-color': color('violet'), 'border-color': '#ffffff',
+        'underlay-color': color('violet'), 'width': 17, 'height': 17,
+        'text-opacity': 1, 'color': color('project-label'),
       }},
       {selector: 'node.owner', style: {
-        'background-color': '#e8e1f7', 'border-color': '#ffffff', 'width': 19, 'height': 19,
-        'text-opacity': 1, 'font-weight': 600, 'color': '#e8e1f7',
+        'background-color': color('owner'), 'border-color': '#ffffff', 'width': 19, 'height': 19,
+        'text-opacity': 1, 'font-weight': 600, 'color': color('owner'),
         'underlay-opacity': .08, 'underlay-padding': 13,
       }},
       {selector: 'node.focus', style: {'text-opacity': 1}},
       {selector: 'node.show-label', style: {'text-opacity': 1}},
       {selector: 'edge', style: {
-        'width': .8, 'line-color': '#666077', 'opacity': .45, 'curve-style': 'bezier',
+        'width': .8, 'line-color': color('edge'), 'opacity': .6, 'curve-style': 'bezier',
         'control-point-step-size': 22, 'target-arrow-shape': 'none',
-        'font-family': 'Segoe UI', 'font-size': 10, 'color': '#c1b6dd',
-        'text-background-color': '#111114', 'text-background-opacity': .95,
+        'font-family': 'Segoe UI', 'font-size': 10, 'color': color('blue'),
+        'text-background-color': color('canvas'), 'text-background-opacity': .95,
         'text-background-padding': 4, 'text-rotation': 'autorotate', 'label': '',
         'overlay-opacity': 0,
       }},
-      {selector: 'edge[status="pending"]', style: {'line-style': 'dashed', 'line-color': '#d2ae71'}},
+      {selector: 'edge[status="pending"]', style: {'line-style': 'dashed', 'line-color': color('gold')}},
       {selector: 'edge.historical', style: {'line-style': 'dotted', 'opacity': .25}},
       {selector: 'node.dim', style: {'opacity': .35}},
       {selector: 'edge.dim', style: {'opacity': .1}},
-      {selector: 'node.neighbor', style: {'text-opacity': 1, 'color': '#dbd5e8'}},
-      {selector: 'edge.highlight', style: {'line-color': '#a697d7', 'opacity': .8, 'width': 1.2}},
+      {selector: 'node.neighbor', style: {'text-opacity': 1, 'color': color('ink')}},
+      {selector: 'edge.highlight', style: {'line-color': color('teal'), 'opacity': .8, 'width': 1.2}},
       {selector: 'node.hovered, node:selected', style: {
-        'text-opacity': 1, 'color': '#f5f1ff', 'border-color': '#f5f1ff',
+        'text-opacity': 1, 'color': color('ink'), 'border-color': color('owner'),
         'border-width': 2, 'underlay-opacity': .15, 'underlay-padding': 9,
       }},
       {selector: 'edge.hovered, edge:selected', style: {
-        'line-color': '#c6b5f5', 'opacity': 1, 'width': 1.7, 'label': 'data(relation)',
-        'target-arrow-shape': 'triangle', 'target-arrow-color': '#c6b5f5', 'arrow-scale': .6,
+        'line-color': color('owner'), 'opacity': 1, 'width': 1.7, 'label': 'data(relation)',
+        'target-arrow-shape': 'triangle', 'target-arrow-color': color('owner'), 'arrow-scale': .6,
       }},
     ],
   });

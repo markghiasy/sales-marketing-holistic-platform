@@ -50,3 +50,9 @@ The graph now uses a charcoal canvas, small lavender points, muted gold organiza
 Typography uses the local Segoe UI Variable/Segoe UI stack. The compact view scopes its dark palette locally inside the existing light Inbox. On narrow screens the contact list scrolls horizontally above a full-width map.
 
 Validation: five existing browser acceptance tests passed in 19.09 seconds after the interaction/style changes. Additional actual browser checks covered dock close/reopen, a 390-pixel viewport without horizontal page overflow, and zero JavaScript errors or Cytoscape warnings. Desktop, selected, embedded and mobile screenshots were inspected. The paper was rebuilt with the new figures; the two affected pages were rendered and visually checked. The earlier 330-test full-suite result predates this presentation-only revision.
+
+## Unified light theme, 28 September 2026
+
+At Eva's request the explorer, embedded graph, search dialog, evidence surfaces and navigation now use a light palette aligned with Inbox: white canvas, soft grey panels, muted violet interaction states, gold organizations and green projects. Canvas node and edge colors read the shared CSS variables so the full graph and embedded slice stay consistent. Force layout, selection, filtering, discovery and evidence behavior are unchanged.
+
+Eight browser acceptance tests passed in 29.88 seconds. Visual checks covered overview, selection with evidence, Inbox slice, search results, and 390-pixel graph/search layouts. There were no JavaScript errors or graph-library warnings and no horizontal overflow in the narrow layouts. A residual dark dropdown and low-contrast metadata text found during screenshot review were corrected. Demo screenshots and the paper figures were refreshed.
