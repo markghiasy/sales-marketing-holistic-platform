@@ -1,0 +1,209 @@
+{
+  "strategic_assertions": [
+    {
+      "id": "strategy:atlas-pilot",
+      "subject_id": "org:atlas",
+      "claimant_id": "person:alex",
+      "facet": "need",
+      "label": "Atlas Logistics: logistics AI security pilot need",
+      "context_id": "project:harbour",
+      "basis": "self_declared",
+      "observed_at": "2026-09-20T09:00:00Z",
+      "valid_from": "2026-09-20T00:00:00Z",
+      "valid_to": "2026-11-01T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-atlas-pilot"
+      ],
+      "quote": "Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:alex-evaluator",
+      "subject_id": "person:alex",
+      "claimant_id": "person:alex",
+      "facet": "decision_role",
+      "label": "Harbour technical evaluator; no budget authority",
+      "context_id": "project:harbour",
+      "basis": "self_declared",
+      "observed_at": "2026-09-20T09:00:00Z",
+      "valid_from": "2026-09-20T00:00:00Z",
+      "valid_to": "2026-11-01T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-alex-evaluator"
+      ],
+      "quote": "I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:ben-channel",
+      "subject_id": "person:ben",
+      "claimant_id": "person:ben",
+      "facet": "resource",
+      "label": "Conditional logistics channel demo offer",
+      "context_id": "project:harbour",
+      "basis": "self_declared",
+      "observed_at": "2026-09-21T09:00:00Z",
+      "valid_from": "2026-09-21T00:00:00Z",
+      "valid_to": "2026-10-15T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-ben-channel"
+      ],
+      "quote": "For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:amir-experience",
+      "subject_id": "person:amir",
+      "claimant_id": "person:amir",
+      "facet": "experience",
+      "label": "Past warehouse access-control and audit logging rollout",
+      "context_id": "org:atlas",
+      "basis": "self_declared",
+      "observed_at": "2026-09-22T09:00:00Z",
+      "valid_from": "2025-01-01T00:00:00Z",
+      "valid_to": null,
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-amir-experience"
+      ],
+      "quote": "In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:expired-need",
+      "subject_id": "org:atlas",
+      "claimant_id": "person:alex",
+      "facet": "need",
+      "label": "Expired August warehouse security review request",
+      "context_id": "project:harbour",
+      "basis": "self_declared",
+      "observed_at": "2026-09-02T09:00:00Z",
+      "valid_from": "2026-08-01T00:00:00Z",
+      "valid_to": "2026-09-01T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-expired-need"
+      ],
+      "quote": "Atlas Logistics needed a warehouse security review for the August Harbour assessment. That request closed on 1 September 2026 and is no longer active.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:northline-report",
+      "subject_id": "org:north",
+      "claimant_id": "person:maya",
+      "facet": "need",
+      "label": "Reported Northline vendor security evidence need",
+      "context_id": "project:harbour",
+      "basis": "reported",
+      "observed_at": "2026-09-23T09:00:00Z",
+      "valid_from": "2026-09-23T00:00:00Z",
+      "valid_to": "2026-10-31T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-northline-report"
+      ],
+      "quote": "Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    },
+    {
+      "id": "strategy:atlas-data-condition",
+      "subject_id": "org:atlas",
+      "claimant_id": "person:alex",
+      "facet": "constraint",
+      "label": "No customer data in pilot before security review",
+      "context_id": "project:harbour",
+      "basis": "self_declared",
+      "observed_at": "2026-09-24T09:00:00Z",
+      "valid_from": "2026-09-24T00:00:00Z",
+      "valid_to": "2026-11-01T00:00:00Z",
+      "status": "confirmed",
+      "evidence_ids": [
+        "evidence:strategy-atlas-data-condition"
+      ],
+      "quote": "Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+      "model": "",
+      "synthetic": true,
+      "origin": "authored_pre_reviewed_example"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence:strategy-atlas-pilot",
+      "channel": "outlook",
+      "at": "2026-09-20T09:00:00Z",
+      "author_id": "person:alex",
+      "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-alex-evaluator",
+      "channel": "outlook",
+      "at": "2026-09-20T09:00:00Z",
+      "author_id": "person:alex",
+      "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-ben-channel",
+      "channel": "outlook",
+      "at": "2026-09-21T09:00:00Z",
+      "author_id": "person:ben",
+      "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-amir-experience",
+      "channel": "outlook",
+      "at": "2026-09-22T09:00:00Z",
+      "author_id": "person:amir",
+      "text": "[SYNTHETIC DEMO MESSAGE] In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-expired-need",
+      "channel": "outlook",
+      "at": "2026-09-02T09:00:00Z",
+      "author_id": "person:alex",
+      "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needed a warehouse security review for the August Harbour assessment. That request closed on 1 September 2026 and is no longer active.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-northline-report",
+      "channel": "outlook",
+      "at": "2026-09-23T09:00:00Z",
+      "author_id": "person:maya",
+      "text": "[SYNTHETIC DEMO MESSAGE] Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    },
+    {
+      "id": "evidence:strategy-atlas-data-condition",
+      "channel": "outlook",
+      "at": "2026-09-24T09:00:00Z",
+      "author_id": "person:alex",
+      "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+      "synthetic": true,
+      "origin": "authored_demo_source"
+    }
+  ]
+}

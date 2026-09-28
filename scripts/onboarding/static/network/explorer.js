@@ -42,3 +42,10 @@ document.getElementById('expand-depth').onchange=e=>client.setQuery({depth:Numbe
 document.getElementById('expand-activity').onchange=e=>client.setQuery({min_activity:Number(e.target.value)});
 document.getElementById('exit-expansion').onclick=()=>client.setQuery({expand:'',min_activity:0});
 document.getElementById('ask-network').onclick=()=>openAssistant({focus:selectedId||query.focus,as_of:query.as_of,mode:query.mode,name:snapshot?.nodes.find(n=>n.id===selectedId)?.name||'Your network'});
+
+window.addEventListener('network-profile-updated', event => {
+  if (!event.detail?.as_of) return;
+  query.as_of = event.detail.as_of;
+  document.getElementById('as-of').value = query.as_of.slice(0, 10);
+  client.setQuery({as_of: query.as_of});
+});

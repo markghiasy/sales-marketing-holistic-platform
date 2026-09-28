@@ -9,13 +9,13 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
     'Alex Morgan',
   ];
   container.innerHTML = `<section class="discovery-panel" role="dialog" aria-modal="true" aria-labelledby="discovery-title">
-    <header><div><span class="discovery-kicker">Your network</span><h2 id="discovery-title">Find the right person.</h2></div><button class="discovery-close" aria-label="Close search">&times;</button></header>
-    <p class="discovery-intro">Search names, expertise and shared work. See why someone matches, with the original evidence.</p>
-    <form class="discovery-form"><label for="discovery-query">Search your network</label><div><input id="discovery-query" name="query" maxlength="600" autocomplete="off" placeholder="Who can help with logistics finance?" required><button type="submit">Search</button></div></form>
+    <header><div><span class="discovery-kicker">Your network</span><h2 id="discovery-title">Find people and opportunities</h2></div><button class="discovery-close" aria-label="Close search">&times;</button></header>
+    <p class="discovery-intro">Search names, expertise, shared work or a business goal. See the evidence and what still needs checking.</p>
+    <form class="discovery-form"><label for="discovery-query">Search your network</label><div><input id="discovery-query" name="query" maxlength="2000" autocomplete="off" placeholder="Who can help with a logistics AI security pilot?" required><button type="submit">Search</button></div></form>
     <div class="discovery-examples">${examples.map((q, i) => `<button type="button" data-example="${i}">${i === 0 ? 'Logistics + accounting + past collaboration' : esc(q)}</button>`).join('')}</div>
     <div class="discovery-output" aria-live="polite"><div class="discovery-empty"><h3>Start with the work you need to do.</h3><p>Try a person, a company or a combination of skills and relationships. English and Chinese are supported for these search conditions.</p></div></div>
     <button type="button" class="discovery-agent">Ask Claude about a goal or strategy ↗</button>
-    <footer>Synthetic data. Quick search checks supported conditions. Use Claude for goals, reasoning and follow-up questions.</footer>
+    <footer>Synthetic data. Search checks names and supported conditions directly; goals and complex questions continue with Claude using this session's question budget.</footer>
   </section>`;
   const input = container.querySelector('input');
   const output = container.querySelector('.discovery-output');
@@ -50,6 +50,12 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Search unavailable. Please retry.');
       if (closed || ticket !== generation) return;
+      if(data.status==='needs_clarification'){
+        const p=new URLSearchParams(location.search);
+        onClose();
+        openAssistant({question:text,autoSubmit:true,focus:p.get('focus')||'person:owner',as_of:asOf,mode:p.get('mode')||'current'});
+        return;
+      }
       render(data);
     } catch (error) {
       if (!closed && ticket === generation && error.name !== 'AbortError') {

@@ -234,14 +234,14 @@ def test_inbox_list_labels_follow_historical_date(page):
     assert "Northline Advisory" in row.inner_text()
 
 
-def test_search_clarification_and_sidebar_full_graph(page):
+def test_complex_search_handoff_and_sidebar_full_graph(page):
     page.goto(page.base_url + "/inbox")
     page.locator("#searchbar").click()
     page.get_by_role("textbox", name="Search your network").fill("Find accountants in Sydney")
     page.get_by_role("button", name="Search", exact=True).click()
-    page.get_by_text("Please clarify your search", exact=True).wait_for()
+    page.get_by_role("heading", name="Find people and opportunities", exact=True).wait_for()
     assert page.locator(".discovery-result").count() == 0
-    page.get_by_role("button", name="Close search").click()
+    page.get_by_role("button", name="Close assistant").click()
     page.get_by_role("link", name="Knowledge graph", exact=True).click()
     page.get_by_role("heading", name="Your network", exact=True).wait_for()
     assert (

@@ -3,17 +3,39 @@
 import argparse
 import json
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlencode
 
 from dotenv import dotenv_values
 from flask import Flask, Response, jsonify, render_template, request, stream_with_context
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
-from adapters.network.agent import AgentRequest, AgentUnavailable, ClaudeProvider, NetworkAgent
+from adapters.network.agent import (
+    AgentRequest,
+    AgentUnavailable,
+    ClaudeProvider,
+    NetworkAgent,
+    StrictModel,
+)
 from adapters.network.context import entity_context
 from adapters.network.model import GraphQuery, timestamp
+from adapters.network.profiles import profile_context
 from adapters.network.scenario import ScenarioStore
 from adapters.network.search import contact_tags
+
+
+class ProfileReview(StrictModel):
+    id: str = Field(min_length=1, max_length=160)
+    status: Literal["confirmed", "rejected"]
+    subject_id: str = Field(min_length=1, max_length=160)
+    version: int = Field(ge=1)
+
+
+class ProfileExtraction(StrictModel):
+    focus: str = "person:owner"
+    as_of: str = "2026-09-27T12:00:00Z"
+    mode: Literal["current", "history"] = "current"
+
 
 
 def create_app(*, testing=False, llm_config=None, agent_provider=None):
@@ -79,8 +101,8 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
     @app.get("/network/search.json")
     def search():
         text = request.args.get("q", "").strip()
-        if not text or len(text) > 600:
-            return jsonify(error="Enter a search between 1 and 600 characters."), 400
+        if not text or len(text) > 2000:
+            return jsonify(error="Enter a search between 1 and 2000 characters."), 400
         return jsonify(store.search(query(), text))
 
     @app.get("/network/context.json")
@@ -90,6 +112,61 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
             return jsonify(**entity_context(data, query()), version=version)
         except KeyError:
             return jsonify(error="Context not found."), 404
+
+    def mutation_error():
+        if request.headers.get("Origin") and request.headers["Origin"].rstrip("/") != request.host_url.rstrip("/"):
+            return jsonify(error="Cross-origin changes are not allowed."), 403
+        if not request.is_json:
+            return jsonify(error="Send a JSON request."), 415
+        return None
+
+    @app.get("/network/profile.json")
+    def profile():
+        data, version = store.capture()
+        try:
+            q = query().model_copy(update={"include_pending": True})
+            return jsonify(**profile_context(data, q), version=version)
+        except KeyError:
+            return jsonify(error="Profile not found."), 404
+
+    @app.post("/network/profile/review")
+    def review_profile():
+        error = mutation_error()
+        if error:
+            return error
+        payload = ProfileReview.model_validate(request.get_json())
+        try:
+            return jsonify(store.review_profile(payload.id, payload.status, payload.subject_id, payload.version))
+        except RuntimeError as exc:
+            return jsonify(error=str(exc)), 409
+        except KeyError:
+            return jsonify(error="Assertion not found."), 404
+        except ValueError:
+            return jsonify(error="The corrected subject is inconsistent with this source. Reject it and re-extract."), 400
+
+    @app.post("/network/profile/extract")
+    def extract_profile():
+        error = mutation_error()
+        if error:
+            return error
+        payload = ProfileExtraction.model_validate(request.get_json())
+        q = GraphQuery(**payload.model_dump(), include_pending=True)
+        data, version = store.capture()
+        if q.focus not in {n["id"] for n in data["nodes"]}:
+            return jsonify(error="Profile not found."), 404
+        try:
+            rows, usage = agent.extract_profiles(data, q)
+            saved = store.add_profile_proposals(rows, version)
+            q = q.model_copy(update={"as_of": timestamp(saved["as_of"])})
+            updated, current_version = store.capture()
+            return jsonify(**profile_context(updated, q), version=current_version,
+                           added=saved["added"], usage=usage, model=provider.model)
+        except AgentUnavailable as exc:
+            return jsonify(error=str(exc)), 503
+        except RuntimeError as exc:
+            return jsonify(error=str(exc)), 409
+        except Exception:  # noqa: BLE001 - sanitize provider errors at HTTP boundary
+            return jsonify(error="Claude could not produce valid profile proposals. No profile was changed."), 502
 
     @app.get("/network/agent/status.json")
     def agent_status():

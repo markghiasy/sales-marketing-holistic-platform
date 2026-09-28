@@ -1,12 +1,13 @@
 import {escapeHtml as esc, queryUrl} from './client.js';
+import {mountStrategyMap} from './strategy-map.js';
 
 let activeAssistant;
-export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z', mode='current', name='Your network', question=''}={}) {
+export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z', mode='current', name='Your network', question='', autoSubmit=false}={}) {
   activeAssistant?.();
   const returnFocus=document.activeElement, panel=document.createElement('aside');
   panel.className='network-assistant'; panel.setAttribute('aria-label','Network strategy assistant');
-  let closed=false, controller, turns=[];
-  panel.innerHTML=`<header><div><span class="agent-kicker">NETWORK INTELLIGENCE</span><h2>Think through your next move.</h2></div><button data-close aria-label="Close assistant">&times;</button></header>
+  let closed=false, controller, turns=[], maps=[];
+  panel.innerHTML=`<header><div><span class="agent-kicker">Your network</span><h2>Find people and opportunities</h2></div><button data-close aria-label="Close assistant">&times;</button></header>
     <div class="agent-scope"><strong>${esc(name)}</strong><span>Known by ${esc(as_of.slice(0,10))} &middot; ${mode==='history'?'Relationship history':'Current relationships'} &middot; Confirmed synthetic evidence</span></div>
     <p class="agent-provider" role="status">Checking Claude connection…</p>
     <div class="agent-thread" aria-live="polite"><div class="agent-welcome"><h3>From connections to a plan.</h3><p>Explore who could help, what the evidence supports, and what you still need to learn.</p>
@@ -16,7 +17,7 @@ export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z
   document.body.append(panel);
   const input=panel.querySelector('textarea'), thread=panel.querySelector('.agent-thread'), send=panel.querySelector('.agent-send');
   input.value=question; input.focus();
-  function close(){closed=true;controller?.abort();panel.remove();document.removeEventListener('keydown',escape);returnFocus?.focus();activeAssistant=null;}
+  function close(){closed=true;controller?.abort();maps.forEach(map=>map.destroy());maps=[];panel.remove();document.removeEventListener('keydown',escape);returnFocus?.focus();activeAssistant=null;}
   function escape(e){if(e.key==='Escape'&&panel.contains(document.activeElement))close();}
   activeAssistant=close;
   panel.querySelector('[data-close]').onclick=close;document.addEventListener('keydown',escape);
@@ -38,10 +39,21 @@ export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z
         ${data.next_steps.length?`<h3>Suggested next moves</h3><ol>${data.next_steps.map(g=>`<li>${esc(g)}</li>`).join('')}</ol>`:''}
         ${data.clarification?`<p class="agent-clarification">${esc(data.clarification)}</p>`:''}
         <details class="agent-trace"><summary>How this answer was grounded</summary><p>Snapshot ${esc(data.version)} · ${esc(data.model)} · ${data.usage.input_tokens+data.usage.output_tokens} tokens</p><ul>${data.trace.map(t=>`<li>${esc(t.kind)} · ${esc(t.terms.length?t.terms.join(', '):entities.get(t.entity_id)||t.entity_id)}</li>`).join('')}</ul>${data.retrieval?`<p>${data.retrieval.scope.scanned_people} contacts searched &middot; ${data.retrieval.budget.selected_records} evidence records included${data.retrieval.budget.omitted_records?' &middot; '+data.retrieval.budget.omitted_records+' records omitted to fit the context':''}</p><ul class="agent-coverage">${data.retrieval.coverage.map(c=>`<li><strong>${esc(c.label)}</strong>: ${esc(({matching_evidence:'Matching records found; capability still needs validation',searched_no_match:'No match in searched records',budget_omitted:'Matching records found but omitted from this answer',not_searched:'Not fully searched'})[c.status]||c.status)}</li>`).join('')}</ul>`:''}<p>References are checked against retrieved records; relevance still needs human judgment.</p></details>`;
+      if(data.strategy_graph){
+        panel.classList.add('has-strategy-map');
+        const mapContainer=document.createElement('div');
+        item.querySelector('.agent-summary').after(mapContainer);
+        maps.push(mountStrategyMap(mapContainer,data.strategy_graph,{as_of,mode}));
+      }
       turns.push({question:text,answer:[data.summary,...data.next_steps].join('\n').slice(0,1500)});input.value='';
       item.querySelector('.agent-answer').scrollIntoView({block:'start'});
-    }catch(error){if(!closed&&error.name!=='AbortError')item.querySelector('.agent-answer').innerHTML=`<p role="alert">${esc(error.message)}</p>`;}
+    }catch(error){if(!closed&&error.name!=='AbortError'){
+      const message=error instanceof TypeError?'Could not reach the local demo. If it was updating, wait a moment and press Ask Claude again. Your question has been kept.':error.message;
+      item.querySelector('.agent-answer').innerHTML=`<p role="alert">${esc(message)}</p>`;
+    }}
     finally{if(!closed){send.disabled=false;send.textContent='Ask Claude';input.focus();}}
   };
+  // Only an explicit search handoff opts in. Rendering and typing never spend a call.
+  if(autoSubmit&&question.trim())panel.querySelector('form').requestSubmit();
   return {close};
 }

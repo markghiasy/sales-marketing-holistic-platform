@@ -1,6 +1,7 @@
 import json
 import threading
 from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .model import ScenarioData
@@ -10,7 +11,12 @@ from .search import search_contacts
 
 def load_scenario(path: Path | None = None) -> ScenarioData:
     source = path or Path(__file__).resolve().parents[2] / "tests/fixtures/network_demo.json"
-    return json.loads(source.read_text(encoding="utf-8"))
+    data = json.loads(source.read_text(encoding="utf-8"))
+    if path is None:
+        strategy = json.loads(source.with_name("network_strategy.json").read_text(encoding="utf-8"))
+        data["strategic_assertions"] = strategy["strategic_assertions"]
+        data["evidence"].extend(strategy["evidence"])
+    return data
 
 
 class ScenarioStore:
@@ -59,6 +65,46 @@ class ScenarioStore:
             self.version += 1
             self._condition.notify_all()
             return self.version
+
+    def review_profile(self, assertion_id, status, subject_id, version):
+        from .profiles import validate_assertion
+
+        with self._condition:
+            if version != self.version:
+                raise RuntimeError("The scenario changed. Reload the profile before reviewing.")
+            row = next((a for a in self._data.get("strategic_assertions", []) if a["id"] == assertion_id), None)
+            if row is None:
+                raise KeyError(assertion_id)
+            candidate = {**row, "subject_id": subject_id, "status": status}
+            validate_assertion(self._data, candidate)
+            now = datetime.now(UTC).isoformat()
+            self._data.setdefault("strategic_reviews", []).append(
+                {"id": assertion_id, "at": now, "status": status, "subject_id": subject_id}
+            )
+            self.version += 1
+            self._condition.notify_all()
+            return {"version": self.version, "as_of": now}
+
+    def add_profile_proposals(self, rows, version):
+        with self._condition:
+            if version != self.version:
+                raise RuntimeError("The scenario changed during extraction. Retry from the updated profile.")
+            now = datetime.now(UTC).isoformat()
+            existing = self._data.setdefault("strategic_assertions", [])
+
+            def fingerprint(row):
+                return (row["subject_id"], row["facet"], row["quote"], tuple(sorted(row["evidence_ids"])))
+
+            seen = {fingerprint(row) for row in existing}
+            added = 0
+            for row in rows:
+                if fingerprint(row) not in seen:
+                    existing.append({**row, "observed_at": now, "status": "pending"})
+                    seen.add(fingerprint(row))
+                    added += 1
+            self.version += 1
+            self._condition.notify_all()
+            return {"version": self.version, "as_of": now, "added": added}
 
     def wait_for_version(self, after, timeout):
         with self._condition:

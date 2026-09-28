@@ -9,6 +9,7 @@ import re
 from collections import defaultdict, deque
 
 from .model import timestamp
+from .profiles import eligible_assertions
 from .projection import eligible_claims
 
 
@@ -41,6 +42,11 @@ class NetworkRetrieval:
         confirmed = query.model_copy(update={"include_pending": False})
         for profile in eligible_claims({"claims": data.get("profile_assertions", [])}, confirmed):
             self._add("profile", profile, [profile["person_id"]], profile["label"])
+        for assertion in eligible_assertions(data, query):
+            entities = [assertion["subject_id"]]
+            if assertion.get("context_id") and assertion["context_id"] not in entities:
+                entities.append(assertion["context_id"])
+            self._add("strategy", assertion, entities, assertion["label"])
         for work in data.get("work_records", []):
             if timestamp(work["observed_at"]) <= query.as_of:
                 self._add(
@@ -73,6 +79,13 @@ class NetworkRetrieval:
             "area",
             "person_id",
             "project_id",
+            "subject_id",
+            "claimant_id",
+            "context_id",
+            "facet",
+            "basis",
+            "quote",
+            "reviewed_at",
         )
         record = {k: item[k] for k in fields if k in item}
         record.update(id=key, kind=kind, label=label, entity_ids=entities, evidence_ids=refs)
@@ -134,9 +147,19 @@ class NetworkRetrieval:
                     "score": len(matched),
                 }
             )
+        # Business needs belong to organizations/initiatives, not message authors.
+        # Recall these records independently instead of granting them to a contact.
+        contexts = []
+        for key, record in self.records.items():
+            if record["kind"] != "strategy" or self.nodes[record["subject_id"]]["kind"] == "person":
+                continue
+            if not terms or any(matches(self.text[key], t) for t in terms):
+                units.add(key)
+                contexts.append(record["subject_id"])
         people.sort(key=lambda p: (-p["score"], p["name"].casefold(), p["id"]))
         return {
             "people": people,
+            "contexts": sorted(set(contexts)),
             "unit_ids": sorted(units, key=self._order),
             "terms": terms,
             "scanned_people": len(candidates),

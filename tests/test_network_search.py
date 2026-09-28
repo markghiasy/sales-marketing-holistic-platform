@@ -79,7 +79,7 @@ def test_search_names_keeps_distinct_identities_and_current_roles():
 def test_search_validation_empty_results_and_observation_time():
     client = create_app(testing=True).test_client()
     assert client.get("/network/search.json?q=").status_code == 400
-    assert client.get("/network/search.json", query_string={"q": "x" * 601}).status_code == 400
+    assert client.get("/network/search.json", query_string={"q": "x" * 2001}).status_code == 400
     assert client.get("/network/search.json?q=accountants&as_of=bad").status_code == 400
     assert client.get("/network/search.json?q=lawyers%20in%20Atlas").json["results"] == []
     data = client.get(

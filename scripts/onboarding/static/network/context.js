@@ -1,7 +1,11 @@
 import {escapeHtml as esc,queryUrl,showEvidence} from './client.js';
+import {mountProfile} from './profiles.js';
 
 export async function mountContext(container, query, onPick) {
-  container.innerHTML='<p class="muted">Loading this context…</p>';
+  const host=container;
+  host.innerHTML='<div class="context-work"><p class="muted">Loading this context…</p></div><div class="context-profile"></div>';
+  mountProfile(host.querySelector('.context-profile'),query);
+  container=host.querySelector('.context-work');
   try {
     const response=await fetch(queryUrl('/network/context.json',query));
     const data=await response.json();if(!response.ok)throw new Error(data.error);if(!container.isConnected)return;

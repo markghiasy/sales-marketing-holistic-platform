@@ -1,0 +1,3939 @@
+{
+  "data_source": "synthetic",
+  "model": "claude-haiku-4-5-20251001",
+  "extraction": {
+    "rows": [
+      {
+        "subject_id": "org:atlas",
+        "facet": "need",
+        "label": "Logistics AI security pilot requirement for Harbour expansion",
+        "context_id": "",
+        "basis": "reported",
+        "quote": "Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial",
+        "valid_from": "2026-09-20T09:00:00Z",
+        "id": "strategy:5026887b567542f58e620a5137c5c678",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-atlas-pilot"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      },
+      {
+        "subject_id": "org:atlas",
+        "facet": "constraint",
+        "label": "Budget and purchase approval not confirmed for Harbour AI security pilot",
+        "context_id": "",
+        "basis": "reported",
+        "quote": "The budget and purchase approval are not confirmed",
+        "valid_from": "2026-09-20T09:00:00Z",
+        "id": "strategy:e3d48dbb86334e27a272f9034cc970ca",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-atlas-pilot"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      },
+      {
+        "subject_id": "person:alex",
+        "facet": "decision_role",
+        "label": "Technical evaluator for Atlas Logistics Harbour AI security pilot",
+        "context_id": "",
+        "basis": "self_declared",
+        "quote": "I am the technical evaluator for the Atlas Logistics Harbour AI security pilot",
+        "valid_from": "2026-09-20T09:00:00Z",
+        "id": "strategy:a82b8918a4c849d2b89111024c60d15b",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-alex-evaluator"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      },
+      {
+        "subject_id": "person:alex",
+        "facet": "constraint",
+        "label": "No budget authority for Harbour AI security pilot purchase",
+        "context_id": "",
+        "basis": "self_declared",
+        "quote": "I have no budget authority and cannot approve a purchase",
+        "valid_from": "2026-09-20T09:00:00Z",
+        "id": "strategy:dc9937f234864bba822e22ee1168316a",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-alex-evaluator"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      },
+      {
+        "subject_id": "org:atlas",
+        "facet": "need",
+        "label": "Warehouse security review requirement for Harbour assessment ended September 1, 2026",
+        "context_id": "",
+        "basis": "reported",
+        "quote": "Atlas Logistics needed a warehouse security review for the August Harbour assessment. That request closed on 1 September 2026 and is no longer active",
+        "valid_to": "2026-09-01T23:59:59Z",
+        "id": "strategy:82a9e7f9dc1e417f8786cedecf122cdd",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-expired-need"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      },
+      {
+        "subject_id": "org:atlas",
+        "facet": "constraint",
+        "label": "Harbour AI pilot restricted to synthetic data until security review completion",
+        "context_id": "",
+        "basis": "reported",
+        "quote": "Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial",
+        "valid_from": "2026-09-24T09:00:00Z",
+        "id": "strategy:7b7ea5c9cdfa4e39b5444b36d789cc03",
+        "observed_at": "2026-09-27T12:00:00Z",
+        "status": "pending",
+        "evidence_ids": [
+          "evidence:strategy-atlas-data-condition"
+        ],
+        "claimant_id": "person:alex",
+        "model": "claude-haiku-4-5-20251001",
+        "synthetic": true,
+        "origin": "model_proposal_mechanically_validated"
+      }
+    ],
+    "usage": {
+      "input_tokens": 3301,
+      "output_tokens": 687
+    }
+  },
+  "prior_answer": {
+    "summary": "Atlas Logistics (Harbour initiative) has a confirmed AI security pilot need for October, evaluating prompt injection, access controls and audit logging with synthetic data only. Alex Morgan is the technical evaluator with no budget authority. Ben Walsh offers a conditional Northline channel demo slot pending security brief approval. Northline requires vendor security evidence. Validate: decision authority (budget/procurement owner at Atlas), pilot timeline and synthetic data constraints, channel feasibility through Ben, and whether product meets the three security evaluation areas.",
+    "findings": [
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.\n[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+        "entity_ids": [
+          "org:atlas",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-atlas-pilot",
+          "evidence:strategy-atlas-data-condition"
+        ]
+      },
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.\nI joined Atlas on 1 August, after leaving my Northline employee role at the end of July.",
+        "entity_ids": [
+          "org:atlas",
+          "person:alex",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-alex-evaluator",
+          "evidence:job-alex-new"
+        ]
+      },
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.\n[SYNTHETIC DEMO MESSAGE] Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+        "entity_ids": [
+          "org:north",
+          "person:ben",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-ben-channel",
+          "evidence:strategy-northline-report"
+        ]
+      }
+    ],
+    "gaps": [
+      "Budget owner and procurement decision authority at Atlas Logistics are not recorded; Alex confirmed he has no budget authority.",
+      "Timeline certainty: pilot is described as 'before an October trial' but exact go/no-go dates and rollout owner are not confirmed; Alex owns the follow-up to confirm rollout owner and dates by 2026-09-30.",
+      "Product fit validation: no recorded evidence that your AI security product has been evaluated against Atlas's three specific requirements (prompt injection, access controls, audit logging)."
+    ],
+    "next_steps": [
+      "Ask Alex Morgan (your direct contact) to clarify who holds budget approval and procurement authority for the Harbour pilot, and to confirm the October timeline and synthetic data readiness.",
+      "Prepare a security brief tailored to the three evaluation areas (prompt injection, access controls, audit logging) to share with Ben Walsh, and confirm whether Northline's reported security evidence need aligns with your product's compliance posture.",
+      "Validate with the identified budget owner at Atlas whether the pilot scope, synthetic-data constraint, and evaluation criteria match your product's capabilities before formal engagement."
+    ],
+    "clarification": "",
+    "evidence": [
+      {
+        "id": "evidence:job-alex-new",
+        "channel": "outlook",
+        "at": "2026-09-03T09:00:00Z",
+        "from": "Alex Morgan",
+        "subject": "Fictional relationship record",
+        "text": "I joined Atlas on 1 August, after leaving my Northline employee role at the end of July.",
+        "synthetic": true
+      },
+      {
+        "id": "evidence:strategy-alex-evaluator",
+        "channel": "outlook",
+        "at": "2026-09-20T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-atlas-data-condition",
+        "channel": "outlook",
+        "at": "2026-09-24T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-atlas-pilot",
+        "channel": "outlook",
+        "at": "2026-09-20T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-ben-channel",
+        "channel": "outlook",
+        "at": "2026-09-21T09:00:00Z",
+        "author_id": "person:ben",
+        "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-northline-report",
+        "channel": "outlook",
+        "at": "2026-09-23T09:00:00Z",
+        "author_id": "person:maya",
+        "text": "[SYNTHETIC DEMO MESSAGE] Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      }
+    ],
+    "entities": [
+      {
+        "id": "person:owner",
+        "name": "Jordan Ellis",
+        "kind": "person",
+        "tags": [
+          "Harbour expansion",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:maya",
+        "name": "Maya Chen",
+        "kind": "person",
+        "tags": [
+          "Client",
+          "Collaborator",
+          "Accounting",
+          "Logistics",
+          "Northline Advisory",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:priya",
+        "name": "Priya Shah",
+        "kind": "person",
+        "tags": [
+          "Accounting",
+          "Logistics",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:alex",
+        "name": "Alex Morgan",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Northline Advisory",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:sam",
+        "name": "Sam Rivera",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:nora",
+        "name": "Nora Bennett",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:leo",
+        "name": "Leo Park",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:alex2",
+        "name": "Alex Morgan",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University"
+        ]
+      },
+      {
+        "id": "person:oliver",
+        "name": "Oliver Reed",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:ella",
+        "name": "Ella Brooks",
+        "kind": "person",
+        "tags": [
+          "Legal",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:amir",
+        "name": "Amir Khan",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:grace",
+        "name": "Grace Liu",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:ben",
+        "name": "Ben Walsh",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:sofia",
+        "name": "Sofia Costa",
+        "kind": "person",
+        "tags": [
+          "Design",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:theo",
+        "name": "Theo Martin",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:aisha",
+        "name": "Aisha Rahman",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:jack",
+        "name": "Jack Wilson",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:lily",
+        "name": "Lily James",
+        "kind": "person",
+        "tags": [
+          "Accounting",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:daniel",
+        "name": "Daniel Kim",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:ruby",
+        "name": "Ruby Thomas",
+        "kind": "person",
+        "tags": [
+          "Design",
+          "Coastal University"
+        ]
+      },
+      {
+        "id": "person:ethan",
+        "name": "Ethan Scott",
+        "kind": "person",
+        "tags": [
+          "Legal",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:isla",
+        "name": "Isla Wright",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:noah",
+        "name": "Noah Patel",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:chloe",
+        "name": "Chloe Evans",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:max",
+        "name": "Max Turner",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "org:north",
+        "name": "Northline Advisory",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "org:atlas",
+        "name": "Atlas Logistics",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "org:uni",
+        "name": "Coastal University",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "project:harbour",
+        "name": "Harbour expansion",
+        "kind": "project",
+        "tags": []
+      },
+      {
+        "id": "project:bridge",
+        "name": "Research bridge",
+        "kind": "project",
+        "tags": []
+      }
+    ],
+    "model": "claude-haiku-4-5-20251001",
+    "backend": "anthropic",
+    "data_source": "synthetic",
+    "version": 1,
+    "as_of": "2026-09-27T12:00:00+00:00",
+    "focus": "person:owner",
+    "mode": "current",
+    "strategy_graph": {
+      "nodes": [
+        {
+          "id": "org:atlas",
+          "name": "Atlas Logistics",
+          "kind": "organization"
+        },
+        {
+          "id": "org:north",
+          "name": "Northline Advisory",
+          "kind": "organization"
+        },
+        {
+          "id": "person:alex",
+          "name": "Alex Morgan",
+          "kind": "person"
+        },
+        {
+          "id": "person:amir",
+          "name": "Amir Khan",
+          "kind": "person"
+        },
+        {
+          "id": "person:ben",
+          "name": "Ben Walsh",
+          "kind": "person"
+        },
+        {
+          "id": "person:chloe",
+          "name": "Chloe Evans",
+          "kind": "person"
+        },
+        {
+          "id": "person:daniel",
+          "name": "Daniel Kim",
+          "kind": "person"
+        },
+        {
+          "id": "person:isla",
+          "name": "Isla Wright",
+          "kind": "person"
+        },
+        {
+          "id": "person:jack",
+          "name": "Jack Wilson",
+          "kind": "person"
+        },
+        {
+          "id": "person:leo",
+          "name": "Leo Park",
+          "kind": "person"
+        },
+        {
+          "id": "person:maya",
+          "name": "Maya Chen",
+          "kind": "person"
+        },
+        {
+          "id": "person:noah",
+          "name": "Noah Patel",
+          "kind": "person"
+        },
+        {
+          "id": "person:oliver",
+          "name": "Oliver Reed",
+          "kind": "person"
+        },
+        {
+          "id": "person:owner",
+          "name": "Jordan Ellis",
+          "kind": "person"
+        },
+        {
+          "id": "person:priya",
+          "name": "Priya Shah",
+          "kind": "person"
+        },
+        {
+          "id": "person:sam",
+          "name": "Sam Rivera",
+          "kind": "person"
+        },
+        {
+          "id": "project:harbour",
+          "name": "Harbour expansion",
+          "kind": "project"
+        },
+        {
+          "id": "requirement:R1",
+          "name": "Logistics operations with pilot readiness",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R2",
+          "name": "Atlas Logistics decision makers",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R3",
+          "name": "Channel partner candidates from advisory network",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R4",
+          "name": "Investment or procurement decision roles",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R5",
+          "name": "Security or compliance expertise in network",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R6",
+          "name": "Harbour expansion project stakeholders",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R7",
+          "name": "Research capabilities for validation",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:R8",
+          "name": "Engineering capabilities to support implementation",
+          "kind": "requirement"
+        }
+      ],
+      "edges": [
+        {
+          "id": "relation:claim:job-alex-advisor",
+          "source": "person:alex",
+          "target": "org:north",
+          "label": "Advises",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ]
+        },
+        {
+          "id": "relation:claim:contact-alex",
+          "source": "person:owner",
+          "target": "person:alex",
+          "label": "In contact",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:contact-alex"
+          ]
+        },
+        {
+          "id": "relation:claim:intro-sam",
+          "source": "person:sam",
+          "target": "person:priya",
+          "label": "Introduced",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:intro-sam"
+          ]
+        },
+        {
+          "id": "relation:claim:harbour-alex",
+          "source": "person:alex",
+          "target": "project:harbour",
+          "label": "Project member",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:harbour-alex"
+          ]
+        },
+        {
+          "id": "relation:claim:job-alex-new",
+          "source": "person:alex",
+          "target": "org:atlas",
+          "label": "Works at",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-alex-new"
+          ]
+        },
+        {
+          "id": "requirement:R1:org:atlas",
+          "source": "requirement:R1",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:R1:org:north",
+          "source": "requirement:R1",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:alex",
+          "source": "requirement:R1",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:profile:alex:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:amir",
+          "source": "requirement:R1",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:ben",
+          "source": "requirement:R1",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:chloe",
+          "source": "requirement:R1",
+          "target": "person:chloe",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:chloe:function"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:jack",
+          "source": "requirement:R1",
+          "target": "person:jack",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:jack:function"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:maya",
+          "source": "requirement:R1",
+          "target": "person:maya",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:maya:industry"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:oliver",
+          "source": "requirement:R1",
+          "target": "person:oliver",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:oliver:function"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:priya",
+          "source": "requirement:R1",
+          "target": "person:priya",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:intro-sam",
+            "evidence:profile:priya:industry"
+          ]
+        },
+        {
+          "id": "requirement:R1:person:sam",
+          "source": "requirement:R1",
+          "target": "person:sam",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:intro-sam"
+          ]
+        },
+        {
+          "id": "requirement:R1:project:harbour",
+          "source": "requirement:R1",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R2:org:atlas",
+          "source": "requirement:R2",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:alex",
+          "source": "requirement:R2",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:profile:alex:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:amir",
+          "source": "requirement:R2",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:amir:function",
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:chloe",
+          "source": "requirement:R2",
+          "target": "person:chloe",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:chloe:function"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:daniel",
+          "source": "requirement:R2",
+          "target": "person:daniel",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:daniel:function"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:jack",
+          "source": "requirement:R2",
+          "target": "person:jack",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:jack:function"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:noah",
+          "source": "requirement:R2",
+          "target": "person:noah",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:noah:function"
+          ]
+        },
+        {
+          "id": "requirement:R2:person:oliver",
+          "source": "requirement:R2",
+          "target": "person:oliver",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:oliver:function"
+          ]
+        },
+        {
+          "id": "requirement:R2:project:harbour",
+          "source": "requirement:R2",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R3:org:north",
+          "source": "requirement:R3",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:R3:person:alex",
+          "source": "requirement:R3",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ]
+        },
+        {
+          "id": "requirement:R3:person:ben",
+          "source": "requirement:R3",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:ben:function"
+          ]
+        },
+        {
+          "id": "requirement:R3:person:isla",
+          "source": "requirement:R3",
+          "target": "person:isla",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:isla:function"
+          ]
+        },
+        {
+          "id": "requirement:R3:person:leo",
+          "source": "requirement:R3",
+          "target": "person:leo",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:leo:function"
+          ]
+        },
+        {
+          "id": "requirement:R4:org:north",
+          "source": "requirement:R4",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:R5:org:atlas",
+          "source": "requirement:R5",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:R5:org:north",
+          "source": "requirement:R5",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:R5:person:alex",
+          "source": "requirement:R5",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator"
+          ]
+        },
+        {
+          "id": "requirement:R5:person:ben",
+          "source": "requirement:R5",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:R6:org:atlas",
+          "source": "requirement:R6",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:R6:org:north",
+          "source": "requirement:R6",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:alex",
+          "source": "requirement:R6",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:job-alex-new",
+            "evidence:profile:alex:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:amir",
+          "source": "requirement:R6",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:ben",
+          "source": "requirement:R6",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:chloe",
+          "source": "requirement:R6",
+          "target": "person:chloe",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:chloe:function"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:jack",
+          "source": "requirement:R6",
+          "target": "person:jack",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:jack:function"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:maya",
+          "source": "requirement:R6",
+          "target": "person:maya",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:maya:industry"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:oliver",
+          "source": "requirement:R6",
+          "target": "person:oliver",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:oliver:function"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:priya",
+          "source": "requirement:R6",
+          "target": "person:priya",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:intro-sam",
+            "evidence:profile:priya:industry"
+          ]
+        },
+        {
+          "id": "requirement:R6:person:sam",
+          "source": "requirement:R6",
+          "target": "person:sam",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:intro-sam"
+          ]
+        },
+        {
+          "id": "requirement:R6:project:harbour",
+          "source": "requirement:R6",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:R8:person:alex",
+          "source": "requirement:R8",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator"
+          ]
+        },
+        {
+          "id": "requirement:R8:person:amir",
+          "source": "requirement:R8",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:amir:function"
+          ]
+        },
+        {
+          "id": "requirement:R8:person:daniel",
+          "source": "requirement:R8",
+          "target": "person:daniel",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:daniel:function"
+          ]
+        },
+        {
+          "id": "requirement:R8:person:noah",
+          "source": "requirement:R8",
+          "target": "person:noah",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:noah:function"
+          ]
+        }
+      ],
+      "requirements": [
+        {
+          "id": "R1",
+          "label": "Logistics operations with pilot readiness",
+          "terms": [
+            "pilot",
+            "operations",
+            "logistics"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:intro-sam",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:maya:industry",
+            "evidence:profile:oliver:function",
+            "evidence:profile:priya:industry",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R2",
+          "label": "Atlas Logistics decision makers",
+          "terms": [
+            "Atlas Logistics",
+            "operations",
+            "engineering"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-daniel",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:amir:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:daniel:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:noah:function",
+            "evidence:profile:oliver:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R3",
+          "label": "Channel partner candidates from advisory network",
+          "terms": [
+            "sales",
+            "Northline Advisory",
+            "business development"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:job-ben",
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:job-isla",
+            "evidence:job-leo",
+            "evidence:job-lily",
+            "evidence:job-max",
+            "evidence:job-maya",
+            "evidence:job-nora",
+            "evidence:profile:ben:function",
+            "evidence:profile:isla:function",
+            "evidence:profile:leo:function",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R4",
+          "label": "Investment or procurement decision roles",
+          "terms": [
+            "investment",
+            "purchasing",
+            "procurement",
+            "decision"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-max",
+            "evidence:job-nora",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R5",
+          "label": "Security or compliance expertise in network",
+          "terms": [
+            "security",
+            "legal",
+            "compliance",
+            "risk"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R6",
+          "label": "Harbour expansion project stakeholders",
+          "terms": [
+            "Harbour expansion",
+            "operations",
+            "logistics"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:intro-sam",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:maya:industry",
+            "evidence:profile:oliver:function",
+            "evidence:profile:priya:industry",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R7",
+          "label": "Research capabilities for validation",
+          "terms": [
+            "research",
+            "Coastal University",
+            "testing"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-chloe",
+            "evidence:job-daniel"
+          ]
+        },
+        {
+          "id": "R8",
+          "label": "Engineering capabilities to support implementation",
+          "terms": [
+            "engineering",
+            "technical",
+            "infrastructure"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:job-daniel",
+            "evidence:job-noah",
+            "evidence:profile:amir:function",
+            "evidence:profile:daniel:function",
+            "evidence:profile:noah:function",
+            "evidence:strategy-alex-evaluator"
+          ]
+        }
+      ],
+      "records": [
+        {
+          "observed_at": "2026-09-20T09:00:00Z",
+          "valid_from": "2026-09-20T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:atlas",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "need",
+          "basis": "self_declared",
+          "quote": "Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+          "id": "strategy:strategy:atlas-pilot",
+          "kind": "strategy",
+          "label": "Atlas Logistics: logistics AI security pilot need",
+          "entity_ids": [
+            "org:atlas",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "observed_at": "2026-09-21T09:00:00Z",
+          "valid_from": "2026-09-21T00:00:00Z",
+          "valid_to": "2026-10-15T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:ben",
+          "claimant_id": "person:ben",
+          "context_id": "project:harbour",
+          "facet": "resource",
+          "basis": "self_declared",
+          "quote": "For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+          "id": "strategy:strategy:ben-channel",
+          "kind": "strategy",
+          "label": "Conditional logistics channel demo offer",
+          "entity_ids": [
+            "person:ben",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "observed_at": "2026-09-20T09:00:00Z",
+          "valid_from": "2026-09-20T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:alex",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "decision_role",
+          "basis": "self_declared",
+          "quote": "I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+          "id": "strategy:strategy:alex-evaluator",
+          "kind": "strategy",
+          "label": "Harbour technical evaluator; no budget authority",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator"
+          ]
+        },
+        {
+          "observed_at": "2026-09-24T09:00:00Z",
+          "valid_from": "2026-09-24T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:atlas",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "constraint",
+          "basis": "self_declared",
+          "quote": "Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+          "id": "strategy:strategy:atlas-data-condition",
+          "kind": "strategy",
+          "label": "No customer data in pilot before security review",
+          "entity_ids": [
+            "org:atlas",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-atlas-data-condition"
+          ]
+        },
+        {
+          "observed_at": "2026-09-22T09:00:00Z",
+          "valid_from": "2025-01-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:amir",
+          "claimant_id": "person:amir",
+          "context_id": "org:atlas",
+          "facet": "experience",
+          "basis": "self_declared",
+          "quote": "In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+          "id": "strategy:strategy:amir-experience",
+          "kind": "strategy",
+          "label": "Past warehouse access-control and audit logging rollout",
+          "entity_ids": [
+            "person:amir",
+            "org:atlas"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "observed_at": "2026-09-23T09:00:00Z",
+          "valid_from": "2026-09-23T00:00:00Z",
+          "valid_to": "2026-10-31T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:north",
+          "claimant_id": "person:maya",
+          "context_id": "project:harbour",
+          "facet": "need",
+          "basis": "reported",
+          "quote": "Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+          "id": "strategy:strategy:northline-report",
+          "kind": "strategy",
+          "label": "Reported Northline vendor security evidence need",
+          "entity_ids": [
+            "org:north",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "source": "person:alex",
+          "target": "org:north",
+          "relation": "Advises",
+          "observed_at": "2026-09-03T09:00:00Z",
+          "valid_from": "2026-08-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-alex-advisor",
+          "kind": "claim",
+          "label": "Advises",
+          "entity_ids": [
+            "person:alex",
+            "org:north"
+          ],
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ],
+          "claim_id": "job-alex-advisor"
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:amir",
+          "id": "profile:profile:amir:function",
+          "kind": "profile",
+          "label": "Engineering",
+          "entity_ids": [
+            "person:amir"
+          ],
+          "evidence_ids": [
+            "evidence:profile:amir:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:daniel",
+          "id": "profile:profile:daniel:function",
+          "kind": "profile",
+          "label": "Engineering",
+          "entity_ids": [
+            "person:daniel"
+          ],
+          "evidence_ids": [
+            "evidence:profile:daniel:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:noah",
+          "id": "profile:profile:noah:function",
+          "kind": "profile",
+          "label": "Engineering",
+          "entity_ids": [
+            "person:noah"
+          ],
+          "evidence_ids": [
+            "evidence:profile:noah:function"
+          ]
+        },
+        {
+          "source": "person:owner",
+          "target": "person:alex",
+          "relation": "In contact",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:contact-alex",
+          "kind": "claim",
+          "label": "In contact",
+          "entity_ids": [
+            "person:owner",
+            "person:alex"
+          ],
+          "evidence_ids": [
+            "evidence:contact-alex"
+          ],
+          "claim_id": "contact-alex"
+        },
+        {
+          "source": "person:sam",
+          "target": "person:priya",
+          "relation": "Introduced",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:intro-sam",
+          "kind": "claim",
+          "label": "Introduced",
+          "entity_ids": [
+            "person:sam",
+            "person:priya"
+          ],
+          "evidence_ids": [
+            "evidence:intro-sam"
+          ],
+          "claim_id": "intro-sam"
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:maya",
+          "id": "profile:profile:maya:industry",
+          "kind": "profile",
+          "label": "Logistics",
+          "entity_ids": [
+            "person:maya"
+          ],
+          "evidence_ids": [
+            "evidence:profile:maya:industry"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:priya",
+          "id": "profile:profile:priya:industry",
+          "kind": "profile",
+          "label": "Logistics",
+          "entity_ids": [
+            "person:priya"
+          ],
+          "evidence_ids": [
+            "evidence:profile:priya:industry"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:alex",
+          "id": "profile:profile:alex:function",
+          "kind": "profile",
+          "label": "Operations",
+          "entity_ids": [
+            "person:alex"
+          ],
+          "evidence_ids": [
+            "evidence:profile:alex:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:chloe",
+          "id": "profile:profile:chloe:function",
+          "kind": "profile",
+          "label": "Operations",
+          "entity_ids": [
+            "person:chloe"
+          ],
+          "evidence_ids": [
+            "evidence:profile:chloe:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:jack",
+          "id": "profile:profile:jack:function",
+          "kind": "profile",
+          "label": "Operations",
+          "entity_ids": [
+            "person:jack"
+          ],
+          "evidence_ids": [
+            "evidence:profile:jack:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:oliver",
+          "id": "profile:profile:oliver:function",
+          "kind": "profile",
+          "label": "Operations",
+          "entity_ids": [
+            "person:oliver"
+          ],
+          "evidence_ids": [
+            "evidence:profile:oliver:function"
+          ]
+        },
+        {
+          "observed_at": "2026-09-24T09:00:00Z",
+          "status": "open",
+          "due": "2026-09-30",
+          "area": "Operations",
+          "person_id": "person:alex",
+          "project_id": "project:harbour",
+          "id": "work:work:operations",
+          "kind": "work",
+          "label": "Operations: Confirm rollout owner and dates",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "source": "person:alex",
+          "target": "project:harbour",
+          "relation": "Project member",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:harbour-alex",
+          "kind": "claim",
+          "label": "Project member",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:harbour-alex"
+          ],
+          "claim_id": "harbour-alex"
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:ben",
+          "id": "profile:profile:ben:function",
+          "kind": "profile",
+          "label": "Sales",
+          "entity_ids": [
+            "person:ben"
+          ],
+          "evidence_ids": [
+            "evidence:profile:ben:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:isla",
+          "id": "profile:profile:isla:function",
+          "kind": "profile",
+          "label": "Sales",
+          "entity_ids": [
+            "person:isla"
+          ],
+          "evidence_ids": [
+            "evidence:profile:isla:function"
+          ]
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:leo",
+          "id": "profile:profile:leo:function",
+          "kind": "profile",
+          "label": "Sales",
+          "entity_ids": [
+            "person:leo"
+          ],
+          "evidence_ids": [
+            "evidence:profile:leo:function"
+          ]
+        },
+        {
+          "source": "person:alex",
+          "target": "org:atlas",
+          "relation": "Works at",
+          "observed_at": "2026-09-03T09:00:00Z",
+          "valid_from": "2026-08-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-alex-new",
+          "kind": "claim",
+          "label": "Works at",
+          "entity_ids": [
+            "person:alex",
+            "org:atlas"
+          ],
+          "evidence_ids": [
+            "evidence:job-alex-new"
+          ],
+          "claim_id": "job-alex-new"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "evidence:contact-alex",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Jordan Ellis",
+          "subject": "Fictional relationship record",
+          "text": "Jordan and Alex Morgan exchanged contact details for industry work.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:harbour-alex",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "Alex Morgan is on the Harbour expansion working group.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:intro-sam",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Sam Rivera",
+          "subject": "Fictional relationship record",
+          "text": "Jordan, please meet Priya. She has led finance work for logistics operators.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-alex-advisor",
+          "channel": "outlook",
+          "at": "2026-09-03T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "I still advise Northline one day each month alongside my role at Atlas.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-alex-new",
+          "channel": "outlook",
+          "at": "2026-09-03T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "I joined Atlas on 1 August, after leaving my Northline employee role at the end of July.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:alex:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional professional introduction",
+          "text": "I am Alex Morgan. My professional focus is operations.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:amir:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Amir Khan",
+          "subject": "Fictional professional introduction",
+          "text": "I am Amir Khan. My professional focus is engineering.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:ben:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Ben Walsh",
+          "subject": "Fictional professional introduction",
+          "text": "I am Ben Walsh. My professional focus is sales.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:chloe:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Chloe Evans",
+          "subject": "Fictional professional introduction",
+          "text": "I am Chloe Evans. My professional focus is operations.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:daniel:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Daniel Kim",
+          "subject": "Fictional professional introduction",
+          "text": "I am Daniel Kim. My professional focus is engineering.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:isla:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Isla Wright",
+          "subject": "Fictional professional introduction",
+          "text": "I am Isla Wright. My professional focus is sales.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:jack:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Jack Wilson",
+          "subject": "Fictional professional introduction",
+          "text": "I am Jack Wilson. My professional focus is operations.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:leo:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Leo Park",
+          "subject": "Fictional professional introduction",
+          "text": "I am Leo Park. My professional focus is sales.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:maya:industry",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Maya Chen",
+          "subject": "Fictional professional introduction",
+          "text": "I am Maya Chen. I have led finance reviews and accounting work for logistics operators.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:noah:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Noah Patel",
+          "subject": "Fictional professional introduction",
+          "text": "I am Noah Patel. My professional focus is engineering.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:oliver:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Oliver Reed",
+          "subject": "Fictional professional introduction",
+          "text": "I am Oliver Reed. My professional focus is operations.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:priya:industry",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Priya Shah",
+          "subject": "Fictional professional introduction",
+          "text": "I am Priya Shah. I have led finance reviews and accounting work for logistics operators.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:strategy-alex-evaluator",
+          "channel": "outlook",
+          "at": "2026-09-20T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-amir-experience",
+          "channel": "outlook",
+          "at": "2026-09-22T09:00:00Z",
+          "author_id": "person:amir",
+          "text": "[SYNTHETIC DEMO MESSAGE] In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-atlas-data-condition",
+          "channel": "outlook",
+          "at": "2026-09-24T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-atlas-pilot",
+          "channel": "outlook",
+          "at": "2026-09-20T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-ben-channel",
+          "channel": "outlook",
+          "at": "2026-09-21T09:00:00Z",
+          "author_id": "person:ben",
+          "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-northline-report",
+          "channel": "outlook",
+          "at": "2026-09-23T09:00:00Z",
+          "author_id": "person:maya",
+          "text": "[SYNTHETIC DEMO MESSAGE] Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:work:operations",
+          "channel": "outlook",
+          "at": "2026-09-24T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional project work update",
+          "synthetic": true,
+          "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30."
+        }
+      ],
+      "as_of": "2026-09-27T12:00:00+00:00",
+      "mode": "current",
+      "omitted_records": 17,
+      "note": "Dashed links are query-specific text matches, not verified suitability or relationships. Shared projects/companies do not prove acquaintance; paths do not prove introduction willingness."
+    },
+    "retrieval": {
+      "coverage": [
+        {
+          "id": "R1",
+          "label": "Logistics operations with pilot readiness",
+          "terms": [
+            "pilot",
+            "operations",
+            "logistics"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:intro-sam",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:maya:industry",
+            "evidence:profile:oliver:function",
+            "evidence:profile:priya:industry",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R2",
+          "label": "Atlas Logistics decision makers",
+          "terms": [
+            "Atlas Logistics",
+            "operations",
+            "engineering"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-daniel",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:amir:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:daniel:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:noah:function",
+            "evidence:profile:oliver:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R3",
+          "label": "Channel partner candidates from advisory network",
+          "terms": [
+            "sales",
+            "Northline Advisory",
+            "business development"
+          ],
+          "priority": "require",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:job-ben",
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:job-isla",
+            "evidence:job-leo",
+            "evidence:job-lily",
+            "evidence:job-max",
+            "evidence:job-maya",
+            "evidence:job-nora",
+            "evidence:profile:ben:function",
+            "evidence:profile:isla:function",
+            "evidence:profile:leo:function",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R4",
+          "label": "Investment or procurement decision roles",
+          "terms": [
+            "investment",
+            "purchasing",
+            "procurement",
+            "decision"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-max",
+            "evidence:job-nora",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R5",
+          "label": "Security or compliance expertise in network",
+          "terms": [
+            "security",
+            "legal",
+            "compliance",
+            "risk"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "R6",
+          "label": "Harbour expansion project stakeholders",
+          "terms": [
+            "Harbour expansion",
+            "operations",
+            "logistics"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:intro-sam",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-chloe",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:maya:industry",
+            "evidence:profile:oliver:function",
+            "evidence:profile:priya:industry",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "R7",
+          "label": "Research capabilities for validation",
+          "terms": [
+            "research",
+            "Coastal University",
+            "testing"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-chloe",
+            "evidence:job-daniel"
+          ]
+        },
+        {
+          "id": "R8",
+          "label": "Engineering capabilities to support implementation",
+          "terms": [
+            "engineering",
+            "technical",
+            "infrastructure"
+          ],
+          "priority": "prefer",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:job-daniel",
+            "evidence:job-noah",
+            "evidence:profile:amir:function",
+            "evidence:profile:daniel:function",
+            "evidence:profile:noah:function",
+            "evidence:strategy-alex-evaluator"
+          ]
+        }
+      ],
+      "budget": {
+        "limit_bytes": 28000,
+        "bytes": 27721,
+        "candidate_records": 100,
+        "selected_records": 41,
+        "omitted_records": 59,
+        "omitted_paths": 0
+      },
+      "scope": {
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "person:owner",
+        "mode": "current",
+        "include_pending": false,
+        "scanned_people": 24,
+        "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+      }
+    },
+    "trace": [
+      {
+        "kind": "people",
+        "terms": [],
+        "entity_id": "person:owner",
+        "depth": 2
+      },
+      {
+        "kind": "neighborhood",
+        "terms": [],
+        "entity_id": "org:atlas",
+        "depth": 2
+      },
+      {
+        "kind": "context",
+        "terms": [],
+        "entity_id": "project:harbour",
+        "depth": 2
+      },
+      {
+        "kind": "people",
+        "terms": [
+          "pilot",
+          "operations",
+          "logistics",
+          "Atlas Logistics",
+          "engineering",
+          "sales",
+          "Northline Advisory",
+          "business development"
+        ],
+        "entity_id": "person:owner",
+        "depth": 2,
+        "supplemental": true
+      }
+    ],
+    "usage": {
+      "input_tokens": 16719,
+      "output_tokens": 1166
+    }
+  },
+  "answer": {
+    "summary": "Atlas Logistics through the Harbour project has a recorded pilot need for logistics AI security evaluation (prompt injection, access controls, audit logging) with an October trial target. Northline Advisory can offer a 30-minute demo channel slot, conditional on receiving a security brief. Recorded decision roles include operations, engineering, legal, and investment functions at both organizations. Before approaching, validate that your product addresses the stated pilot scope, confirm Alex (technical evaluator) has no budget authority, and clarify Northline's procurement authority and timeline.",
+    "findings": [
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+        "entity_ids": [
+          "org:atlas",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-atlas-pilot"
+        ]
+      },
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+        "entity_ids": [
+          "person:ben",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-ben-channel"
+        ]
+      },
+      {
+        "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.\n[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+        "entity_ids": [
+          "org:atlas",
+          "person:alex",
+          "project:harbour"
+        ],
+        "evidence_ids": [
+          "evidence:strategy-alex-evaluator",
+          "evidence:strategy-atlas-data-condition"
+        ]
+      }
+    ],
+    "gaps": [
+      "Budget authority and purchase approval timelines for Atlas Logistics are not recorded; Alex is technical evaluator only.",
+      "Northline's decision-making role, budget authority, and procurement conditions for the channel assessment are not established.",
+      "Your product's specific capabilities against prompt injection, access controls, and audit logging evaluation criteria are not verified against the Harbour pilot scope."
+    ],
+    "next_steps": [
+      "Ask Alex whether the October trial scope matches your product's capabilities and request introduction to Atlas budget or procurement owner if he believes fit.",
+      "Request a security brief from Ben clarifying Northline's evaluation criteria, procurement timeline, and decision authority before committing the demo slot.",
+      "Validate your AI security testing qualifications and documented case evidence for logistics access control and audit logging before outreach; distinguish general AI security from verified adversarial testing scope."
+    ],
+    "clarification": "",
+    "evidence": [
+      {
+        "id": "evidence:strategy-alex-evaluator",
+        "channel": "outlook",
+        "at": "2026-09-20T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-atlas-data-condition",
+        "channel": "outlook",
+        "at": "2026-09-24T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-atlas-pilot",
+        "channel": "outlook",
+        "at": "2026-09-20T09:00:00Z",
+        "author_id": "person:alex",
+        "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      },
+      {
+        "id": "evidence:strategy-ben-channel",
+        "channel": "outlook",
+        "at": "2026-09-21T09:00:00Z",
+        "author_id": "person:ben",
+        "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+        "synthetic": true,
+        "origin": "authored_demo_source"
+      }
+    ],
+    "entities": [
+      {
+        "id": "person:owner",
+        "name": "Jordan Ellis",
+        "kind": "person",
+        "tags": [
+          "Harbour expansion",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:maya",
+        "name": "Maya Chen",
+        "kind": "person",
+        "tags": [
+          "Client",
+          "Collaborator",
+          "Accounting",
+          "Logistics",
+          "Northline Advisory",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:priya",
+        "name": "Priya Shah",
+        "kind": "person",
+        "tags": [
+          "Accounting",
+          "Logistics",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:alex",
+        "name": "Alex Morgan",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Northline Advisory",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:sam",
+        "name": "Sam Rivera",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:nora",
+        "name": "Nora Bennett",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:leo",
+        "name": "Leo Park",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:alex2",
+        "name": "Alex Morgan",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University"
+        ]
+      },
+      {
+        "id": "person:oliver",
+        "name": "Oliver Reed",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:ella",
+        "name": "Ella Brooks",
+        "kind": "person",
+        "tags": [
+          "Legal",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:amir",
+        "name": "Amir Khan",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:grace",
+        "name": "Grace Liu",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:ben",
+        "name": "Ben Walsh",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:sofia",
+        "name": "Sofia Costa",
+        "kind": "person",
+        "tags": [
+          "Design",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:theo",
+        "name": "Theo Martin",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:aisha",
+        "name": "Aisha Rahman",
+        "kind": "person",
+        "tags": [
+          "Research",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:jack",
+        "name": "Jack Wilson",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Atlas Logistics",
+          "Harbour expansion"
+        ]
+      },
+      {
+        "id": "person:lily",
+        "name": "Lily James",
+        "kind": "person",
+        "tags": [
+          "Accounting",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:daniel",
+        "name": "Daniel Kim",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:ruby",
+        "name": "Ruby Thomas",
+        "kind": "person",
+        "tags": [
+          "Design",
+          "Coastal University"
+        ]
+      },
+      {
+        "id": "person:ethan",
+        "name": "Ethan Scott",
+        "kind": "person",
+        "tags": [
+          "Legal",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "person:isla",
+        "name": "Isla Wright",
+        "kind": "person",
+        "tags": [
+          "Sales",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:noah",
+        "name": "Noah Patel",
+        "kind": "person",
+        "tags": [
+          "Engineering",
+          "Atlas Logistics"
+        ]
+      },
+      {
+        "id": "person:chloe",
+        "name": "Chloe Evans",
+        "kind": "person",
+        "tags": [
+          "Operations",
+          "Coastal University",
+          "Research bridge"
+        ]
+      },
+      {
+        "id": "person:max",
+        "name": "Max Turner",
+        "kind": "person",
+        "tags": [
+          "Investment",
+          "Northline Advisory"
+        ]
+      },
+      {
+        "id": "org:north",
+        "name": "Northline Advisory",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "org:atlas",
+        "name": "Atlas Logistics",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "org:uni",
+        "name": "Coastal University",
+        "kind": "organization",
+        "tags": []
+      },
+      {
+        "id": "project:harbour",
+        "name": "Harbour expansion",
+        "kind": "project",
+        "tags": []
+      },
+      {
+        "id": "project:bridge",
+        "name": "Research bridge",
+        "kind": "project",
+        "tags": []
+      }
+    ],
+    "model": "claude-haiku-4-5-20251001",
+    "backend": "anthropic",
+    "data_source": "synthetic",
+    "version": 1,
+    "as_of": "2026-09-27T12:00:00+00:00",
+    "focus": "person:owner",
+    "mode": "current",
+    "strategy_graph": {
+      "nodes": [
+        {
+          "id": "org:atlas",
+          "name": "Atlas Logistics",
+          "kind": "organization"
+        },
+        {
+          "id": "org:north",
+          "name": "Northline Advisory",
+          "kind": "organization"
+        },
+        {
+          "id": "person:alex",
+          "name": "Alex Morgan",
+          "kind": "person"
+        },
+        {
+          "id": "person:amir",
+          "name": "Amir Khan",
+          "kind": "person"
+        },
+        {
+          "id": "person:ben",
+          "name": "Ben Walsh",
+          "kind": "person"
+        },
+        {
+          "id": "person:owner",
+          "name": "Jordan Ellis",
+          "kind": "person"
+        },
+        {
+          "id": "project:harbour",
+          "name": "Harbour expansion",
+          "kind": "project"
+        },
+        {
+          "id": "requirement:pilot-need",
+          "name": "Pilot opportunity in logistics operations",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:channel-partner",
+          "name": "Channel partner or reseller capability",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:decision-roles",
+          "name": "Documented decision-making roles",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:security-context",
+          "name": "Security or risk management context",
+          "kind": "requirement"
+        },
+        {
+          "id": "requirement:harbour-project",
+          "name": "Active logistics infrastructure project",
+          "kind": "requirement"
+        }
+      ],
+      "edges": [
+        {
+          "id": "relation:claim:job-alex-advisor",
+          "source": "person:alex",
+          "target": "org:north",
+          "label": "Advises",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ]
+        },
+        {
+          "id": "relation:claim:contact-alex",
+          "source": "person:owner",
+          "target": "person:alex",
+          "label": "In contact",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:contact-alex"
+          ]
+        },
+        {
+          "id": "relation:claim:harbour-alex",
+          "source": "person:alex",
+          "target": "project:harbour",
+          "label": "Project member",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:harbour-alex"
+          ]
+        },
+        {
+          "id": "relation:claim:job-alex-new",
+          "source": "person:alex",
+          "target": "org:atlas",
+          "label": "Works at",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-alex-new"
+          ]
+        },
+        {
+          "id": "relation:claim:job-amir",
+          "source": "person:amir",
+          "target": "org:atlas",
+          "label": "Works at",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-amir"
+          ]
+        },
+        {
+          "id": "relation:claim:job-ben",
+          "source": "person:ben",
+          "target": "org:north",
+          "label": "Works at",
+          "kind": "relationship",
+          "active": true,
+          "status": "confirmed",
+          "evidence_ids": [
+            "evidence:job-ben"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:org:atlas",
+          "source": "requirement:pilot-need",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:org:north",
+          "source": "requirement:pilot-need",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:person:alex",
+          "source": "requirement:pilot-need",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:profile:alex:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:person:amir",
+          "source": "requirement:pilot-need",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:person:ben",
+          "source": "requirement:pilot-need",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:pilot-need:project:harbour",
+          "source": "requirement:pilot-need",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:channel-partner:org:north",
+          "source": "requirement:channel-partner",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:job-ben",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:channel-partner:person:alex",
+          "source": "requirement:channel-partner",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ]
+        },
+        {
+          "id": "requirement:channel-partner:person:ben",
+          "source": "requirement:channel-partner",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-ben"
+          ]
+        },
+        {
+          "id": "requirement:decision-roles:org:atlas",
+          "source": "requirement:decision-roles",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-amir"
+          ]
+        },
+        {
+          "id": "requirement:decision-roles:person:alex",
+          "source": "requirement:decision-roles",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:profile:alex:function",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:decision-roles:person:amir",
+          "source": "requirement:decision-roles",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:profile:amir:function"
+          ]
+        },
+        {
+          "id": "requirement:decision-roles:project:harbour",
+          "source": "requirement:decision-roles",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:security-context:org:atlas",
+          "source": "requirement:security-context",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:security-context:org:north",
+          "source": "requirement:security-context",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:security-context:person:alex",
+          "source": "requirement:security-context",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator"
+          ]
+        },
+        {
+          "id": "requirement:security-context:person:ben",
+          "source": "requirement:security-context",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:org:atlas",
+          "source": "requirement:harbour-project",
+          "target": "org:atlas",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:org:north",
+          "source": "requirement:harbour-project",
+          "target": "org:north",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:person:alex",
+          "source": "requirement:harbour-project",
+          "target": "person:alex",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:job-alex-new",
+            "evidence:strategy-alex-evaluator",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:person:amir",
+          "source": "requirement:harbour-project",
+          "target": "person:amir",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:person:ben",
+          "source": "requirement:harbour-project",
+          "target": "person:ben",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "id": "requirement:harbour-project:project:harbour",
+          "source": "requirement:harbour-project",
+          "target": "project:harbour",
+          "label": "Related evidence; validate fit",
+          "kind": "candidate",
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:work:operations"
+          ]
+        }
+      ],
+      "requirements": [
+        {
+          "id": "pilot-need",
+          "label": "Pilot opportunity in logistics operations",
+          "terms": [
+            "operations",
+            "Atlas Logistics",
+            "logistics"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:profile:alex:function",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ],
+          "answer_status": "matching_evidence",
+          "omitted_evidence_count": 12
+        },
+        {
+          "id": "channel-partner",
+          "label": "Channel partner or reseller capability",
+          "terms": [
+            "sales",
+            "partnerships",
+            "Northline Advisory"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:job-ben",
+            "evidence:strategy-northline-report"
+          ],
+          "answer_status": "matching_evidence",
+          "omitted_evidence_count": 7
+        },
+        {
+          "id": "decision-roles",
+          "label": "Documented decision-making roles",
+          "terms": [
+            "operations",
+            "engineering",
+            "investment",
+            "legal"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:profile:alex:function",
+            "evidence:profile:amir:function",
+            "evidence:work:operations"
+          ],
+          "answer_status": "matching_evidence",
+          "omitted_evidence_count": 17
+        },
+        {
+          "id": "security-context",
+          "label": "Security or risk management context",
+          "terms": [
+            "security",
+            "risk",
+            "compliance"
+          ],
+          "priority": "prefer",
+          "origin": "suggested",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report"
+          ],
+          "answer_status": "matching_evidence",
+          "omitted_evidence_count": 0
+        },
+        {
+          "id": "harbour-project",
+          "label": "Active logistics infrastructure project",
+          "terms": [
+            "Harbour expansion",
+            "Atlas Logistics"
+          ],
+          "priority": "prefer",
+          "origin": "suggested",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ],
+          "answer_status": "matching_evidence",
+          "omitted_evidence_count": 9
+        }
+      ],
+      "records": [
+        {
+          "observed_at": "2026-09-20T09:00:00Z",
+          "valid_from": "2026-09-20T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:atlas",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "need",
+          "basis": "self_declared",
+          "quote": "Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+          "id": "strategy:strategy:atlas-pilot",
+          "kind": "strategy",
+          "label": "Atlas Logistics: logistics AI security pilot need",
+          "entity_ids": [
+            "org:atlas",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-atlas-pilot"
+          ]
+        },
+        {
+          "observed_at": "2026-09-21T09:00:00Z",
+          "valid_from": "2026-09-21T00:00:00Z",
+          "valid_to": "2026-10-15T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:ben",
+          "claimant_id": "person:ben",
+          "context_id": "project:harbour",
+          "facet": "resource",
+          "basis": "self_declared",
+          "quote": "For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+          "id": "strategy:strategy:ben-channel",
+          "kind": "strategy",
+          "label": "Conditional logistics channel demo offer",
+          "entity_ids": [
+            "person:ben",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-ben-channel"
+          ]
+        },
+        {
+          "observed_at": "2026-09-20T09:00:00Z",
+          "valid_from": "2026-09-20T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:alex",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "decision_role",
+          "basis": "self_declared",
+          "quote": "I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+          "id": "strategy:strategy:alex-evaluator",
+          "kind": "strategy",
+          "label": "Harbour technical evaluator; no budget authority",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator"
+          ]
+        },
+        {
+          "observed_at": "2026-09-24T09:00:00Z",
+          "valid_from": "2026-09-24T00:00:00Z",
+          "valid_to": "2026-11-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:atlas",
+          "claimant_id": "person:alex",
+          "context_id": "project:harbour",
+          "facet": "constraint",
+          "basis": "self_declared",
+          "quote": "Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+          "id": "strategy:strategy:atlas-data-condition",
+          "kind": "strategy",
+          "label": "No customer data in pilot before security review",
+          "entity_ids": [
+            "org:atlas",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-atlas-data-condition"
+          ]
+        },
+        {
+          "observed_at": "2026-09-22T09:00:00Z",
+          "valid_from": "2025-01-01T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "person:amir",
+          "claimant_id": "person:amir",
+          "context_id": "org:atlas",
+          "facet": "experience",
+          "basis": "self_declared",
+          "quote": "In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+          "id": "strategy:strategy:amir-experience",
+          "kind": "strategy",
+          "label": "Past warehouse access-control and audit logging rollout",
+          "entity_ids": [
+            "person:amir",
+            "org:atlas"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-amir-experience"
+          ]
+        },
+        {
+          "observed_at": "2026-09-23T09:00:00Z",
+          "valid_from": "2026-09-23T00:00:00Z",
+          "valid_to": "2026-10-31T00:00:00Z",
+          "active": true,
+          "status": "confirmed",
+          "subject_id": "org:north",
+          "claimant_id": "person:maya",
+          "context_id": "project:harbour",
+          "facet": "need",
+          "basis": "reported",
+          "quote": "Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+          "id": "strategy:strategy:northline-report",
+          "kind": "strategy",
+          "label": "Reported Northline vendor security evidence need",
+          "entity_ids": [
+            "org:north",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "source": "person:alex",
+          "target": "org:north",
+          "relation": "Advises",
+          "observed_at": "2026-09-03T09:00:00Z",
+          "valid_from": "2026-08-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-alex-advisor",
+          "kind": "claim",
+          "label": "Advises",
+          "entity_ids": [
+            "person:alex",
+            "org:north"
+          ],
+          "evidence_ids": [
+            "evidence:job-alex-advisor"
+          ],
+          "claim_id": "job-alex-advisor"
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:amir",
+          "id": "profile:profile:amir:function",
+          "kind": "profile",
+          "label": "Engineering",
+          "entity_ids": [
+            "person:amir"
+          ],
+          "evidence_ids": [
+            "evidence:profile:amir:function"
+          ]
+        },
+        {
+          "source": "person:owner",
+          "target": "person:alex",
+          "relation": "In contact",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:contact-alex",
+          "kind": "claim",
+          "label": "In contact",
+          "entity_ids": [
+            "person:owner",
+            "person:alex"
+          ],
+          "evidence_ids": [
+            "evidence:contact-alex"
+          ],
+          "claim_id": "contact-alex"
+        },
+        {
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "person_id": "person:alex",
+          "id": "profile:profile:alex:function",
+          "kind": "profile",
+          "label": "Operations",
+          "entity_ids": [
+            "person:alex"
+          ],
+          "evidence_ids": [
+            "evidence:profile:alex:function"
+          ]
+        },
+        {
+          "observed_at": "2026-09-24T09:00:00Z",
+          "status": "open",
+          "due": "2026-09-30",
+          "area": "Operations",
+          "person_id": "person:alex",
+          "project_id": "project:harbour",
+          "id": "work:work:operations",
+          "kind": "work",
+          "label": "Operations: Confirm rollout owner and dates",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "source": "person:alex",
+          "target": "project:harbour",
+          "relation": "Project member",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:harbour-alex",
+          "kind": "claim",
+          "label": "Project member",
+          "entity_ids": [
+            "person:alex",
+            "project:harbour"
+          ],
+          "evidence_ids": [
+            "evidence:harbour-alex"
+          ],
+          "claim_id": "harbour-alex"
+        },
+        {
+          "source": "person:alex",
+          "target": "org:atlas",
+          "relation": "Works at",
+          "observed_at": "2026-09-03T09:00:00Z",
+          "valid_from": "2026-08-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-alex-new",
+          "kind": "claim",
+          "label": "Works at",
+          "entity_ids": [
+            "person:alex",
+            "org:atlas"
+          ],
+          "evidence_ids": [
+            "evidence:job-alex-new"
+          ],
+          "claim_id": "job-alex-new"
+        },
+        {
+          "source": "person:amir",
+          "target": "org:atlas",
+          "relation": "Works at",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-amir",
+          "kind": "claim",
+          "label": "Works at",
+          "entity_ids": [
+            "person:amir",
+            "org:atlas"
+          ],
+          "evidence_ids": [
+            "evidence:job-amir"
+          ],
+          "claim_id": "job-amir"
+        },
+        {
+          "source": "person:ben",
+          "target": "org:north",
+          "relation": "Works at",
+          "observed_at": "2026-01-15T09:00:00Z",
+          "valid_from": "2026-01-01T00:00:00Z",
+          "valid_to": null,
+          "active": true,
+          "status": "confirmed",
+          "id": "claim:job-ben",
+          "kind": "claim",
+          "label": "Works at",
+          "entity_ids": [
+            "person:ben",
+            "org:north"
+          ],
+          "evidence_ids": [
+            "evidence:job-ben"
+          ],
+          "claim_id": "job-ben"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "evidence:contact-alex",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Jordan Ellis",
+          "subject": "Fictional relationship record",
+          "text": "Jordan and Alex Morgan exchanged contact details for industry work.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:harbour-alex",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "Alex Morgan is on the Harbour expansion working group.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-alex-advisor",
+          "channel": "outlook",
+          "at": "2026-09-03T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "I still advise Northline one day each month alongside my role at Atlas.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-alex-new",
+          "channel": "outlook",
+          "at": "2026-09-03T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional relationship record",
+          "text": "I joined Atlas on 1 August, after leaving my Northline employee role at the end of July.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-amir",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Amir Khan",
+          "subject": "Fictional relationship record",
+          "text": "I am Amir Khan, working at Atlas Logistics in engineering.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:job-ben",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Ben Walsh",
+          "subject": "Fictional relationship record",
+          "text": "I am Ben Walsh, working at Northline Advisory in sales.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:alex:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional professional introduction",
+          "text": "I am Alex Morgan. My professional focus is operations.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:profile:amir:function",
+          "channel": "outlook",
+          "at": "2026-01-15T09:00:00Z",
+          "from": "Amir Khan",
+          "subject": "Fictional professional introduction",
+          "text": "I am Amir Khan. My professional focus is engineering.",
+          "synthetic": true
+        },
+        {
+          "id": "evidence:strategy-alex-evaluator",
+          "channel": "outlook",
+          "at": "2026-09-20T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] I am the technical evaluator for the Atlas Logistics Harbour AI security pilot; I have no budget authority and cannot approve a purchase.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-amir-experience",
+          "channel": "outlook",
+          "at": "2026-09-22T09:00:00Z",
+          "author_id": "person:amir",
+          "text": "[SYNTHETIC DEMO MESSAGE] In 2025 I implemented warehouse access controls and audit logging for Atlas Logistics. That was a past delivery, not evidence that I have tested the current AI pilot.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-atlas-data-condition",
+          "channel": "outlook",
+          "at": "2026-09-24T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics requires the Harbour AI pilot to use synthetic data until its security review is complete; no customer data is approved for this trial.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-atlas-pilot",
+          "channel": "outlook",
+          "at": "2026-09-20T09:00:00Z",
+          "author_id": "person:alex",
+          "text": "[SYNTHETIC DEMO MESSAGE] Atlas Logistics needs a logistics AI security pilot for the Harbour initiative: evaluate prompt injection, access controls and audit logging before an October trial. The budget and purchase approval are not confirmed.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-ben-channel",
+          "channel": "outlook",
+          "at": "2026-09-21T09:00:00Z",
+          "author_id": "person:ben",
+          "text": "[SYNTHETIC DEMO MESSAGE] For Harbour I can offer a 30-minute logistics channel demo slot through Northline, provided we first receive a security brief and the partner opts in. This is not a commitment to introduce anyone or secure a customer.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:strategy-northline-report",
+          "channel": "outlook",
+          "at": "2026-09-23T09:00:00Z",
+          "author_id": "person:maya",
+          "text": "[SYNTHETIC DEMO MESSAGE] Ben told me Northline needs vendor security evidence for the Harbour logistics AI pilot assessment. This is Northline's reported need, not my own, and I have not verified its budget or procurement timing.",
+          "synthetic": true,
+          "origin": "authored_demo_source"
+        },
+        {
+          "id": "evidence:work:operations",
+          "channel": "outlook",
+          "at": "2026-09-24T09:00:00Z",
+          "from": "Alex Morgan",
+          "subject": "Fictional project work update",
+          "synthetic": true,
+          "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30."
+        }
+      ],
+      "as_of": "2026-09-27T12:00:00+00:00",
+      "mode": "current",
+      "omitted_records": 26,
+      "note": "Dashed links are query-specific text matches, not verified suitability or relationships. Shared projects/companies do not prove acquaintance; paths do not prove introduction willingness."
+    },
+    "retrieval": {
+      "coverage": [
+        {
+          "id": "pilot-need",
+          "label": "Pilot opportunity in logistics operations",
+          "terms": [
+            "operations",
+            "Atlas Logistics",
+            "logistics"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:intro-sam",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:profile:alex:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:maya:industry",
+            "evidence:profile:priya:industry",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "channel-partner",
+          "label": "Channel partner or reseller capability",
+          "terms": [
+            "sales",
+            "partnerships",
+            "Northline Advisory"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-alex-advisor",
+            "evidence:job-ben",
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:job-isla",
+            "evidence:job-leo",
+            "evidence:job-max",
+            "evidence:job-nora",
+            "evidence:job-theo",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "decision-roles",
+          "label": "Documented decision-making roles",
+          "terms": [
+            "operations",
+            "engineering",
+            "investment",
+            "legal"
+          ],
+          "priority": "require",
+          "origin": "explicit",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:job-amir",
+            "evidence:job-ella",
+            "evidence:job-ethan",
+            "evidence:job-jack",
+            "evidence:job-max",
+            "evidence:job-noah",
+            "evidence:job-nora",
+            "evidence:job-oliver",
+            "evidence:job-theo",
+            "evidence:profile:alex:function",
+            "evidence:profile:amir:function",
+            "evidence:profile:chloe:function",
+            "evidence:profile:daniel:function",
+            "evidence:profile:ella:function",
+            "evidence:profile:ethan:function",
+            "evidence:profile:jack:function",
+            "evidence:profile:max:function",
+            "evidence:profile:noah:function",
+            "evidence:profile:nora:function",
+            "evidence:profile:theo:function",
+            "evidence:work:operations"
+          ]
+        },
+        {
+          "id": "security-context",
+          "label": "Security or risk management context",
+          "terms": [
+            "security",
+            "risk",
+            "compliance"
+          ],
+          "priority": "prefer",
+          "origin": "suggested",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report"
+          ]
+        },
+        {
+          "id": "harbour-project",
+          "label": "Active logistics infrastructure project",
+          "terms": [
+            "Harbour expansion",
+            "Atlas Logistics"
+          ],
+          "priority": "prefer",
+          "origin": "suggested",
+          "status": "matching_evidence",
+          "scope_entity_id": null,
+          "evidence_ids": [
+            "evidence:harbour-alex",
+            "evidence:job-alex-new",
+            "evidence:job-amir",
+            "evidence:job-isla",
+            "evidence:job-jack",
+            "evidence:job-leo",
+            "evidence:job-noah",
+            "evidence:job-oliver",
+            "evidence:job-priya",
+            "evidence:job-sofia",
+            "evidence:strategy-alex-evaluator",
+            "evidence:strategy-amir-experience",
+            "evidence:strategy-atlas-data-condition",
+            "evidence:strategy-atlas-pilot",
+            "evidence:strategy-ben-channel",
+            "evidence:strategy-northline-report",
+            "evidence:work:cost-model",
+            "evidence:work:finance-pack",
+            "evidence:work:operations"
+          ]
+        }
+      ],
+      "budget": {
+        "limit_bytes": 28000,
+        "bytes": 27796,
+        "candidate_records": 55,
+        "selected_records": 41,
+        "omitted_records": 14,
+        "omitted_paths": 0
+      },
+      "scope": {
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "person:owner",
+        "mode": "current",
+        "include_pending": false,
+        "scanned_people": 24,
+        "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+      }
+    },
+    "trace": [
+      {
+        "kind": "people",
+        "terms": [
+          "logistics",
+          "operations",
+          "Atlas Logistics"
+        ],
+        "entity_id": "person:owner",
+        "depth": 2
+      },
+      {
+        "kind": "people",
+        "terms": [
+          "sales",
+          "channel",
+          "partnerships"
+        ],
+        "entity_id": "person:owner",
+        "depth": 2
+      },
+      {
+        "kind": "neighborhood",
+        "terms": [],
+        "entity_id": "org:atlas",
+        "depth": 2
+      },
+      {
+        "kind": "context",
+        "terms": [],
+        "entity_id": "project:harbour",
+        "depth": 2
+      },
+      {
+        "kind": "people",
+        "terms": [
+          "Northline Advisory",
+          "engineering",
+          "investment",
+          "legal",
+          "security",
+          "risk",
+          "compliance",
+          "Harbour expansion"
+        ],
+        "entity_id": "person:owner",
+        "depth": 2,
+        "supplemental": true
+      }
+    ],
+    "usage": {
+      "input_tokens": 16398,
+      "output_tokens": 985
+    }
+  }
+}
