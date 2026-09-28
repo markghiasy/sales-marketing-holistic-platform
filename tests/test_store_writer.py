@@ -11,7 +11,6 @@ import uuid
 from datetime import UTC, datetime
 
 import psycopg
-import pytest
 
 from adapters.envelope import Channel, Direction, Envelope
 from adapters.store_writer import upsert
@@ -227,20 +226,3 @@ class TestUpsert:
             (env.channel.value, "sender@example.com"),
         )
         assert str(cur.fetchone()[0]) == identity_id
-
-
-@pytest.fixture(autouse=True, scope="module")
-def _require_local_db():
-    """Skip this whole file with a clear message if the local
-    docker-compose Postgres isn't up, instead of every test failing with
-    a raw connection-refused traceback."""
-    try:
-        conn = psycopg.connect(
-            "postgresql://comms:comms@localhost:5432/comms", connect_timeout=3
-        )
-        conn.close()
-    except psycopg.OperationalError:
-        pytest.skip(
-            "local docker-compose Postgres isn't reachable — run "
-            "`docker compose up -d` in the repo root first"
-        )

@@ -23,10 +23,33 @@ class ConversationRow:
     topic: str
     urgency: int
     has_draft: bool
+    brief_status: str = "not_generated"
+    brief_notice: str = ""
 
 
 _DEFAULT_TOPIC = "General"
 _DEFAULT_URGENCY = 2
+
+
+def _brief_notice(status, error_code, omitted_messages, truncated_text, has_cache):
+    if status == "truncated":
+        notice = f"AI brief uses partial history: {omitted_messages or 0} older messages omitted."
+        if truncated_text:
+            notice += " Message text was also shortened."
+        return notice
+    if status in ("failed", "skipped"):
+        reason = {
+            "token_count_failed": "token counting failed",
+            "provider_failed": "provider request failed",
+            "invalid_response": "invalid response",
+            "storage_failed": "storage failed",
+            "input_budget_exceeded": "input budget exceeded after truncation",
+        }.get(error_code, "refresh unavailable")
+        notice = f"AI brief {status}: {reason}."
+        if has_cache:
+            notice += " Showing the last successful brief."
+        return notice
+    return ""
 
 
 def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
@@ -49,10 +72,12 @@ def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
             ab.summary,
             ab.topic,
             ab.urgency,
-            coalesce(unread.is_unread, false) as is_unread
+            coalesce(unread.is_unread, false) as is_unread,
+            abs.status, abs.error_code, abs.omitted_messages, abs.truncated_text
         from contact_stats cs
         join contact_last_message clm on clm.contact_key = cs.contact_key
         left join ai_brief ab on ab.person_key = cs.contact_key
+        left join ai_brief_status abs on abs.person_key = cs.contact_key
         left join (
             select
                 coalesce(i.person_id, i.id) as contact_key,
@@ -123,7 +148,8 @@ def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
     rows = []
     for r in cur.fetchall():
         (contact_key, display_name, channel, sent_at, direction, snippet,
-         _is_automated, ai_summary, ai_topic, ai_urgency, is_unread) = r
+         _is_automated, ai_summary, ai_topic, ai_urgency, is_unread,
+         brief_status, error_code, omitted_messages, truncated_text) = r
         rows.append(ConversationRow(
             person_key=str(contact_key),
             name=display_name or "(unknown)",
@@ -135,6 +161,8 @@ def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
             topic=ai_topic if ai_topic is not None else _DEFAULT_TOPIC,
             urgency=ai_urgency if ai_urgency is not None else _DEFAULT_URGENCY,
             has_draft=False,  # no real draft generation this pass
+            brief_status=brief_status or ("success" if ai_summary is not None else "not_generated"),
+            brief_notice=_brief_notice(brief_status, error_code, omitted_messages, truncated_text, ai_summary is not None),
         ))
     return rows
 
@@ -191,6 +219,8 @@ class ConversationDetail:
     graph: dict
     topic: str
     urgency: int
+    brief_status: str = "not_generated"
+    brief_notice: str = ""
 
 
 def _identity_ids_for_person(cur, person_key: str) -> list[str]:
@@ -289,6 +319,14 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
     else:
         context, topic, graph, urgency = _PLACEHOLDER_CONTEXT, _DEFAULT_TOPIC, _PLACEHOLDER_GRAPH, _DEFAULT_URGENCY
 
+    cur.execute(
+        "select status, error_code, omitted_messages, truncated_text from ai_brief_status where person_key = %s",
+        (person_key,),
+    )
+    status_row = cur.fetchone()
+    brief_status = status_row[0] if status_row else ("success" if brief_row else "not_generated")
+    brief_notice = _brief_notice(*status_row, bool(brief_row)) if status_row else ""
+
     last_message = max(rows, key=lambda r: r[6])
     return ConversationDetail(
         person_key=person_key,
@@ -300,6 +338,8 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
         graph=graph,
         topic=topic,
         urgency=urgency,
+        brief_status=brief_status,
+        brief_notice=brief_notice,
     )
 
 

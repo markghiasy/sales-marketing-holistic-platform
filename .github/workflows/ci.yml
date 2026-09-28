@@ -18,17 +18,20 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_URL: postgresql://comms:comms@127.0.0.1:5432/comms_test
+      PYTHON_DOTENV_DISABLED: "1"
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_USER: comms
           POSTGRES_PASSWORD: comms
-          POSTGRES_DB: comms
+          POSTGRES_DB: comms_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U comms"
+          --health-cmd "pg_isready -U comms -d comms_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -38,5 +41,33 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e .[dev]
-      - run: for f in db/migrations/*.sql; do PGPASSWORD=comms psql -h localhost -U comms -d comms -f "$f"; done
-      - run: pytest -v
+      - name: Apply every migration (fail on the first SQL error)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in db/migrations/*.sql; do
+            psql "$TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Run the complete suite against disposable Postgres
+        run: python -m pytest -v --junitxml=test-results.xml
+      - name: Verify database integration tests actually ran
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          cases = ET.parse("test-results.xml").getroot().findall(".//testcase")
+          assert cases, "No tests were reported"
+          assert not any(c.find("skipped") is not None for c in cases), "Skipped tests are not a passing CI suite"
+          for group, minimum in [("TestInboxRoutes", 4), ("TestUpsert", 1), ("test_database_isolation", 7)]:
+              selected = [c for c in cases if group in c.attrib.get("classname", "")]
+              assert len(selected) >= minimum, f"Missing database tests: {group}"
+              assert all(c.find("failure") is None and c.find("error") is None for c in selected), f"Database tests did not pass: {group}"
+              print(f"Verified {len(selected)} passing tests in {group}")
+          PY
+      - name: Retain executed-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: test-results.xml
+          if-no-files-found: error

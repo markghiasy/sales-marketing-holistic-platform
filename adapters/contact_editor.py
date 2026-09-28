@@ -123,7 +123,7 @@ def link_contact(cur, person_key: str, other_identity_id: str) -> str:
     # contact_key (ai_brief, contact_hidden) from both sides' pre-merge
     # keys to the survivor — centralized there so every merge path gets
     # it, not just this one. See adapters/resolution/merge.py.
-    return apply_merge(cur, representative_id, other_identity_id)
+    return apply_merge(cur, representative_id, other_identity_id, method="manual_link", decision_kind="manual")
 
 
 _WHATSAPP_SUFFIX = "@s.whatsapp.net"

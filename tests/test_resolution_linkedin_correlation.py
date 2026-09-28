@@ -81,7 +81,7 @@ class TestRuleLinkedinCorrelation:
 
 
 class TestRuleLinkedinDedupe:
-    def test_same_name_different_handle_shape_queues_a_candidate(self, db_conn: psycopg.Connection):
+    def test_same_name_different_handle_shape_no_longer_queues_a_candidate(self, db_conn: psycopg.Connection):
         # Real case found 2026-09-18: Tom Nguyen (and 17 other real
         # contacts) had two separate identity rows -- one from the CSV
         # connections export (handle = profile URL), one from the live
@@ -93,18 +93,13 @@ class TestRuleLinkedinDedupe:
 
         count = rule_linkedin_dedupe(cur)
 
-        assert count == 1
-        cur.execute(
-            "select status, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
-            (url_id, url_id),
-        )
-        status, method = cur.fetchone()
-        assert status == "pending"
-        assert method == "linkedin_same_channel_dedupe"
+        assert count == 0
+        cur.execute("select count(*) from link_candidate where identity_a_id in (%s,%s)", (url_id, urn_id))
+        assert cur.fetchone()[0] == 0
         cur.execute("select person_id from identity where id in (%s, %s)", (url_id, urn_id))
-        assert all(row[0] is None for row in cur.fetchall())  # never auto-merged
+        assert all(row[0] is None for row in cur.fetchall())
 
-    def test_includes_known_company_in_reason_when_available(self, db_conn: psycopg.Connection):
+    def test_one_sided_company_is_not_corroborating_evidence(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         url_id = _make_identity(cur, "linkedin", "https://www.linkedin.com/in/tom-nguyen-123", "Tom Nguyen")
         _make_identity(cur, "linkedin", "urn:li:fsd_profile:ACoAAtomexample", "Tom Nguyen")
@@ -119,7 +114,7 @@ class TestRuleLinkedinDedupe:
             "select reason from link_candidate where identity_a_id = %s or identity_b_id = %s",
             (url_id, url_id),
         )
-        assert "Mind Supernova" in cur.fetchone()[0]
+        assert cur.fetchone() is None
 
     def test_no_candidate_for_unrelated_names(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()

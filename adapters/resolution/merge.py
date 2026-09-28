@@ -19,7 +19,9 @@ class MergeConflictError(Exception):
     under a merge that was applied afterward."""
 
 
-def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
+def apply_merge(cur, identity_a_id: str, identity_b_id: str, *, method: str, decision_kind: str) -> str:
+    if not method or not method.strip() or decision_kind not in {"automatic", "review", "manual"}:
+        raise ValueError("A merge requires an explicit rule and decision path")
     # Real bug found 2026-09-19: any per-contact side table keyed on
     # contact_key (coalesce(person_id, id)) — ai_brief, contact_hidden —
     # can be orphaned by a merge, since a merge is exactly what changes
@@ -86,8 +88,8 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
         """
         insert into merge_log
             (identity_a_id, identity_b_id, survivor_person_id, absorbed_person_id,
-             moved_identity_ids, prev_primary_name, prev_preferred_name)
-        values (%s, %s, %s, %s, %s, %s, %s)
+             moved_identity_ids, prev_primary_name, prev_preferred_name, method, decision_kind)
+        values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             identity_a_id,
@@ -97,6 +99,8 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
             moved_identity_ids,
             prev_primary_name,
             prev_preferred_name,
+            method,
+            decision_kind,
         ),
     )
 
@@ -120,23 +124,27 @@ def apply_merge(cur, identity_a_id: str, identity_b_id: str) -> str:
 
     for stale_key in {pre_merge_key_a, pre_merge_key_b} - {str(person_id)}:
         _relocate_ai_brief(cur, stale_key, str(person_id))
+        _relocate_brief_status(cur, stale_key, str(person_id))
         _relocate_contact_hidden(cur, stale_key, str(person_id))
 
     return str(person_id)
 
 
 def _relocate_ai_brief(cur, stale_key: str, new_key: str) -> None:
-    # If new_key already has its own ai_brief row (both sides had already
-    # been separately briefed), that row wins arbitrarily and stale_key's
-    # is discarded rather than merged — a full regeneration covering the
-    # combined message history is a separate, later concern (this only
-    # guarantees SOME real brief survives instead of neither).
+    # Keep the newest successful brief, matching the latest-attempt status
+    # selection below. Keeping an arbitrary older cache could hide its partial
+    # coverage behind a newer successful attempt's status. Regenerating over
+    # the combined history remains a separate sync operation.
     cur.execute(
         """
         insert into ai_brief (person_key, summary, context, topic, graph, urgency, model, prompt_version, generated_at)
         select %s, summary, context, topic, graph, urgency, model, prompt_version, generated_at
         from ai_brief where person_key = %s
-        on conflict (person_key) do nothing
+        on conflict (person_key) do update set
+            summary = excluded.summary, context = excluded.context, topic = excluded.topic,
+            graph = excluded.graph, urgency = excluded.urgency, model = excluded.model,
+            prompt_version = excluded.prompt_version, generated_at = excluded.generated_at
+        where excluded.generated_at > ai_brief.generated_at
         """,
         (new_key, stale_key),
     )
@@ -153,6 +161,28 @@ def _relocate_contact_hidden(cur, stale_key: str, new_key: str) -> None:
         (new_key, stale_key),
     )
     cur.execute("delete from contact_hidden where contact_key = %s", (stale_key,))
+
+
+def _relocate_brief_status(cur, stale_key: str, new_key: str) -> None:
+    """The newest attempt follows the merged contact, including a failed attempt."""
+    cur.execute(
+        """
+        insert into ai_brief_status
+            (person_key, status, error_code, model, input_tokens, original_input_tokens,
+             omitted_messages, truncated_text, attempted_at)
+        select %s, status, error_code, model, input_tokens, original_input_tokens,
+               omitted_messages, truncated_text, attempted_at
+        from ai_brief_status where person_key = %s
+        on conflict (person_key) do update set
+            status = excluded.status, error_code = excluded.error_code, model = excluded.model,
+            input_tokens = excluded.input_tokens, original_input_tokens = excluded.original_input_tokens,
+            omitted_messages = excluded.omitted_messages, truncated_text = excluded.truncated_text,
+            attempted_at = excluded.attempted_at
+        where excluded.attempted_at > ai_brief_status.attempted_at
+        """,
+        (new_key, stale_key),
+    )
+    cur.execute("delete from ai_brief_status where person_key = %s", (stale_key,))
 
 
 def undo_merge(cur, merge_log_id: str) -> None:
@@ -201,17 +231,21 @@ def undo_merge(cur, merge_log_id: str) -> None:
     )
     cur.execute("update merge_log set reversed_at = now() where id = %s", (merge_log_id,))
 
-    # Put the originating link_candidate back to pending so the review UI
+    # Put active rules' originating link_candidate back to pending so the review UI
     # (which only lists status='pending' rows) surfaces it for re-review —
     # found 2026-09-09: undoing a merge with no link_candidate update left
     # it stuck 'confirmed' with no way to see or re-decide it from the
     # dashboard, even though the underlying merge had been reversed.
+    # A retired rule must stay out of that queue even when its old merge is undone.
     # identity_a_id/identity_b_id are recorded in the same order apply_merge
     # (and its only caller, the confirm route) was called with, so an exact
     # match is safe here — no need to check both orderings.
     cur.execute(
         """
-        update link_candidate set status = 'pending'
+        update link_candidate set status = case
+            when method = 'linkedin_same_channel_dedupe' then 'retired'
+            else 'pending'
+        end
         where identity_a_id = %s and identity_b_id = %s and status = 'confirmed'
         """,
         (identity_a_id, identity_b_id),
