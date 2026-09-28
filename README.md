@@ -68,13 +68,24 @@ Subsequent runs reuse the cached token silently.
 
 ```bash
 pip install -e .[dev]
-docker compose up -d   # store_writer tests need a real Postgres
-pytest -v
+docker run -d --rm --name comms-tests -p 127.0.0.1:55432:5432 \
+  -e POSTGRES_USER=comms -e POSTGRES_PASSWORD=comms -e POSTGRES_DB=comms_test postgres:16
+export TEST_DATABASE_URL=postgresql://comms:comms@127.0.0.1:55432/comms_test
+export PYTHON_DOTENV_DISABLED=1
+python -m pytest -v --junitxml=test-results.xml
 ```
 
-Most tests are pure logic, no network or DB needed. The `store_writer`
-tests need the local docker-compose Postgres specifically (not the
-hosted instance) and run inside a transaction that's rolled back after
-each test — nothing they do persists. CI runs the full suite against a
-fresh Postgres service container on every push.
-Subsequent runs reuse the cached token silently.
+Wait for the disposable PostgreSQL instance to accept connections before running
+pytest. In PowerShell, set variables with `$env:TEST_DATABASE_URL='...'` and
+`$env:PYTHON_DOTENV_DISABLED='1'` instead of `export`.
+
+Database tests require an explicit loopback `TEST_DATABASE_URL` and a database
+name starting with `test_` or ending in `_test` or `_tests`. They never use the
+application's `.env` or production `DATABASE_URL`. Each test applies migrations
+in its own temporary schema; teardown removes even committed test rows.
+Missing database configuration fails database tests instead of silently skipping
+them. Pure unit tests still run without Postgres. CI runs the complete suite
+against a fresh PostgreSQL service and retains its test report.
+
+See [database test isolation](docs/quality/ci-diagnosis.md) and the
+[resolution quality remediation notes](docs/quality/2026-09-28-remediation.md).

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "policy_id": "resolution-quality-2026-09-28",
+  "arm": "review_queue",
+  "code_version": null,
+  "ruleset_version": null,
+  "changed_rules": ["REPLACE_WITH_CHANGED_RULE_NAME"],
+  "preregistration": null,
+  "measurement": null
+}

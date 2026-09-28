@@ -503,6 +503,7 @@ function renderList() {
           <span class="row-time">${formatRelativeTime(c.last_message_at)}</span>
         </div>
         <div class="row-preview">${escapeHtml(c.summary)}</div>
+        ${c.brief_notice ? `<div class="row-preview" role="status">${escapeHtml(c.brief_notice)}</div>` : ""}
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
       <button class="row-hide-btn" data-hide-id="${c.person_key}" title="${state.hidden ? "Unhide" : "Hide"}">${state.hidden ? "&#8635;" : "&times;"}</button>
@@ -670,6 +671,7 @@ async function openDetail(personKey) {
         <div class="detail-col">
           <div class="detail-context">
             <h3>Context</h3>
+            ${c.brief_notice ? `<p role="status">${escapeHtml(c.brief_notice)}</p>` : ""}
             <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
           </div>
           <div class="detail-context">

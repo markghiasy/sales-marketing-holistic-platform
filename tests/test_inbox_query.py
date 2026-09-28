@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import psycopg
+import pytest
 
 from adapters.inbox_query import (
     get_detail,
@@ -504,6 +505,51 @@ class TestGetDetail:
 
         assert detail.context == ["AI brief hasn't been generated for this contact yet — check back after the next sync."]
         assert detail.graph == {"org": None, "people": []}
+
+    @pytest.mark.parametrize("status,code,omitted,truncated,notice", [
+        ("failed", "token_count_failed", 0, False, "token counting failed"),
+        ("skipped", "input_budget_exceeded", 2, True, "input budget"),
+        ("truncated", None, 3, True, "partial history"),
+    ])
+    def test_persistent_brief_outcome_is_visible_with_cached_brief(
+        self, db_conn, status, code, omitted, truncated, notice,
+    ):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Status Example")
+        thread_id = _make_thread(cur, "outlook")
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id], datetime.now(UTC), body_text="Synthetic request")
+        cur.execute(
+            """insert into ai_brief(person_key, summary, context, topic, graph, urgency, model, prompt_version)
+               values (%s, 'Previous summary', '[]', 'General', '{"org":null,"people":[]}', 2, 'fake', 'v3')""",
+            (contact_id,),
+        )
+        cur.execute(
+            """insert into ai_brief_status(person_key, status, error_code, model, omitted_messages, truncated_text)
+               values (%s, %s, %s, 'fake', %s, %s)""",
+            (contact_id, status, code, omitted, truncated),
+        )
+        row = next(r for r in list_conversations(cur) if r.person_key == contact_id)
+        detail = get_detail(cur, contact_id)
+        assert row.summary == "Previous summary"
+        assert row.brief_status == detail.brief_status == status
+        assert notice in row.brief_notice.lower()
+        assert detail.brief_notice == row.brief_notice
+        if status == "failed":
+            assert "last successful" in row.brief_notice.lower()
+
+    def test_brief_failure_without_cache_is_not_reported_as_not_generated(self, db_conn):
+        cur = db_conn.cursor()
+        contact_id = _make_identity(cur, "outlook", f"c-{uuid.uuid4().hex}@example.com", display_name="Failure Example")
+        thread_id = _make_thread(cur, "outlook")
+        _make_message(cur, thread_id, "outlook", "inbound", contact_id, [contact_id], datetime.now(UTC), body_text="Synthetic request")
+        cur.execute(
+            """insert into ai_brief_status(person_key, status, error_code, model)
+               values (%s, 'failed', 'invalid_response', 'fake')""", (contact_id,),
+        )
+        detail = get_detail(cur, contact_id)
+        assert detail.brief_status == "failed"
+        assert "invalid response" in detail.brief_notice.lower()
+        assert "last successful" not in detail.brief_notice.lower()
 
     def test_unknown_person_key_returns_none(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()

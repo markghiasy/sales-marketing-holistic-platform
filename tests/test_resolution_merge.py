@@ -27,7 +27,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute("select person_id from identity where id = %s", (a,))
         assert str(cur.fetchone()[0]) == person_id
@@ -46,7 +46,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=existing_person)
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         assert person_id == existing_person
         cur.execute("select person_id from identity where id = %s", (b,))
@@ -64,7 +64,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=existing_person)
         b = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "E T")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute("select primary_name from person where id = %s", (person_id,))
         assert cur.fetchone()[0] == "Eric Tham"
@@ -85,7 +85,7 @@ class TestApplyMerge:
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
         stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         # the identity that was never passed to apply_merge, but shared
         # person_b's cluster, must have followed the merge
@@ -101,7 +101,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
 
-        apply_merge(cur, a, b)
+        apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute("select merged_into from person where id = %s", (person_b_id,))
         assert str(cur.fetchone()[0]) == person_a_id
@@ -111,7 +111,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute(
             """
@@ -142,7 +142,7 @@ class TestApplyMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=existing_person)
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute(
             "select absorbed_person_id, moved_identity_ids, prev_primary_name from merge_log where survivor_person_id = %s",
@@ -163,7 +163,7 @@ class TestApplyMerge:
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
         stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute(
             "select absorbed_person_id, moved_identity_ids, prev_primary_name from merge_log where survivor_person_id = %s",
@@ -191,7 +191,7 @@ class TestApplyMerge:
             (a,),
         )
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute("select summary from ai_brief where person_key = %s", (person_id,))
         row = cur.fetchone()
@@ -219,7 +219,7 @@ class TestApplyMerge:
             (b,),
         )
 
-        person_id = apply_merge(cur, a, b)  # must not raise a primary-key violation
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")  # must not raise a primary-key violation
 
         cur.execute("select count(*) from ai_brief where person_key = %s", (person_id,))
         assert cur.fetchone()[0] == 1
@@ -232,7 +232,7 @@ class TestApplyMerge:
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
         cur.execute("insert into contact_hidden (contact_key) values (%s)", (a,))
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
 
         cur.execute("select count(*) from contact_hidden where contact_key = %s", (person_id,))
         assert cur.fetchone()[0] == 1
@@ -251,7 +251,7 @@ class TestUndoMerge:
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
         stranded = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham", person_id=person_b_id)
 
-        survivor_person_id = apply_merge(cur, a, b)
+        survivor_person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
         cur.execute("select id from merge_log where survivor_person_id = %s", (survivor_person_id,))
         (merge_log_id,) = cur.fetchone()
 
@@ -282,14 +282,14 @@ class TestUndoMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=person_a_id)
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric Tham", person_id=person_b_id)
 
-        survivor_person_id = apply_merge(cur, a, b)
+        survivor_person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
         cur.execute("select id from merge_log where survivor_person_id = %s", (survivor_person_id,))
         (first_merge_log_id,) = cur.fetchone()
 
         # a second, later merge also lands on the same survivor person —
         # e.g. a third cluster gets folded in afterward
         c = _make_identity(cur, "linkedin", f"member-{uuid.uuid4().hex[:8]}", "Eric Tham")
-        apply_merge(cur, a, c)
+        apply_merge(cur, a, c, method="manual_link", decision_kind="manual")
 
         with pytest.raises(MergeConflictError):
             undo_merge(cur, str(first_merge_log_id))
@@ -305,7 +305,7 @@ class TestUndoMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham")
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
         cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
         (merge_log_id,) = cur.fetchone()
 
@@ -335,7 +335,7 @@ class TestUndoMerge:
         )
         (candidate_id,) = cur.fetchone()
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
         cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
         (merge_log_id,) = cur.fetchone()
 
@@ -351,7 +351,7 @@ class TestUndoMerge:
         a = _make_identity(cur, "outlook", f"a-{uuid.uuid4().hex}@example.com", "Eric Tham", person_id=existing_person)
         b = _make_identity(cur, "whatsapp", f"{uuid.uuid4().hex[:10]}@s.whatsapp.net", "Eric")
 
-        person_id = apply_merge(cur, a, b)
+        person_id = apply_merge(cur, a, b, method="manual_link", decision_kind="manual")
         cur.execute("select id from merge_log where survivor_person_id = %s", (person_id,))
         (merge_log_id,) = cur.fetchone()
 

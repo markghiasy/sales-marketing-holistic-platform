@@ -1,0 +1,228 @@
+{
+  "$defs": {
+    "Measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "same": {
+          "minimum": 0,
+          "title": "Same",
+          "type": "integer"
+        },
+        "different": {
+          "minimum": 0,
+          "title": "Different",
+          "type": "integer"
+        },
+        "unknown": {
+          "minimum": 0,
+          "title": "Unknown",
+          "type": "integer"
+        },
+        "sampled_at": {
+          "title": "Sampled At",
+          "type": "string"
+        },
+        "graded_at": {
+          "title": "Graded At",
+          "type": "string"
+        },
+        "fresh_holdout": {
+          "title": "Fresh Holdout",
+          "type": "boolean"
+        },
+        "blind_to_rule_and_decision": {
+          "title": "Blind To Rule And Decision",
+          "type": "boolean"
+        },
+        "own_positives": {
+          "title": "Own Positives",
+          "type": "boolean"
+        },
+        "representative_queue_sample": {
+          "title": "Representative Queue Sample",
+          "type": "boolean"
+        },
+        "by_rule": {
+          "items": {
+            "$ref": "#/$defs/RuleCounts"
+          },
+          "minItems": 1,
+          "title": "By Rule",
+          "type": "array"
+        }
+      },
+      "required": [
+        "same",
+        "different",
+        "unknown",
+        "sampled_at",
+        "graded_at",
+        "fresh_holdout",
+        "blind_to_rule_and_decision",
+        "own_positives",
+        "representative_queue_sample",
+        "by_rule"
+      ],
+      "title": "Measurement",
+      "type": "object"
+    },
+    "Preregistration": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Commit",
+          "type": "string"
+        },
+        "registered_at": {
+          "title": "Registered At",
+          "type": "string"
+        },
+        "sampling_plan": {
+          "minLength": 1,
+          "title": "Sampling Plan",
+          "type": "string"
+        },
+        "holdout_id": {
+          "minLength": 1,
+          "title": "Holdout Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commit",
+        "registered_at",
+        "sampling_plan",
+        "holdout_id"
+      ],
+      "title": "Preregistration",
+      "type": "object"
+    },
+    "RuleCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "same": {
+          "minimum": 0,
+          "title": "Same",
+          "type": "integer"
+        },
+        "different": {
+          "minimum": 0,
+          "title": "Different",
+          "type": "integer"
+        },
+        "unknown": {
+          "minimum": 0,
+          "title": "Unknown",
+          "type": "integer"
+        },
+        "rule": {
+          "minLength": 1,
+          "title": "Rule",
+          "type": "string"
+        },
+        "rule_version": {
+          "minLength": 1,
+          "title": "Rule Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "same",
+        "different",
+        "unknown",
+        "rule",
+        "rule_version"
+      ],
+      "title": "RuleCounts",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "policy_id": {
+      "const": "resolution-quality-2026-09-28",
+      "title": "Policy Id",
+      "type": "string"
+    },
+    "arm": {
+      "enum": [
+        "review_queue",
+        "auto_merge"
+      ],
+      "title": "Arm",
+      "type": "string"
+    },
+    "code_version": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code Version"
+    },
+    "ruleset_version": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ruleset Version"
+    },
+    "changed_rules": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Changed Rules",
+      "type": "array"
+    },
+    "preregistration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Preregistration"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "measurement": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Measurement"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "arm",
+    "changed_rules"
+  ],
+  "title": "Attestation",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Aggregate-only declaration. Arithmetic, chronology, freshness declarations and fixed gate marks are checked by scripts.check_resolution_quality."
+}
