@@ -559,15 +559,15 @@ def create_app(testing: bool = False) -> Flask:
                 """
                 update link_candidate set status = 'confirmed'
                 where id = %s and status = 'pending'
-                returning identity_a_id, identity_b_id
+                returning identity_a_id, identity_b_id, method
                 """,
                 (candidate_id,),
             )
             row = cur.fetchone()
             if row is None:
                 return jsonify({"status": "no_op"})
-            identity_a_id, identity_b_id = row
-            apply_merge(cur, str(identity_a_id), str(identity_b_id))
+            identity_a_id, identity_b_id, method = row
+            apply_merge(cur, str(identity_a_id), str(identity_b_id), method=method, decision_kind="review")
         return jsonify({"status": "confirmed"})
 
     @flask_app.post("/resolution/candidate/<candidate_id>/reject")

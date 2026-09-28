@@ -24,6 +24,7 @@ def _reset_outlook_state(monkeypatch, tmp_path):
     # worker thread left over from one test's fake device-code flow can
     # otherwise mutate state a later test just reset — reset it before
     # each test to keep them independent.
+    monkeypatch.setattr(onboarding_app, "load_dotenv", lambda: None)
     with onboarding_app._outlook_lock:
         onboarding_app._outlook_state.clear()
         onboarding_app._outlook_state["phase"] = "not_connected"
@@ -478,66 +479,30 @@ import uuid as _uuid
 
 import psycopg as _psycopg
 
-# same local Postgres URL tests/conftest.py's db_conn fixture uses,
-# deliberately hardcoded there (not read from .env) because .env's
-# DATABASE_URL points at the real hosted Supabase project — this file's
-# resolution routes share one persistent connection via _db_cursor()
-# (scripts/onboarding/app.py), opened against os.environ["DATABASE_URL"]
-# the first time any route in this class is called and reused after
-# that. Without redirecting that env var for the duration of these
-# tests, every route call below would silently connect to and mutate
-# the real production database instead of the local db_conn fixture's
-# Postgres, while the test's own seeded rows (via db_conn) would sit in
-# a completely separate database the route never sees. Caught by hand-
-# tracing this exact mismatch before dispatch — not a hypothetical.
-_RESOLUTION_TEST_DATABASE_URL = "postgresql://comms:comms@localhost:5432/comms"
+
+@pytest.fixture
+def routes_database(isolated_database_url):
+    # App requests use real independent connections. Do not reuse another
+    # test's persistent connection after its isolated schema is removed.
+    def close_app_connection():
+        with onboarding_app._db_conn_lock:
+            if onboarding_app._db_conn is not None:
+                onboarding_app._db_conn.close()
+            onboarding_app._db_conn = None
+
+    close_app_connection()
+    try:
+        yield isolated_database_url
+    finally:
+        close_app_connection()
 
 
+@pytest.mark.usefixtures("routes_database")
 class TestResolutionReviewQueue:
-    @pytest.fixture(autouse=True)
-    def _routes_use_local_db(self, monkeypatch):
-        # autouse + defined inside the class, so this only wraps tests in
-        # THIS class — every other test in the file is unaffected.
-        monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
-
     @pytest.fixture
-    def _created_identity_ids(self, db_conn):
-        # Every test in this class calls db_conn.commit() (needed so the
-        # route's OWN, separate connection — held open across requests by
-        # _db_cursor() — can see the rows this test just inserted; a
-        # plain uncommitted transaction is invisible across connections).
-        # That means, unlike every other test in this plan, these tests
-        # cannot rely on db_conn's own rollback-on-teardown for isolation
-        # — a committed row stays in the local test database forever.
-        # Found the hard way: rule_linkedin_correlation's tests
-        # (tests/test_resolution_linkedin_correlation.py) do an unscoped
-        # `select ... from identity where channel in ('outlook',
-        # 'whatsapp')` scan — exactly matching that rule's real production
-        # behaviour — so a leftover "Eric Tham"/"Eric" identity pair
-        # committed here and never cleaned up collides with that other
-        # file's fixed test names the next time the whole suite runs.
-        # Tests append the ids they create to this list; this fixture
-        # deletes them (and any link_candidate/merge_log row referencing
-        # them) after the test body runs, restoring real isolation
-        # despite the commit.
-        ids: list = []
-        yield ids
-        if ids:
-            cur = db_conn.cursor()
-            cur.execute(
-                "delete from link_candidate where identity_a_id = any(%s) or identity_b_id = any(%s)",
-                (ids, ids),
-            )
-            # merge_log.identity_a_id/identity_b_id FK identity — added by
-            # the reversible-identity-merge change; without this, deleting
-            # an identity that a confirmed merge in this test logged fails
-            # with a ForeignKeyViolation instead of cleaning up.
-            cur.execute(
-                "delete from merge_log where identity_a_id = any(%s) or identity_b_id = any(%s)",
-                (ids, ids),
-            )
-            cur.execute("delete from identity where id = any(%s)", (ids,))
-            db_conn.commit()
+    def _created_identity_ids(self):
+        # Committed writes are removed by isolated_database_url teardown.
+        return []
 
     def test_get_resolution_candidates_json_lists_pending(self, db_conn, _created_identity_ids):
         # the /resolution page itself renders client-side (fetches
@@ -692,14 +657,8 @@ def _seed_inbox_conversation(db_conn, created_ids: dict) -> str:
     get_detail). Returns the contact identity's id, which is also its
     person_key (coalesce(person_id, id) — person_id is left null here).
 
-    Commits (rather than relying on db_conn's rollback-on-teardown) because
-    the Flask app's _db_cursor() holds its own, separate connection — an
-    uncommitted insert on db_conn would be invisible to it. created_ids is
-    filled in so the caller's cleanup fixture can delete everything this
-    inserts afterward, same pattern TestResolutionReviewQueue's
-    _created_identity_ids fixture uses for the same reason (a committed row
-    doesn't get cleaned up by db_conn's rollback and would otherwise sit in
-    the local test database forever).
+    Commit so the app's independent connection can see the seed. The per-test
+    schema owns all records and is dropped even if a route or assertion fails.
     """
     cur = db_conn.cursor()
     cur.execute(
@@ -736,31 +695,11 @@ def _seed_inbox_conversation(db_conn, created_ids: dict) -> str:
     return contact_id
 
 
+@pytest.mark.usefixtures("routes_database")
 class TestInboxRoutes:
-    @pytest.fixture(autouse=True)
-    def _routes_use_local_db(self, monkeypatch):
-        # same rationale as TestResolutionReviewQueue's fixture of the same
-        # name above: /inbox/*.json routes go through _db_cursor(), which
-        # connects to os.environ["DATABASE_URL"] — point that at the local
-        # docker-compose Postgres db_conn also targets, not the real
-        # hosted Supabase instance .env's DATABASE_URL points at.
-        monkeypatch.setenv("DATABASE_URL", _RESOLUTION_TEST_DATABASE_URL)
-
     @pytest.fixture
-    def _created(self, db_conn):
-        # mirrors TestResolutionReviewQueue's _created_identity_ids fixture:
-        # _seed_inbox_conversation commits (see its own docstring), so
-        # db_conn's rollback-on-teardown can't clean these rows up — do it
-        # by hand here instead.
-        created_ids: dict = {}
-        yield created_ids
-        if created_ids:
-            cur = db_conn.cursor()
-            cur.execute("delete from message_participant where message_id = %s", (created_ids["message_id"],))
-            cur.execute("delete from message where id = %s", (created_ids["message_id"],))
-            cur.execute("delete from thread where id = %s", (created_ids["thread_id"],))
-            cur.execute("delete from identity where id = any(%s)", (created_ids["identity_ids"],))
-            db_conn.commit()
+    def _created(self):
+        return {}
 
     def test_conversations_json_lists_seeded_contact(self, db_conn, _created):
         contact_id = _seed_inbox_conversation(db_conn, _created)

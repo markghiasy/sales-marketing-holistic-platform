@@ -85,7 +85,7 @@ def _propose_and_maybe_confirm(
     )
 
     if status == "confirmed":
-        apply_merge(cur, identity_a_id, identity_b_id)
+        apply_merge(cur, identity_a_id, identity_b_id, method=method, decision_kind="automatic")
 
     return True
 

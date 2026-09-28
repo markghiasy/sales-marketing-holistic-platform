@@ -521,6 +521,7 @@ function renderList() {
         ${NETWORK_DEMO ? `<div class="contact-tags">${(c.tags || []).slice(0,3).map(t => `<span class="contact-tag" data-kind="${escapeHtml(t.kind)}" title="${escapeHtml(t.kind)}">${escapeHtml(t.label)}</span>`).join('')}${(c.tags || []).length > 3 ? `<button type="button" class="contact-tag-more" aria-label="Show all tags for ${escapeHtml(c.name)}">+${c.tags.length-3}</button>` : ''}</div>` : ''}
         <div class="row-preview">${escapeHtml(c.summary)}</div>
         ${NETWORK_DEMO ? `<div class="contact-topic">Current topic: ${escapeHtml(c.topic)}</div>` : ''}
+        ${c.brief_notice ? `<div class="row-preview" role="status">${escapeHtml(c.brief_notice)}</div>` : ""}
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
       <button class="row-hide-btn" data-hide-id="${c.person_key}" title="${state.hidden ? "Unhide" : "Hide"}">${state.hidden ? "&#8635;" : "&times;"}</button>
@@ -692,6 +693,7 @@ async function openDetail(personKey) {
           ${NETWORK_DEMO ? `<div class="contact-labels"><h3>Contact labels</h3><div class="contact-tags">${(c.tags || []).map((t,i) => `<button class="contact-tag" data-kind="${escapeHtml(t.kind)}" data-tag-index="${i}" title="${escapeHtml(t.kind + (t.relation ? ': '+t.relation : ''))}">${escapeHtml(t.label)}</button>`).join('')}</div><p class="contact-topic">Current topic: ${escapeHtml(c.topic)}. Select a label to inspect its source.</p><div id="contact-tag-proof" aria-live="polite"></div></div>` : ''}
           <div class="detail-context">
             <h3>Context</h3>
+            ${c.brief_notice ? `<p role="status">${escapeHtml(c.brief_notice)}</p>` : ""}
             <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
           </div>
           <div class="detail-context">

@@ -8,52 +8,49 @@ from __future__ import annotations
 
 import json
 import os
-import sys
-import traceback
 from dataclasses import dataclass
+from typing import Literal
 
 import psycopg
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 
 from .reply_signal import reply_signal
 
 PROMPT_VERSION = "v3"
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 _TOOL_NAME = "submit_brief"
+_MAX_INPUT_TOKENS = 160_000  # leave headroom for output/provider counting differences
+_MAX_PREFLIGHT_CALLS = 10
 
 
-# Real bug found 2026-09-18: the prompt asked for "ONLY a JSON object, no
-# other text," but Haiku routinely wrapped its answer in a ```json ... ```
-# markdown fence anyway, so json.loads() on the raw text failed on every
-# single call — confirmed against the real hosted database: 1530 contacts,
-# 0 ai_brief rows, ever. Anthropic's tool-use with a forced tool_choice
-# guarantees the model's response IS the schema-conformant JSON object (no
-# prose, no markdown wrapper, no parsing needed at all) rather than hoping
-# every model always follows a prose instruction. These pydantic models
-# double as that schema (via model_json_schema()) and as the validator for
-# whatever comes back.
-class _OrgInfo(BaseModel):
+# Forced tool_choice selects the tool; strict:true enforces its schema.
+# Closed objects and enum constraints are supported by strict tool use.
+class _StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class _OrgInfo(_StrictModel):
     name: str
     blurb: str
 
 
-class _PersonRelation(BaseModel):
+class _PersonRelation(_StrictModel):
     name: str
     relation: str
 
 
-class _GraphInfo(BaseModel):
-    org: _OrgInfo | None = None
-    people: list[_PersonRelation] = Field(default_factory=list)
+class _GraphInfo(_StrictModel):
+    org: _OrgInfo | None
+    people: list[_PersonRelation]
 
 
-class _BriefResponse(BaseModel):
+class _BriefResponse(_StrictModel):
     summary: str
     context: list[str]
     topic: str
     graph: _GraphInfo
-    urgency: int = Field(ge=1, le=3)
+    urgency: Literal[1, 2, 3]
 
 
 @dataclass
@@ -70,7 +67,7 @@ class AiBrief:
 
 def _default_client():
     import anthropic
-    return anthropic.Anthropic()
+    return anthropic.Anthropic(timeout=45, max_retries=1)
 
 
 def _gather_input(cur, person_key: str) -> dict:
@@ -132,8 +129,9 @@ Structured facts (from identity resolution): {json.dumps(data["facts"])}
 
 Reply signal (this person's own history with this contact): {json.dumps(data["reply_signal"])}
 
-Full message history across every channel (Outlook/WhatsApp/LinkedIn),
+Message history across channels (Outlook/WhatsApp/LinkedIn),
 oldest first: {json.dumps(data["messages"])}
+Coverage: {"PARTIAL history: older messages or message text were omitted to fit the input budget. Do not claim complete history." if data.get("partial_history") else "Full available history."}
 
 Call {_TOOL_NAME} with your summary. "summary" is one short third-person
 sentence describing what this contact needs or wants right now. "context"
@@ -142,7 +140,7 @@ each list item is its own single fact, one sentence long. Never merge
 multiple facts into one run-on sentence or collapse the list down to a
 single item unless there is genuinely only one fact to report. "topic" is
 a short 1-3 word phrase for this contact's current thread. "graph.org" is
-this contact's employer if known, else omit it. "graph.people" is only
+this contact's employer if known, else null. "graph.people" is only
 people the messages or facts actually support a relation for. "urgency"
 is 1, 2, or 3 (3 = needs action soon).
 
@@ -158,31 +156,98 @@ Each surviving fact still gets its own separate sentence in the list.
 
 _TOOL_SCHEMA = {
     "name": _TOOL_NAME,
+    "strict": True,
     "description": "Submit the structured brief for this contact.",
     "input_schema": _BriefResponse.model_json_schema(),
 }
 
 
-def generate_brief(cur, person_key: str, client=None) -> AiBrief:
-    client = client or _default_client()
+class BriefGenerationError(ValueError):
+    """Sanitized failure whose status has been written in the caller's transaction."""
+
+
+def _record_status(cur, person_key, status, error_code, model, input_tokens=None,
+                   original_input_tokens=None, omitted_messages=0, truncated_text=False):
+    cur.execute(
+        """
+        insert into ai_brief_status
+            (person_key, status, error_code, model, input_tokens, original_input_tokens,
+             omitted_messages, truncated_text, attempted_at)
+        values (%s, %s, %s, %s, %s, %s, %s, %s, now())
+        on conflict (person_key) do update set
+            status = excluded.status, error_code = excluded.error_code, model = excluded.model,
+            input_tokens = excluded.input_tokens, original_input_tokens = excluded.original_input_tokens,
+            omitted_messages = excluded.omitted_messages, truncated_text = excluded.truncated_text,
+            attempted_at = excluded.attempted_at
+        """,
+        (person_key, status, error_code, model, input_tokens, original_input_tokens,
+         omitted_messages, truncated_text),
+    )
+
+
+def generate_brief(cur, person_key: str, client=None) -> AiBrief | None:
+    """Generate within a counted budget; caller commits the brief and latest status.
+
+    Skips return None. Provider/validation failures write status then raise a
+    sanitized BriefGenerationError; callers must commit that status (not rollback).
+    Never overwrite the last successful brief on a failed or skipped attempt.
+    """
     data = _gather_input(cur, person_key)
     model = os.environ.get("ANTHROPIC_MODEL") or _DEFAULT_MODEL
+    data = {**data, "messages": [dict(m) for m in data["messages"]]}
+    original_count = len(data["messages"])
+    original_tokens = input_tokens = None
+    truncated_text = False
+    error_code = "provider_failed"
+    try:
+        client = client or _default_client()
+        error_code = "token_count_failed"
+        for attempt in range(_MAX_PREFLIGHT_CALLS):
+            request = {
+                "model": model, "tools": [_TOOL_SCHEMA],
+                "tool_choice": {"type": "tool", "name": _TOOL_NAME},
+                "messages": [{"role": "user", "content": _build_prompt(data)}],
+            }
+            # Count the exact serialized prompt AND tools, never chars/token guesses.
+            input_tokens = client.messages.count_tokens(**request).input_tokens
+            if not isinstance(input_tokens, int) or input_tokens < 0:
+                raise ValueError("Invalid token count")
+            if original_tokens is None:
+                original_tokens = input_tokens
+            if input_tokens <= _MAX_INPUT_TOKENS:
+                break
+            if attempt == _MAX_PREFLIGHT_CALLS - 1:
+                break
+            if len(data["messages"]) > 1:
+                data["messages"] = data["messages"][len(data["messages"]) // 2:]
+            elif data["messages"] and len(data["messages"][0].get("text") or "") > 32:
+                text = data["messages"][0]["text"]
+                data["messages"][0]["text"] = text[:len(text) // 2]
+                truncated_text = True
+            else:
+                break  # irreducible facts/prompt: explicit skip, no generation call
+            data["partial_history"] = True
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=1024,
-        tools=[_TOOL_SCHEMA],
-        tool_choice={"type": "tool", "name": _TOOL_NAME},
-        messages=[{"role": "user", "content": _build_prompt(data)}],
-    )
-    # tool_choice forces exactly one tool_use block whose .input is
-    # already a dict matching _TOOL_SCHEMA's input_schema — no text to
-    # parse, no markdown fence to strip. model_validate still raises
-    # pydantic.ValidationError on a genuinely malformed input (e.g. a
-    # missing required field); the caller decides how to handle it, same
-    # as the old json.JSONDecodeError contract.
-    tool_block = next(b for b in response.content if b.type == "tool_use")
-    parsed = _BriefResponse.model_validate(tool_block.input)
+        omitted = original_count - len(data["messages"])
+        if input_tokens > _MAX_INPUT_TOKENS:
+            _record_status(cur, person_key, "skipped", "input_budget_exceeded", model,
+                           input_tokens, original_tokens, omitted, truncated_text)
+            return None
+        error_code = "provider_failed"
+        response = client.messages.create(max_tokens=1024, **request)
+        error_code = "invalid_response"
+        if response.stop_reason != "tool_use":
+            raise ValueError("Incomplete brief response")
+        blocks = [b for b in response.content if b.type == "tool_use" and b.name == _TOOL_NAME]
+        if len(blocks) != 1:
+            raise ValueError("Missing brief tool")
+        parsed = _BriefResponse.model_validate(blocks[0].input)
+    except Exception:  # noqa: BLE001 — sanitize any provider/validation failure before persistence
+        # Provider errors/validation errors can contain source text or credentials.
+        # Only fixed error codes cross the persistence/logging boundary.
+        _record_status(cur, person_key, "failed", error_code, model, input_tokens,
+                       original_tokens, original_count - len(data["messages"]), truncated_text)
+        raise BriefGenerationError(f"AI brief failed: {error_code}") from None
 
     brief = AiBrief(
         person_key=person_key,
@@ -209,6 +274,8 @@ def generate_brief(cur, person_key: str, client=None) -> AiBrief:
             psycopg.types.json.Json(brief.graph), brief.urgency, brief.model, brief.prompt_version,
         ),
     )
+    _record_status(cur, person_key, "truncated" if data.get("partial_history") else "success",
+                   None, model, input_tokens, original_tokens, omitted, truncated_text)
     return brief
 
 
@@ -225,27 +292,29 @@ def person_keys_for_identities(cur, identity_ids: set[str]) -> set[str]:
 def refresh_touched(person_keys: set[str], client=None) -> None:
     if not person_keys:
         return
-    load_dotenv()
+    if not os.environ.get("DATABASE_URL"):
+        load_dotenv()
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
         for person_key in person_keys:
             try:
                 generate_brief(cur, person_key, client=client)
                 conn.commit()
-            except Exception as e:  # noqa: BLE001 — one bad brief must not block the rest
+            except BriefGenerationError:
+                conn.commit()  # persist the sanitized failure written by generate_brief
+            except Exception:  # noqa: BLE001 — isolate any per-contact storage failure
                 conn.rollback()
-                print(f"ai_brief generation failed for {person_key}: {e}", file=sys.stderr)
+                _record_status(cur, person_key, "failed", "storage_failed",
+                               os.environ.get("ANTHROPIC_MODEL") or _DEFAULT_MODEL)
+                conn.commit()
 
 
 def refresh_touched_best_effort(person_keys: set[str], client=None) -> None:
-    """Same as refresh_touched(), except a total failure (e.g. the
-    database is unreachable) is caught and logged rather than raised —
-    called from each channel's sync.py after a successful sync, where an
-    ai_brief problem must never make the calling sync job look like it
-    failed. refresh_touched() already isolates each person's own
-    failure; this is the second, outer layer, matching
-    adapters/resolution/run.py's run()/run_best_effort() pattern."""
+    """Continue on recorded per-contact failures; never silently lose status.
+
+    Historical name retained for sync callers. If storage is unavailable, no
+    durable status is possible: raise a sanitized operational error instead.
+    """
     try:
         refresh_touched(person_keys, client=client)
-    except Exception as e:  # noqa: BLE001 — ai_brief failing must never fail the caller's sync
-        print(f"ai_brief refresh failed entirely (the sync itself still succeeded): {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+    except Exception:  # noqa: BLE001 — never expose connection details in a sync failure
+        raise RuntimeError("AI brief refresh status could not be recorded; message sync data was retained.") from None

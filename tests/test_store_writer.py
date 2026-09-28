@@ -11,8 +11,6 @@ import uuid
 from datetime import UTC, datetime
 
 import psycopg
-import pytest
-from conftest import _LOCAL_TEST_DATABASE_URL
 
 from adapters.envelope import Channel, Direction, Envelope
 from adapters.store_writer import upsert
@@ -254,9 +252,9 @@ class TestUpsertNotifies:
         )
         writer.commit()
 
-    def test_notifies_inbox_updated_on_a_genuinely_new_message(self):
-        listener = psycopg.connect(_LOCAL_TEST_DATABASE_URL, autocommit=True)
-        writer = psycopg.connect(_LOCAL_TEST_DATABASE_URL)
+    def test_notifies_inbox_updated_on_a_genuinely_new_message(self, isolated_database_url):
+        listener = psycopg.connect(isolated_database_url, autocommit=True)
+        writer = psycopg.connect(isolated_database_url)
         try:
             listener.execute("listen inbox_updated")
             env = _make_envelope()
@@ -271,9 +269,9 @@ class TestUpsertNotifies:
             writer.close()
             listener.close()
 
-    def test_does_not_notify_again_on_idempotent_rerun(self):
-        listener = psycopg.connect(_LOCAL_TEST_DATABASE_URL, autocommit=True)
-        writer = psycopg.connect(_LOCAL_TEST_DATABASE_URL)
+    def test_does_not_notify_again_on_idempotent_rerun(self, isolated_database_url):
+        listener = psycopg.connect(isolated_database_url, autocommit=True)
+        writer = psycopg.connect(isolated_database_url)
         try:
             env = _make_envelope()
             upsert(writer, env, self_handle="me@example.com")
@@ -289,20 +287,3 @@ class TestUpsertNotifies:
             self._delete_message(writer, env)
             writer.close()
             listener.close()
-
-
-@pytest.fixture(autouse=True, scope="module")
-def _require_local_db():
-    """Skip this whole file with a clear message if the local
-    docker-compose Postgres isn't up, instead of every test failing with
-    a raw connection-refused traceback."""
-    try:
-        conn = psycopg.connect(
-            "postgresql://comms:comms@localhost:5432/comms", connect_timeout=3
-        )
-        conn.close()
-    except psycopg.OperationalError:
-        pytest.skip(
-            "local docker-compose Postgres isn't reachable — run "
-            "`docker compose up -d` in the repo root first"
-        )
