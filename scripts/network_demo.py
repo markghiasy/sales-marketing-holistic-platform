@@ -37,7 +37,6 @@ class ProfileExtraction(StrictModel):
     mode: Literal["current", "history"] = "current"
 
 
-
 def create_app(*, testing=False, llm_config=None, agent_provider=None):
     root = Path(__file__).resolve().parent / "onboarding"
     app = Flask(
@@ -84,11 +83,17 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
     @app.get("/network/evidence/<evidence_id>.json")
     def evidence(evidence_id):
         q = query()
+        data = store.data()
         row = next(
             (
                 e
-                for e in store.data()["evidence"]
-                if e["id"] == evidence_id and timestamp(e["at"]) <= q.as_of
+                for e in [*data["evidence"], *(m for m in data["messages"] if m.get("direct"))]
+                if e["id"] == evidence_id
+                and all(
+                    timestamp(e[field]) <= q.as_of
+                    for field in ("at", "observed_at", "known_at")
+                    if e.get(field)
+                )
             ),
             None,
         )
@@ -114,7 +119,9 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
             return jsonify(error="Context not found."), 404
 
     def mutation_error():
-        if request.headers.get("Origin") and request.headers["Origin"].rstrip("/") != request.host_url.rstrip("/"):
+        if request.headers.get("Origin") and request.headers["Origin"].rstrip(
+            "/"
+        ) != request.host_url.rstrip("/"):
             return jsonify(error="Cross-origin changes are not allowed."), 403
         if not request.is_json:
             return jsonify(error="Send a JSON request."), 415
@@ -136,13 +143,19 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
             return error
         payload = ProfileReview.model_validate(request.get_json())
         try:
-            return jsonify(store.review_profile(payload.id, payload.status, payload.subject_id, payload.version))
+            return jsonify(
+                store.review_profile(
+                    payload.id, payload.status, payload.subject_id, payload.version
+                )
+            )
         except RuntimeError as exc:
             return jsonify(error=str(exc)), 409
         except KeyError:
             return jsonify(error="Assertion not found."), 404
         except ValueError:
-            return jsonify(error="The corrected subject is inconsistent with this source. Reject it and re-extract."), 400
+            return jsonify(
+                error="The corrected subject is inconsistent with this source. Reject it and re-extract."
+            ), 400
 
     @app.post("/network/profile/extract")
     def extract_profile():
@@ -159,14 +172,21 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None):
             saved = store.add_profile_proposals(rows, version)
             q = q.model_copy(update={"as_of": timestamp(saved["as_of"])})
             updated, current_version = store.capture()
-            return jsonify(**profile_context(updated, q), version=current_version,
-                           added=saved["added"], usage=usage, model=provider.model)
+            return jsonify(
+                **profile_context(updated, q),
+                version=current_version,
+                added=saved["added"],
+                usage=usage,
+                model=provider.model,
+            )
         except AgentUnavailable as exc:
             return jsonify(error=str(exc)), 503
         except RuntimeError as exc:
             return jsonify(error=str(exc)), 409
         except Exception:  # noqa: BLE001 - sanitize provider errors at HTTP boundary
-            return jsonify(error="Claude could not produce valid profile proposals. No profile was changed."), 502
+            return jsonify(
+                error="Claude could not produce valid profile proposals. No profile was changed."
+            ), 502
 
     @app.get("/network/agent/status.json")
     def agent_status():

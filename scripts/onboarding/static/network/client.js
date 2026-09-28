@@ -8,7 +8,9 @@ export function readQuery() {
     function: p.get('function') || '', organization: p.get('organization') || '',
     project: p.get('project') || '', mode: p.get('mode') || 'current',
     include_pending: p.get('include_pending') || 'false', expand: p.get('expand') || '',
-    depth: p.get('depth') || '2', min_activity: p.get('min_activity') || '0',
+    scopes: p.has('scopes') ? p.get('scopes') : 'direct,explicit',
+    scope_window: p.get('scope_window') || '0', scope_sort: p.get('scope_sort') || 'recent',
+    min_sessions: p.get('min_sessions') || '0',
   };
 }
 export function queryUrl(path, query) { return path + '?' + new URLSearchParams(query).toString(); }

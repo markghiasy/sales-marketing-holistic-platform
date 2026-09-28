@@ -1,5 +1,7 @@
 # Network intelligence demo — 28 September 2026
 
+> Update, 28 September 2026: user-facing hops have been replaced by [four relationship scopes](relationship-scopes.md). Earlier hop descriptions below describe the preceding iteration.
+
 Purpose: show Mark how a network supports an actual decision, and give the research
 draft a testable interface between evidence, graph queries and language reasoning.
 The user authorized trying the configured Anthropic API on synthetic data.

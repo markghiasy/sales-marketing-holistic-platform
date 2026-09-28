@@ -84,6 +84,8 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
             edge["target"] = canonical(edge["target"])
         for message in data["messages"]:
             message["contact_id"] = canonical(message["contact_id"])
+            if message.get("participant_ids"):
+                message["participant_ids"] = [canonical(key) for key in message["participant_ids"]]
         data["nodes"] = [n for n in data["nodes"] if canonical(n["id"]) == n["id"]]
         data["owner_id"] = canonical(data["owner_id"])
         query = query.model_copy(update={"focus": canonical(query.focus)})
@@ -177,29 +179,33 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         )
         anchors.add(data["owner_id"])
     pool = [c for c in claims if c["source"] in anchors and c["target"] in anchors]
-    distances = {query.focus: 0}
-    if query.view == "compact" or query.expand:
+    scope_result = None
+    if query.expand and query.view != "compact":
+        from .scopes import expand_scopes
+
+        scope_result = expand_scopes(data, query, claims)
+        anchors = set(scope_result["nodes"])
+        pool = scope_result["edges"]
+        by_id = {person["id"]: person for person in scored}
+        scored = [
+            {
+                **by_id[candidate["id"]],
+                "relationship_scope": candidate,
+                "reasons": candidate["scope_reasons"],
+            }
+            for candidate in scope_result["candidates"]
+            if candidate["id"] in by_id
+        ]
+    elif query.view == "compact":
         reached = {query.focus}
-        allowed = set(anchors)
-        if query.expand:
-            allowed -= {
-                p["id"] for p in scored if p[metric] < query.min_activity and p["id"] != query.focus
-            }
-            pool = [c for c in pool if c["source"] in allowed and c["target"] in allowed]
-        for hop in range(1, (1 if query.view == "compact" else query.depth) + 1):
-            frontier = reached - ({data["owner_id"]} if query.focus != data["owner_id"] else set())
-            neighbors = {
-                endpoint
-                for c in pool
-                if c["source"] in frontier or c["target"] in frontier
-                for endpoint in (c["source"], c["target"])
-            }
-            distances.update({n: hop for n in neighbors - reached})
-            reached |= neighbors
+        reached.update(
+            endpoint
+            for claim in pool
+            if query.focus in (claim["source"], claim["target"])
+            for endpoint in (claim["source"], claim["target"])
+        )
         anchors &= reached
         pool = [c for c in pool if c["source"] in anchors and c["target"] in anchors]
-        if query.expand:
-            scored = [p for p in scored if p["id"] in anchors]
     node_limit, edge_limit = (8, 12) if query.view == "compact" else (50, 100)
     priority = [query.focus, data["owner_id"]] + [n["id"] for n in scored] + sorted(anchors)
     ordered = list(dict.fromkeys(n for n in priority if n in anchors))
@@ -209,6 +215,8 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         :edge_limit
     ]
     omitted = {"nodes": len(anchors) - len(selected), "edges": len(pool) - len(edges)}
+    if scope_result is not None:
+        omitted = dict(scope_result["omitted_counts"])
     return {
         "version": version,
         "computed_at": query.as_of.isoformat(),
@@ -222,11 +230,9 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         "omitted_counts": omitted,
         "truncated": any(omitted.values()),
         "expansion": {
-            "depth": query.depth,
-            "distances": distances,
-            "min_activity": query.min_activity,
+            key: value for key, value in scope_result.items() if key not in {"nodes", "edges"}
         }
-        if query.expand
+        if scope_result is not None
         else None,
         "options": {
             "functions": sorted({f for n in nodes.values() for f in n.get("functions", [])}),

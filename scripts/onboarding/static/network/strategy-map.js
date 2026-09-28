@@ -10,7 +10,7 @@ export function mountStrategyMap(container, data, query) {
   const ids=new Set(nodes.map(n=>n.id)), names=new Map(nodes.map(n=>[n.id,n.name]));
   const edges=(data.edges||[]).filter(e=>ids.has(e.source)&&ids.has(e.target)&&['candidate','relationship'].includes(e.kind)&&(e.kind!=='relationship'||!e.status||e.status==='confirmed')).slice(0,200);
   const sources=new Map((data.evidence||[]).map(s=>[s.id,s]));
-  const entityLink=id=>`<a href="${esc(queryUrl('/network',{focus:id,expand:id,depth:2,as_of:query.as_of,mode:query.mode}))}">${esc(names.get(id)||id)}</a>`;
+  const entityLink=id=>`<a href="${esc(queryUrl('/network',{focus:id,expand:id,scopes:'direct,explicit,project,organization',as_of:query.as_of,mode:query.mode}))}">${esc(names.get(id)||id)}</a>`;
   container.className='strategy-map';
   container.innerHTML=`<h3>Opportunity map</h3><p class="strategy-note">${esc(data.note||'Candidate evidence needs validation. Connections do not establish buying authority or introduction willingness.')}</p>
     <div class="strategy-legend"><span>Solid: recorded relationship</span><span>Dashed: query candidate, not a relationship</span></div>

@@ -8,7 +8,11 @@ from adapters.network.scenario import load_scenario
 def test_expansion_escapes_name_filter_without_traversing_owner_hub():
     data = load_scenario()
     result = build_snapshot(
-        data, GraphQuery(focus="person:sam", search="sam", expand="person:sam", depth=2), 1
+        data,
+        GraphQuery(
+            focus="person:sam", search="sam", expand="person:sam", scopes="explicit,organization"
+        ),
+        1,
     )
     ids = {n["id"] for n in result["nodes"]}
     assert "person:priya" in ids
@@ -16,25 +20,31 @@ def test_expansion_escapes_name_filter_without_traversing_owner_hub():
     assert "person:maya" not in ids  # cannot traverse owner into every contact
     assert {p["id"] for p in result["ranked_contacts"]} == ids - {
         "person:owner",
+        "person:sam",
         "org:uni",
         "org:atlas",
         "project:bridge",
         "project:harbour",
     }
-    assert result["expansion"]["depth"] == 2
+    assert result["expansion"]["scopes"] == ["explicit", "organization"]
 
 
-def test_depth_is_separate_from_activity_and_bounded():
+def test_legacy_depth_is_bounded_but_does_not_filter_shared_context():
     with pytest.raises(ValueError):
         GraphQuery(depth=4)
     result = build_snapshot(
         load_scenario(),
-        GraphQuery(focus="person:sam", expand="person:sam", depth=2, min_activity=90),
+        GraphQuery(
+            focus="person:sam",
+            expand="person:sam",
+            scopes="organization",
+            depth=1,
+            min_activity=100,
+            min_sessions=100,
+        ),
         1,
     )
-    assert all(
-        p["id"] == "person:sam" or p["current_activity"] >= 90 for p in result["ranked_contacts"]
-    )
+    assert "person:grace" in {p["id"] for p in result["ranked_contacts"]}
 
 
 def test_project_view_uses_work_evidence_and_date():
