@@ -24,7 +24,7 @@
       That's the next phase (the project-management/action layer), not
       this one.
     - Actually sending anything — "Use this draft" doesn't exist yet.
-    - The top search bar's real semantic search (still visual-only); the
+    - In production, the top search bar's real semantic search (still visual-only); the
       assistant overlay's greeting stats are real (CONVERSATIONS-derived)
       but its suggestions/input still do nothing.
     - Network graph relationships beyond what the LLM can point to in
@@ -35,6 +35,7 @@
 {% if network_demo %}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/static/network/network.css">
+<link rel="stylesheet" href="/static/network/discovery.css">
 <script src="/static/vendor/cytoscape.min.js"></script>
 <style>.row-hide-btn,.detail-draft{display:none!important}.detail-body{gap:24px!important}@media(max-width:800px){.detail-body{flex-direction:column}.detail-col{min-height:240px}.detail-panel{overflow:auto}}</style>
 <div class="demo-inbox-banner">Synthetic demo · Jordan Ellis's network <a href="/network">Explore network</a></div>
@@ -378,7 +379,7 @@
 <div class="rail" id="rail"></div>
 
 <div class="main">
-  <div class="searchbar" id="searchbar"><span class="dot"></span> Start typing to ask or search</div>
+  {% if network_demo %}<button type="button" class="searchbar" id="searchbar"><span class="dot"></span> Start typing to ask or search</button>{% else %}<div class="searchbar" id="searchbar"><span class="dot"></span> Start typing to ask or search</div>{% endif %}
   <div class="content">
     <div class="list-panel">
       <h2>Inbox</h2>
@@ -440,10 +441,14 @@ function initials(name) {
 let CONVERSATIONS = [];
 const NETWORK_DEMO = {{ (network_demo|default(false))|tojson }};
 let embeddedNetwork = null;
+let discoveryInstance = null;
 let detailGeneration = 0;
 
 async function loadConversations() {
-  const resp = await fetch(`/inbox/conversations.json${state.hidden ? "?hidden=1" : ""}`);
+  const params = new URLSearchParams();
+  if (state.hidden) params.set('hidden', '1');
+  if (NETWORK_DEMO) params.set('as_of', new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z');
+  const resp = await fetch(`/inbox/conversations.json${params.size ? '?' + params : ''}`);
   CONVERSATIONS = await resp.json();
   render();
 }
@@ -471,6 +476,7 @@ function renderRail() {
   rail.innerHTML = items.map(it =>
     `<button data-channel="${it.key}" class="${state.channel === it.key ? "active" : ""}">${it.icon}</button>`
   ).join("");
+  if (NETWORK_DEMO) rail.insertAdjacentHTML('beforeend', `<a class="rail-network" href="/network" title="Knowledge graph" aria-label="Knowledge graph"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5 19 7 12 20 5 5 4 16 19 7" stroke="currentColor"/><circle cx="5" cy="5" r="2" fill="currentColor"/><circle cx="19" cy="7" r="2" fill="currentColor"/><circle cx="12" cy="20" r="2" fill="currentColor"/><circle cx="4" cy="16" r="1.5" fill="currentColor"/></svg><span>Graph</span></a>`);
   rail.querySelectorAll("button").forEach(btn => {
     btn.addEventListener("click", () => { state.channel = btn.dataset.channel; render(); });
   });
@@ -508,11 +514,13 @@ function renderList() {
       <div class="row-main">
         <div class="row-top">
           <span class="row-name">${escapeHtml(c.name)}</span>
-          <span class="tag" style="background:${avatarColor(c.topic)}22;color:${avatarColor(c.topic)}">${escapeHtml(c.topic)}</span>
+          ${NETWORK_DEMO ? '' : `<span class="tag" style="background:${avatarColor(c.topic)}22;color:${avatarColor(c.topic)}">${escapeHtml(c.topic)}</span>`}
           ${c.has_draft ? `<span class="draft-badge" title="AI draft ready">&#9998; Draft ready</span>` : ""}
           <span class="row-time">${formatRelativeTime(c.last_message_at)}</span>
         </div>
+        ${NETWORK_DEMO ? `<div class="contact-tags">${(c.tags || []).slice(0,3).map(t => `<span class="contact-tag" data-kind="${escapeHtml(t.kind)}" title="${escapeHtml(t.kind)}">${escapeHtml(t.label)}</span>`).join('')}${(c.tags || []).length > 3 ? `<button type="button" class="contact-tag-more" aria-label="Show all tags for ${escapeHtml(c.name)}">+${c.tags.length-3}</button>` : ''}</div>` : ''}
         <div class="row-preview">${escapeHtml(c.summary)}</div>
+        ${NETWORK_DEMO ? `<div class="contact-topic">Current topic: ${escapeHtml(c.topic)}</div>` : ''}
       </div>
       <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
       <button class="row-hide-btn" data-hide-id="${c.person_key}" title="${state.hidden ? "Unhide" : "Hide"}">${state.hidden ? "&#8635;" : "&times;"}</button>
@@ -615,7 +623,8 @@ function wireGraphNodes() {
 
 async function openDetail(personKey) {
   const ticket = ++detailGeneration;
-  const resp = await fetch(`/inbox/conversation/${personKey}.json`);
+  const detailDate = new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z';
+  const resp = await fetch(`/inbox/conversation/${personKey}.json${NETWORK_DEMO ? '?as_of=' + encodeURIComponent(detailDate) : ''}`);
   if (!resp.ok) return;
   const c = await resp.json();
   if (ticket !== detailGeneration) return;
@@ -680,6 +689,7 @@ async function openDetail(personKey) {
           </div>
         </div>
         <div class="detail-col">
+          ${NETWORK_DEMO ? `<div class="contact-labels"><h3>Contact labels</h3><div class="contact-tags">${(c.tags || []).map((t,i) => `<button class="contact-tag" data-kind="${escapeHtml(t.kind)}" data-tag-index="${i}" title="${escapeHtml(t.kind + (t.relation ? ': '+t.relation : ''))}">${escapeHtml(t.label)}</button>`).join('')}</div><p class="contact-topic">Current topic: ${escapeHtml(c.topic)}. Select a label to inspect its source.</p><div id="contact-tag-proof" aria-live="polite"></div></div>` : ''}
           <div class="detail-context">
             <h3>Context</h3>
             <ul>${c.context.map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ul>
@@ -696,9 +706,21 @@ async function openDetail(personKey) {
   document.body.appendChild(backdrop);
   document.getElementById("detail-close-btn").addEventListener("click", closeOverlay);
   if (NETWORK_DEMO) {
-    const container = document.getElementById('contact-network');
+    const {showEvidence} = await import('/static/network/client.js');
+    if (!backdrop.isConnected) return;
+    backdrop.querySelectorAll('[data-tag-index]').forEach(button => button.onclick = async () => {
+      const tag = c.tags[Number(button.dataset.tagIndex)];
+      const body = backdrop.querySelector('#contact-tag-proof');
+      body.textContent = 'Loading label evidence...';
+      const result = document.createElement('div');
+      body.replaceChildren(result);
+      try { await showEvidence(result, tag, {as_of: detailDate}); }
+      catch (error) { if (result.isConnected) result.textContent = error.message; }
+    });
+    const container = backdrop.querySelector('#contact-network');
     const { mountEmbedded } = await import('/static/network/embed.js');
     if (container.isConnected) embeddedNetwork = mountEmbedded(container, personKey);
+    if (!backdrop.isConnected) return;
   }
   wireGraphNodes();
   document.querySelectorAll(".contact-link").forEach(el => {
@@ -836,8 +858,18 @@ const ASSISTANT_SUGGESTIONS = [
   "Summarize this week's WhatsApp activity",
 ];
 
-function openAssistant() {
+async function openAssistant() {
   closeOverlay();
+  if (NETWORK_DEMO) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'assistant-backdrop network-discovery';
+    backdrop.innerHTML = '<div class="discovery-panel">Opening search...</div>';
+    backdrop.addEventListener('click', event => { if (event.target === backdrop) closeOverlay(); });
+    document.body.appendChild(backdrop);
+    const {mountDiscovery} = await import('/static/network/discovery.js');
+    if (backdrop.isConnected) discoveryInstance = mountDiscovery(backdrop, {onClose: closeOverlay, onOpenContact: openDetail});
+    return;
+  }
   const unread = CONVERSATIONS.filter(c => c.unread).length;
   const active = CONVERSATIONS.filter(c => c.unanswered).length;
   const backdrop = document.createElement("div");
@@ -864,6 +896,11 @@ function openAssistant() {
 
 function closeOverlay() {
   detailGeneration++;
+  if (discoveryInstance) {
+    discoveryInstance.destroy();
+    discoveryInstance = null;
+    document.getElementById('searchbar').focus();
+  }
   embeddedNetwork?.destroy();
   embeddedNetwork = null;
   document.querySelectorAll(".assistant-backdrop").forEach(el => el.remove());
@@ -873,6 +910,7 @@ document.getElementById("searchbar").addEventListener("click", openAssistant);
 document.getElementById("f-draft").addEventListener("change", e => { state.draft = e.target.checked; render(); });
 document.getElementById("f-hidden").addEventListener("change", e => { state.hidden = e.target.checked; loadConversations(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlay(); });
+document.addEventListener('keydown', e => { if (NETWORK_DEMO && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openAssistant(); } });
 
 // Live updates: adapters/store_writer.py NOTIFYs "inbox_updated" whenever
 // any channel writes a genuinely new message; scripts/onboarding/app.py's
@@ -889,6 +927,7 @@ new EventSource("/inbox/events").addEventListener("update", scheduleConversation
 
 loadConversations().then(() => {
   if (NETWORK_DEMO) {
+    if (new URLSearchParams(location.search).get('discover') === '1') { openAssistant(); return; }
     const focus = new URLSearchParams(location.search).get('focus');
     if (focus) openDetail(focus);
   }

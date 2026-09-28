@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .model import ScenarioData
 from .projection import build_snapshot
+from .search import search_contacts
 
 
 def load_scenario(path: Path | None = None) -> ScenarioData:
@@ -43,6 +44,10 @@ class ScenarioStore:
             self.version += 1
             self._condition.notify_all()
             return self.version
+
+    def search(self, query, text):
+        with self._condition:
+            return search_contacts(self._data, query, text, self.version)
 
     def reset(self):
         with self._condition:

@@ -98,6 +98,8 @@ The shareable fixture contains 30 entities: 24 contacts, the owner, three organi
 
 The demonstration begins inside the existing conversation layout. A viewer inspects a contact's neighborhood, expands it into the full explorer, filters Accounting and Harbour expansion, and compares an older collaborator with a recently active specialist. A second sequence changes the Known by date to reveal the difference between when an employment change occurred and when the system learned it. Simulate reply changes the activity ranking; Reset scenario restores initial content while advancing the revision.
 
+Contact discovery also accepts constrained English and Chinese expressions over names, functions, industries, organizations, projects and relationships. It exposes required conditions and ranking preferences, with matching source excerpts and graph navigation. Unsupported terms request clarification. Multiple contact labels are derived from confirmed assertions and remain separate from the current conversation topic. This rule-based interface makes no model calls; its acceptance tests are separate from the seven-case policy comparison below.
+
 <div class="page-break"></div>
 
 ## 5.1 Embedded contact view

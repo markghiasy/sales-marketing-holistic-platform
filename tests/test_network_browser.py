@@ -86,3 +86,50 @@ def test_neighborhood_focus_does_not_replace_origin_conversation(page):
     page.get_by_role("link", name="Return to conversation").click()
     page.get_by_role("link", name="Open full network").wait_for()
     assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")
+
+
+def test_business_search_tags_evidence_and_graph_navigation(page):
+    page.goto(page.base_url + "/inbox")
+    page.get_by_role("link", name="Knowledge graph", exact=True).wait_for()
+    maya = page.locator('.row[data-id="person:maya"]')
+    assert maya.locator(".contact-tag").count() >= 2
+    page.locator("#searchbar").click()
+    page.get_by_role("textbox", name="Search your network").fill(
+        "Find an accountant with logistics experience, preferably someone I worked with before"
+    )
+    page.get_by_role("button", name="Search", exact=True).click()
+    page.get_by_text("2 matching contacts", exact=True).wait_for()
+    first = page.locator(".discovery-result").first
+    assert "Maya Chen" in first.inner_text()
+    first.get_by_text("View matching evidence", exact=True).click()
+    first.locator(".evidence-quote").first.wait_for()
+    first.get_by_role("link", name="View in graph").click()
+    page.get_by_role("heading", name="Your network", exact=True).wait_for()
+    assert "focus=person%3Amaya" in page.url
+    page.get_by_role("link", name="Return to conversation").click()
+    page.locator(".contact-labels button").filter(has_text="Logistics").click()
+    page.locator("#contact-tag-proof .evidence-quote").first.wait_for()
+
+
+def test_inbox_list_labels_follow_historical_date(page):
+    page.goto(page.base_url + "/inbox?as_of=2026-08-20T12:00:00Z")
+    row = page.locator('.row[data-id="person:alex"]')
+    row.wait_for()
+    assert "Atlas Logistics" not in row.inner_text()
+    assert "Northline Advisory" in row.inner_text()
+
+
+def test_search_clarification_and_sidebar_full_graph(page):
+    page.goto(page.base_url + "/inbox")
+    page.locator("#searchbar").click()
+    page.get_by_role("textbox", name="Search your network").fill("Find accountants in Sydney")
+    page.get_by_role("button", name="Search", exact=True).click()
+    page.get_by_text("Please clarify your search", exact=True).wait_for()
+    assert page.locator(".discovery-result").count() == 0
+    page.get_by_role("button", name="Close search").click()
+    page.get_by_role("link", name="Knowledge graph", exact=True).click()
+    page.get_by_role("heading", name="Your network", exact=True).wait_for()
+    assert (
+        page.get_by_role("link", name="Knowledge graph", exact=True).get_attribute("aria-current")
+        == "page"
+    )

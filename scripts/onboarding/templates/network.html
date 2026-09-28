@@ -1,8 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Network Explorer</title><link rel="stylesheet" href="/static/network/network.css">
+<link rel="stylesheet" href="/static/network/discovery.css">
 <script src="/static/vendor/cytoscape.min.js"></script></head>
-<body class="network-app">
+<body class="network-app with-app-nav">
+<nav class="app-nav" aria-label="Main navigation">
+<a href="/inbox" aria-label="Inbox" title="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14h5l2 3h2l2-3h5"/></svg><span>Inbox</span></a>
+<a href="/inbox?discover=1" aria-label="Search contacts" title="Search contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><span>Search</span></a>
+<a href="/network" aria-label="Knowledge graph" title="Knowledge graph" aria-current="page"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5 19 7 12 20 5 5 4 16 19 7" stroke="currentColor"/><circle cx="5" cy="5" r="2" fill="currentColor"/><circle cx="19" cy="7" r="2" fill="currentColor"/><circle cx="12" cy="20" r="2" fill="currentColor"/><circle cx="4" cy="16" r="1.5" fill="currentColor"/></svg><span>Graph</span></a>
+</nav>
 <header class="network-header"><a class="wordmark" href="/inbox"><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M7 7 21 9 14 22 7 7 5 18 21 9" stroke="currentColor" stroke-width="1" opacity=".6"/><circle cx="7" cy="7" r="2.5" fill="currentColor"/><circle cx="21" cy="9" r="2" fill="currentColor"/><circle cx="14" cy="22" r="2.5" fill="currentColor"/><circle cx="5" cy="18" r="1.5" fill="currentColor"/></svg>Comms<span> / Network</span></a><span class="demo-label">Synthetic demo</span><a id="return-link" href="/inbox">Return to conversation</a><span class="owner-avatar">JE</span></header>
 <main>
 <div class="page-heading"><div><h1>Your network</h1><p>Explore the people and relationships behind your conversations.</p></div><div class="heading-actions"><button id="reset">Reset scenario</button><button class="primary" id="reply">Simulate reply</button></div></div>

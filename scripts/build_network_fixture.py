@@ -240,12 +240,51 @@ def build():
     next(c for c in claims if c["id"] == "job-alex-old")["correction_evidence_ids"] = [
         "evidence:job-alex-new"
     ]
+    profiles = []
+    for key, name, function, _role, _org in people:
+        attributes = [("function", function, f"My professional focus is {function.lower()}.")]
+        if key in ("maya", "priya"):
+            attributes.append(
+                (
+                    "industry",
+                    "Logistics",
+                    "I have led finance reviews and accounting work for logistics operators.",
+                )
+            )
+        for kind, label, text in attributes:
+            aid = f"profile:{key}:{kind}"
+            eid = f"evidence:{aid}"
+            evidence.append(
+                {
+                    "id": eid,
+                    "channel": "outlook",
+                    "at": "2026-01-15T09:00:00Z",
+                    "from": name,
+                    "subject": "Fictional professional introduction",
+                    "text": f"I am {name}. {text}",
+                    "synthetic": True,
+                }
+            )
+            profiles.append(
+                {
+                    "id": aid,
+                    "person_id": "person:" + key,
+                    "kind": kind,
+                    "label": label,
+                    "status": "confirmed",
+                    "observed_at": "2026-01-15T09:00:00Z",
+                    "valid_from": "2026-01-01T00:00:00Z",
+                    "valid_to": None,
+                    "evidence_ids": [eid],
+                }
+            )
     return {
         "owner_id": "person:owner",
         "nodes": nodes,
         "claims": claims,
         "evidence": evidence,
         "messages": messages,
+        "profile_assertions": profiles,
     }
 
 

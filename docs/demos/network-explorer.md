@@ -10,15 +10,15 @@ From this checkout with the project's dependencies installed:
 python -m scripts.network_demo --port 5055
 ```
 
-Open http://127.0.0.1:5055/inbox?focus=person:maya to begin inside the familiar Inbox. The full explorer is at http://127.0.0.1:5055/network. The local process binds only to loopback. Keep it running during the presentation.
+Open http://127.0.0.1:5055/inbox to begin inside the familiar Inbox. The left sidebar's Graph entry opens the full knowledge graph at http://127.0.0.1:5055/network. The search bar (or Ctrl/Cmd+K) opens contact discovery. The local process binds only to loopback. Keep it running during the presentation.
 
 On Eva's current machine the existing interpreter is `C:\Users\Eva Ng\Desktop\ironman\repo\.venv\Scripts\python.exe`; the isolated checkout is `C:\Users\Eva Ng\Desktop\ironman\network-demo-worktree`.
 
 ## Presentation
 
-**0:00-1:00 - A relationship in context.** Open Maya's conversation. Explain that this is the existing Inbox layout using the new shared graph component. Select a relationship and View evidence. Maya can be both a client and a collaborator; the assertions remain separate. All content here is fictional.
+**0:00-1:00 - Start with a business question.** Click the top search bar and enter: `Find an accountant with logistics experience, preferably someone I worked with before`. Inspect Required Accounting, Required Logistics and Preferred Collaborator. Maya appears before Priya because the collaboration preference is supported. Inspect the matching evidence; the source messages are fictional. Change `preferably` to `must` to require collaboration.
 
-**1:00-2:00 - Expand to the network.** Click Open full network. The same person, time and graph data carry over. Clear filters if necessary, select Accounting and Harbour expansion. Compare Maya and Priya. The shortlist follows explicit project/function evidence; it is not a natural-language or LLM recommendation.
+**1:00-2:00 - Inspect the person, then the network.** Open Maya's conversation from the results. The list shows several labels and a +N control; the detail exposes all labels and their evidence. Current topic remains separate. Maya can be both a client and a collaborator. Open full network from the embedded graph, or use View in graph from search. The same person and observation date carry over. Discovery uses a constrained language parser and explicit assertions, not open-ended semantic inference or a language model.
 
 **2:00-3:00 - History and immediate relevance.** Select Maya, then Priya. Maya has substantial older two-way interaction; Priya has little but recent interaction. Switch Current relevance / Relationship history. Neither activity measure is a trust score. Leo's frequent cold inbound is explicitly marked as having no observed two-way exchange.
 
@@ -33,6 +33,10 @@ On Eva's current machine the existing interpreter is `C:\Users\Eva Ng\Desktop\ir
 - Does the compact view provide sufficient context without interrupting the conversation?
 
 Record these answers separately from technical correctness results. No external message is sent by any demo action.
+
+## Search scope
+
+Supported facets are names, functions, industries, organizations, projects and owner-relative relationships. Both English and Chinese aliases are supported; for example, `找懂物流的会计，最好之前跟我合作过`. The interface displays required and preferred conditions and asks for clarification on unsupported terms instead of silently ignoring them. `Find accountants in Sydney` therefore asks for clarification: this fixture has no location evidence. Tags are derived, read-only projections with sources; editing tags and connecting production data are separate future work.
 
 ## Reproduce checks
 

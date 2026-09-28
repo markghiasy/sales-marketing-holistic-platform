@@ -1924,6 +1924,240 @@
       "subject": "Fictional relationship record",
       "text": "Unverified claim rejected in the demo review.",
       "synthetic": true
+    },
+    {
+      "id": "evidence:profile:maya:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional professional introduction",
+      "text": "I am Maya Chen. My professional focus is accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:maya:industry",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional professional introduction",
+      "text": "I am Maya Chen. I have led finance reviews and accounting work for logistics operators.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:priya:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Priya Shah",
+      "subject": "Fictional professional introduction",
+      "text": "I am Priya Shah. My professional focus is accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:priya:industry",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Priya Shah",
+      "subject": "Fictional professional introduction",
+      "text": "I am Priya Shah. I have led finance reviews and accounting work for logistics operators.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:alex:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional professional introduction",
+      "text": "I am Alex Morgan. My professional focus is operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:sam:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sam Rivera",
+      "subject": "Fictional professional introduction",
+      "text": "I am Sam Rivera. My professional focus is research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:nora:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Nora Bennett",
+      "subject": "Fictional professional introduction",
+      "text": "I am Nora Bennett. My professional focus is investment.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:leo:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Leo Park",
+      "subject": "Fictional professional introduction",
+      "text": "I am Leo Park. My professional focus is sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:alex2:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional professional introduction",
+      "text": "I am Alex Morgan. My professional focus is research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:oliver:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Oliver Reed",
+      "subject": "Fictional professional introduction",
+      "text": "I am Oliver Reed. My professional focus is operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:ella:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ella Brooks",
+      "subject": "Fictional professional introduction",
+      "text": "I am Ella Brooks. My professional focus is legal.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:amir:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Amir Khan",
+      "subject": "Fictional professional introduction",
+      "text": "I am Amir Khan. My professional focus is engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:grace:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Grace Liu",
+      "subject": "Fictional professional introduction",
+      "text": "I am Grace Liu. My professional focus is research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:ben:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ben Walsh",
+      "subject": "Fictional professional introduction",
+      "text": "I am Ben Walsh. My professional focus is sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:sofia:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Sofia Costa",
+      "subject": "Fictional professional introduction",
+      "text": "I am Sofia Costa. My professional focus is design.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:theo:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Theo Martin",
+      "subject": "Fictional professional introduction",
+      "text": "I am Theo Martin. My professional focus is investment.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:aisha:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Aisha Rahman",
+      "subject": "Fictional professional introduction",
+      "text": "I am Aisha Rahman. My professional focus is research.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:jack:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Jack Wilson",
+      "subject": "Fictional professional introduction",
+      "text": "I am Jack Wilson. My professional focus is operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:lily:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Lily James",
+      "subject": "Fictional professional introduction",
+      "text": "I am Lily James. My professional focus is accounting.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:daniel:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Daniel Kim",
+      "subject": "Fictional professional introduction",
+      "text": "I am Daniel Kim. My professional focus is engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:ruby:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ruby Thomas",
+      "subject": "Fictional professional introduction",
+      "text": "I am Ruby Thomas. My professional focus is design.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:ethan:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Ethan Scott",
+      "subject": "Fictional professional introduction",
+      "text": "I am Ethan Scott. My professional focus is legal.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:isla:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Isla Wright",
+      "subject": "Fictional professional introduction",
+      "text": "I am Isla Wright. My professional focus is sales.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:noah:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Noah Patel",
+      "subject": "Fictional professional introduction",
+      "text": "I am Noah Patel. My professional focus is engineering.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:chloe:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Chloe Evans",
+      "subject": "Fictional professional introduction",
+      "text": "I am Chloe Evans. My professional focus is operations.",
+      "synthetic": true
+    },
+    {
+      "id": "evidence:profile:max:function",
+      "channel": "outlook",
+      "at": "2026-01-15T09:00:00Z",
+      "from": "Max Turner",
+      "subject": "Fictional professional introduction",
+      "text": "I am Max Turner. My professional focus is investment.",
+      "synthetic": true
     }
   ],
   "messages": [
@@ -3303,6 +3537,346 @@
       "direct": true,
       "at": "2026-06-03T09:05:00+00:00",
       "text": "Fictional exchange with Max Turner about investment and shared work."
+    }
+  ],
+  "profile_assertions": [
+    {
+      "id": "profile:maya:function",
+      "person_id": "person:maya",
+      "kind": "function",
+      "label": "Accounting",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:maya:function"
+      ]
+    },
+    {
+      "id": "profile:maya:industry",
+      "person_id": "person:maya",
+      "kind": "industry",
+      "label": "Logistics",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:maya:industry"
+      ]
+    },
+    {
+      "id": "profile:priya:function",
+      "person_id": "person:priya",
+      "kind": "function",
+      "label": "Accounting",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:priya:function"
+      ]
+    },
+    {
+      "id": "profile:priya:industry",
+      "person_id": "person:priya",
+      "kind": "industry",
+      "label": "Logistics",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:priya:industry"
+      ]
+    },
+    {
+      "id": "profile:alex:function",
+      "person_id": "person:alex",
+      "kind": "function",
+      "label": "Operations",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:alex:function"
+      ]
+    },
+    {
+      "id": "profile:sam:function",
+      "person_id": "person:sam",
+      "kind": "function",
+      "label": "Research",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:sam:function"
+      ]
+    },
+    {
+      "id": "profile:nora:function",
+      "person_id": "person:nora",
+      "kind": "function",
+      "label": "Investment",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:nora:function"
+      ]
+    },
+    {
+      "id": "profile:leo:function",
+      "person_id": "person:leo",
+      "kind": "function",
+      "label": "Sales",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:leo:function"
+      ]
+    },
+    {
+      "id": "profile:alex2:function",
+      "person_id": "person:alex2",
+      "kind": "function",
+      "label": "Research",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:alex2:function"
+      ]
+    },
+    {
+      "id": "profile:oliver:function",
+      "person_id": "person:oliver",
+      "kind": "function",
+      "label": "Operations",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:oliver:function"
+      ]
+    },
+    {
+      "id": "profile:ella:function",
+      "person_id": "person:ella",
+      "kind": "function",
+      "label": "Legal",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:ella:function"
+      ]
+    },
+    {
+      "id": "profile:amir:function",
+      "person_id": "person:amir",
+      "kind": "function",
+      "label": "Engineering",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:amir:function"
+      ]
+    },
+    {
+      "id": "profile:grace:function",
+      "person_id": "person:grace",
+      "kind": "function",
+      "label": "Research",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:grace:function"
+      ]
+    },
+    {
+      "id": "profile:ben:function",
+      "person_id": "person:ben",
+      "kind": "function",
+      "label": "Sales",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:ben:function"
+      ]
+    },
+    {
+      "id": "profile:sofia:function",
+      "person_id": "person:sofia",
+      "kind": "function",
+      "label": "Design",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:sofia:function"
+      ]
+    },
+    {
+      "id": "profile:theo:function",
+      "person_id": "person:theo",
+      "kind": "function",
+      "label": "Investment",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:theo:function"
+      ]
+    },
+    {
+      "id": "profile:aisha:function",
+      "person_id": "person:aisha",
+      "kind": "function",
+      "label": "Research",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:aisha:function"
+      ]
+    },
+    {
+      "id": "profile:jack:function",
+      "person_id": "person:jack",
+      "kind": "function",
+      "label": "Operations",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:jack:function"
+      ]
+    },
+    {
+      "id": "profile:lily:function",
+      "person_id": "person:lily",
+      "kind": "function",
+      "label": "Accounting",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:lily:function"
+      ]
+    },
+    {
+      "id": "profile:daniel:function",
+      "person_id": "person:daniel",
+      "kind": "function",
+      "label": "Engineering",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:daniel:function"
+      ]
+    },
+    {
+      "id": "profile:ruby:function",
+      "person_id": "person:ruby",
+      "kind": "function",
+      "label": "Design",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:ruby:function"
+      ]
+    },
+    {
+      "id": "profile:ethan:function",
+      "person_id": "person:ethan",
+      "kind": "function",
+      "label": "Legal",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:ethan:function"
+      ]
+    },
+    {
+      "id": "profile:isla:function",
+      "person_id": "person:isla",
+      "kind": "function",
+      "label": "Sales",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:isla:function"
+      ]
+    },
+    {
+      "id": "profile:noah:function",
+      "person_id": "person:noah",
+      "kind": "function",
+      "label": "Engineering",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:noah:function"
+      ]
+    },
+    {
+      "id": "profile:chloe:function",
+      "person_id": "person:chloe",
+      "kind": "function",
+      "label": "Operations",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:chloe:function"
+      ]
+    },
+    {
+      "id": "profile:max:function",
+      "person_id": "person:max",
+      "kind": "function",
+      "label": "Investment",
+      "status": "confirmed",
+      "observed_at": "2026-01-15T09:00:00Z",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": null,
+      "evidence_ids": [
+        "evidence:profile:max:function"
+      ]
     }
   ]
 }

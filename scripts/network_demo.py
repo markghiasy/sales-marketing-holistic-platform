@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from adapters.network.model import GraphQuery, timestamp
 from adapters.network.scenario import ScenarioStore
+from adapters.network.search import contact_tags
 
 
 def create_app(*, testing=False):
@@ -60,6 +61,13 @@ def create_app(*, testing=False):
             else (jsonify(error="Evidence not available at this time."), 404)
         )
 
+    @app.get("/network/search.json")
+    def search():
+        text = request.args.get("q", "").strip()
+        if not text or len(text) > 600:
+            return jsonify(error="Enter a search between 1 and 600 characters."), 400
+        return jsonify(store.search(query(), text))
+
     @app.post("/network/demo/reply")
     def reply():
         return jsonify(version=store.reply())
@@ -83,7 +91,7 @@ def create_app(*, testing=False):
             headers={"Cache-Control": "no-cache"},
         )
 
-    def contact_row(node, data):
+    def contact_row(node, data, tags=None):
         messages = [m for m in data["messages"] if m["contact_id"] == node["id"]]
         return {
             "person_key": node["id"],
@@ -91,7 +99,10 @@ def create_app(*, testing=False):
             "channel": "outlook",
             "last_message_at": max((m["at"] for m in messages), default="2026-01-15T09:00:00Z"),
             "summary": node["role"],
-            "topic": node.get("functions", ["Contact"])[0],
+            "topic": "Harbour finance review"
+            if node["id"] in ("person:maya", "person:priya")
+            else "Industry discussion",
+            "tags": (tags if tags is not None else contact_tags(data, query())).get(node["id"], []),
             "urgency": 2 if node["id"] == "person:maya" else 1,
             "unread": False,
             "unanswered": False,
@@ -101,9 +112,10 @@ def create_app(*, testing=False):
     @app.get("/inbox/conversations.json")
     def conversations():
         data = store.data()
+        tags = contact_tags(data, query())
         return jsonify(
             [
-                contact_row(n, data)
+                contact_row(n, data, tags)
                 for n in data["nodes"]
                 if n["kind"] == "person" and n["id"] != data["owner_id"]
             ]
