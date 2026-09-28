@@ -49,6 +49,43 @@ def test_embedded_slice_round_trip(page):
     assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")
 
 
+@pytest.mark.parametrize("entry", ["explorer", "inbox"])
+def test_assistant_preserves_history_and_explains_retrieval_coverage(page, entry):
+    import json
+
+    requests = []
+
+    def answer(route):
+        requests.append(route.request.post_data_json)
+        route.fulfill(content_type="application/json", body=json.dumps({
+            "summary": "Validate the available evidence.", "findings": [], "gaps": [],
+            "next_steps": [], "clarification": "", "entities": [], "evidence": [],
+            "version": 1, "model": "synthetic-test", "usage": {"input_tokens": 20, "output_tokens": 10},
+            "trace": [], "retrieval": {"scope": {"scanned_people": 24},
+                "budget": {"selected_records": 4, "omitted_records": 2},
+                "coverage": [{"label": "Security testing", "status": "searched_no_match"},
+                             {"label": "Project work", "status": "budget_omitted"}]}
+        }))
+
+    page.route("**/network/agent.json", answer)
+    if entry == "explorer":
+        page.goto(page.base_url + "/network?mode=history&focus=person:alex")
+        page.locator("#ask-network").click()
+    else:
+        page.goto(page.base_url + "/inbox?mode=history")
+        page.locator("#searchbar").click()
+        page.locator(".discovery-agent").click()
+    page.locator("#agent-question").fill("Who could help?")
+    page.locator(".agent-send").click()
+    page.get_by_text("How this answer was grounded").click()
+    page.get_by_text("No match in searched records", exact=False).wait_for()
+    assert requests[0]["mode"] == "history"
+    assert "24 contacts searched" in page.locator(".agent-trace").inner_text()
+    assert "Matching records found but omitted" in page.locator(".agent-coverage").inner_text()
+    if entry == "explorer":
+        page.screenshot(path="docs/demos/network-retrieval-coverage.png", full_page=True)
+
+
 def test_compact_all_claims_and_selection_survive_round_trip(page):
     page.goto(page.base_url + "/inbox?focus=person:maya&claim=collab-maya")
     page.locator(".embed-status").filter(has_text="entities").wait_for()

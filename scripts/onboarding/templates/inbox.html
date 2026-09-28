@@ -447,6 +447,7 @@ let detailGeneration = 0;
 async function loadConversations() {
   const params = new URLSearchParams();
   if (state.hidden) params.set('hidden', '1');
+  if (NETWORK_DEMO) params.set('mode', new URLSearchParams(location.search).get('mode') || 'current');
   if (NETWORK_DEMO) params.set('as_of', new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z');
   const resp = await fetch(`/inbox/conversations.json${params.size ? '?' + params : ''}`);
   CONVERSATIONS = await resp.json();
@@ -625,7 +626,7 @@ function wireGraphNodes() {
 async function openDetail(personKey) {
   const ticket = ++detailGeneration;
   const detailDate = new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z';
-  const resp = await fetch(`/inbox/conversation/${personKey}.json${NETWORK_DEMO ? '?as_of=' + encodeURIComponent(detailDate) : ''}`);
+  const resp = await fetch(`/inbox/conversation/${personKey}.json${NETWORK_DEMO ? '?as_of=' + encodeURIComponent(detailDate) + '&mode=' + encodeURIComponent(new URLSearchParams(location.search).get('mode') || 'current') : ''}`);
   if (!resp.ok) return;
   const c = await resp.json();
   if (ticket !== detailGeneration) return;

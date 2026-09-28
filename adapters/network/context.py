@@ -8,8 +8,22 @@ from .search import contact_tags
 def entity_context(data, query: GraphQuery):
     nodes = {n["id"]: n for n in data["nodes"]}
     node = nodes[query.focus]
-    q = GraphQuery(as_of=query.as_of, focus=query.focus)
-    claims = eligible_claims(data, q)
+    q = query.model_copy(
+        update={
+            "view": "explorer",
+            "search": "",
+            "function": "",
+            "organization": "",
+            "project": "",
+            "expand": "",
+        }
+    )
+    evidence = {e["id"]: e for e in data["evidence"] if timestamp(e["at"]) <= q.as_of}
+    claims = [
+        c
+        for c in eligible_claims(data, q)
+        if c["evidence_ids"] and all(eid in evidence for eid in c["evidence_ids"])
+    ]
     related = [c for c in claims if query.focus in (c["source"], c["target"])]
     snapshot = build_snapshot(data, q, 0)
     people = {p["id"]: p for p in snapshot["ranked_contacts"]}
@@ -23,7 +37,9 @@ def entity_context(data, query: GraphQuery):
         and (r["project_id"] == query.focus or r["person_id"] == query.focus)
     ]
     evidence = {e["id"]: e for e in data["evidence"] if timestamp(e["at"]) <= q.as_of}
-    work = [r for r in work if all(eid in evidence for eid in r["evidence_ids"])]
+    work = [
+        r for r in work if r["evidence_ids"] and all(eid in evidence for eid in r["evidence_ids"])
+    ]
     members = [
         {
             **people[key],

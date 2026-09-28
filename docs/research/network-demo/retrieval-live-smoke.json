@@ -1,0 +1,2328 @@
+{
+  "data_source": "synthetic",
+  "model": "claude-haiku-4-5-20251001",
+  "prior_attempt": {
+    "data_source": "synthetic",
+    "model": "claude-haiku-4-5-20251001",
+    "results": [
+      {
+        "status": "failed",
+        "question": "I am starting Cybertest: authorized adversarial AI-agent security testing for vibe coding. Who could help, which capabilities are unverified, and where should I start?",
+        "error_type": "ValidationError"
+      }
+    ]
+  },
+  "results": [
+    {
+      "status": "executed",
+      "question": "I am starting Cybertest: authorized adversarial AI-agent security testing for vibe coding. Who could help, which capabilities are unverified, and where should I start?",
+      "elapsed_seconds": 36.17,
+      "answer": {
+        "summary": "No contacts demonstrate verified expertise in cybersecurity, adversarial testing, or AI safety—the three core specialties Cybertest requires. Engineering contacts (Amir, Daniel, Noah) can support test infrastructure. Sam has active research partnership work. Maya is an established collaborator. Cybersecurity and AI safety expertise are not documented in current records; recommend validating interests and asking engineering/research contacts for referrals to specialists in security testing and AI agent robustness.",
+        "findings": [
+          {
+            "text": "I am Amir Khan. My professional focus is engineering.\nI am Daniel Kim. My professional focus is engineering.\nI am Noah Patel. My professional focus is engineering.\nJordan and Amir Khan exchanged contact details for industry work.\nJordan and Daniel Kim exchanged contact details for industry work.\nJordan and Noah Patel exchanged contact details for industry work.",
+            "entity_ids": [
+              "person:amir",
+              "person:daniel",
+              "person:noah"
+            ],
+            "evidence_ids": [
+              "evidence:profile:amir:function",
+              "evidence:profile:daniel:function",
+              "evidence:profile:noah:function",
+              "evidence:contact-amir",
+              "evidence:contact-daniel",
+              "evidence:contact-noah"
+            ]
+          },
+          {
+            "text": "For Research bridge, I own Partnerships. Confirm university workshop participants. Status: open. Follow up by 2026-09-29.\nJordan and Sam Rivera exchanged contact details for industry work.\nJordan, please meet Priya. She has led finance work for logistics operators.",
+            "entity_ids": [
+              "person:priya",
+              "person:sam",
+              "project:bridge"
+            ],
+            "evidence_ids": [
+              "evidence:work:university",
+              "evidence:contact-sam",
+              "evidence:intro-sam"
+            ]
+          },
+          {
+            "text": "Maya and I co-designed the Harbour finance workshop.\nJordan, our advisory team would like to engage you for the project discovery work.\nFor Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered.\nJordan and Maya Chen exchanged contact details for industry work.",
+            "entity_ids": [
+              "person:maya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:collab-maya",
+              "evidence:client-maya",
+              "evidence:work:finance-pack",
+              "evidence:contact-maya"
+            ]
+          }
+        ],
+        "gaps": [
+          "No recorded expertise in cybersecurity, penetration testing, or adversarial testing among contacts.",
+          "No documented AI safety, AI agent security, or prompt injection expertise in current network.",
+          "Vibe coding or emerging alternative programming language knowledge is not established in any contact records."
+        ],
+        "next_steps": [
+          "Ask engineering contacts (Amir, Daniel, Noah) whether they know or can refer specialists in authorized adversarial testing or AI security testing frameworks.",
+          "Contact Sam Rivera to discuss research partnership capacity and inquire for referrals to AI safety or security-focused researchers at affiliated universities.",
+          "Validate with Maya Chen whether her logistics and project delivery background extends to security testing governance, compliance frameworks, or risk assessment—and request introductions to cybersecurity advisors if relevant to Cybertest scoping."
+        ],
+        "clarification": "",
+        "evidence": [
+          {
+            "id": "evidence:client-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional relationship record",
+            "text": "Jordan, our advisory team would like to engage you for the project discovery work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:collab-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Maya and I co-designed the Harbour finance workshop.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-amir",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Amir Khan exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-daniel",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Daniel Kim exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Maya Chen exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-noah",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Noah Patel exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-sam",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Sam Rivera exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:intro-sam",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Sam Rivera",
+            "subject": "Fictional relationship record",
+            "text": "Jordan, please meet Priya. She has led finance work for logistics operators.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:amir:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Amir Khan",
+            "subject": "Fictional professional introduction",
+            "text": "I am Amir Khan. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:daniel:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Daniel Kim",
+            "subject": "Fictional professional introduction",
+            "text": "I am Daniel Kim. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:noah:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Noah Patel",
+            "subject": "Fictional professional introduction",
+            "text": "I am Noah Patel. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:work:finance-pack",
+            "channel": "outlook",
+            "at": "2026-09-20T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered."
+          },
+          {
+            "id": "evidence:work:university",
+            "channel": "outlook",
+            "at": "2026-09-23T09:00:00Z",
+            "from": "Sam Rivera",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Research bridge, I own Partnerships. Confirm university workshop participants. Status: open. Follow up by 2026-09-29."
+          }
+        ],
+        "entities": [
+          {
+            "id": "person:owner",
+            "name": "Jordan Ellis",
+            "kind": "person",
+            "tags": [
+              "Harbour expansion",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:maya",
+            "name": "Maya Chen",
+            "kind": "person",
+            "tags": [
+              "Client",
+              "Collaborator",
+              "Accounting",
+              "Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:priya",
+            "name": "Priya Shah",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Logistics",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:alex",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:sam",
+            "name": "Sam Rivera",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:nora",
+            "name": "Nora Bennett",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:leo",
+            "name": "Leo Park",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:alex2",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:oliver",
+            "name": "Oliver Reed",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:ella",
+            "name": "Ella Brooks",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:amir",
+            "name": "Amir Khan",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:grace",
+            "name": "Grace Liu",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ben",
+            "name": "Ben Walsh",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:sofia",
+            "name": "Sofia Costa",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:theo",
+            "name": "Theo Martin",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:aisha",
+            "name": "Aisha Rahman",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:jack",
+            "name": "Jack Wilson",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:lily",
+            "name": "Lily James",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:daniel",
+            "name": "Daniel Kim",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ruby",
+            "name": "Ruby Thomas",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:ethan",
+            "name": "Ethan Scott",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:isla",
+            "name": "Isla Wright",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:noah",
+            "name": "Noah Patel",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:chloe",
+            "name": "Chloe Evans",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:max",
+            "name": "Max Turner",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "org:north",
+            "name": "Northline Advisory",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:atlas",
+            "name": "Atlas Logistics",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:uni",
+            "name": "Coastal University",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "project:harbour",
+            "name": "Harbour expansion",
+            "kind": "project",
+            "tags": []
+          },
+          {
+            "id": "project:bridge",
+            "name": "Research bridge",
+            "kind": "project",
+            "tags": []
+          }
+        ],
+        "model": "claude-haiku-4-5-20251001",
+        "backend": "anthropic",
+        "data_source": "synthetic",
+        "version": 1,
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "person:owner",
+        "mode": "current",
+        "retrieval": {
+          "coverage": [
+            {
+              "id": "sec_expert",
+              "label": "Cybersecurity or adversarial testing specialist",
+              "terms": [
+                "cybersecurity",
+                "security testing",
+                "adversarial",
+                "penetration testing",
+                "threat modeling"
+              ],
+              "priority": "require",
+              "status": "searched_no_match",
+              "evidence_ids": []
+            },
+            {
+              "id": "ai_safety",
+              "label": "AI safety or AI agent security expertise",
+              "terms": [
+                "AI safety",
+                "agent security",
+                "AI testing",
+                "prompt injection",
+                "model robustness"
+              ],
+              "priority": "require",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "vibe_tech",
+              "label": "Vibe coding or related emerging tech knowledge",
+              "terms": [
+                "vibe coding",
+                "neural coding",
+                "speculative coding",
+                "alternative programming"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "eng_ops",
+              "label": "Engineering or operations capability for test infrastructure",
+              "terms": [
+                "engineering",
+                "infrastructure",
+                "deployment",
+                "testing framework",
+                "systems design"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:profile:amir:function",
+                "evidence:profile:daniel:function",
+                "evidence:profile:noah:function"
+              ]
+            },
+            {
+              "id": "research_methodol",
+              "label": "Research methodology and experimental design",
+              "terms": [
+                "research",
+                "experimental design",
+                "methodology",
+                "research protocol",
+                "validation"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:university"
+              ]
+            },
+            {
+              "id": "collab_track",
+              "label": "Prior collaborative project experience",
+              "terms": [
+                "collaboration",
+                "project management",
+                "cross-functional",
+                "research bridge",
+                "Harbour expansion"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:cost-model",
+                "evidence:work:finance-pack",
+                "evidence:work:university"
+              ]
+            },
+            {
+              "id": "unverified_caps",
+              "label": "Contacts with unverified specialized capabilities",
+              "terms": [
+                "emerging",
+                "exploratory",
+                "prototype",
+                "experimental",
+                "proof of concept"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "stakeholder_align",
+              "label": "Investment, legal, or advisory stakeholders for project governance",
+              "terms": [
+                "investment",
+                "legal",
+                "advisory",
+                "governance",
+                "risk management"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:client-maya",
+                "evidence:job-alex-advisor",
+                "evidence:profile:ella:function",
+                "evidence:profile:ethan:function",
+                "evidence:profile:max:function",
+                "evidence:profile:nora:function",
+                "evidence:profile:theo:function"
+              ]
+            }
+          ],
+          "budget": {
+            "limit_bytes": 28000,
+            "bytes": 27684,
+            "candidate_records": 94,
+            "selected_records": 47,
+            "omitted_records": 47,
+            "omitted_paths": 0
+          },
+          "scope": {
+            "as_of": "2026-09-27T12:00:00+00:00",
+            "mode": "current",
+            "include_pending": false,
+            "scanned_people": 24,
+            "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+          }
+        },
+        "trace": [
+          {
+            "kind": "people",
+            "terms": [],
+            "entity_id": "person:owner",
+            "depth": 2
+          },
+          {
+            "kind": "context",
+            "terms": [],
+            "entity_id": "project:bridge",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "cybersecurity",
+              "security testing",
+              "adversarial",
+              "penetration testing",
+              "threat modeling",
+              "AI safety",
+              "agent security",
+              "AI testing"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2,
+            "supplemental": true
+          }
+        ],
+        "usage": {
+          "input_tokens": 15947,
+          "output_tokens": 1186
+        }
+      }
+    },
+    {
+      "status": "executed",
+      "question": "Who has delivered work on Harbour expansion, what is blocked, and what should I follow up next?",
+      "elapsed_seconds": 22.42,
+      "answer": {
+        "summary": "Maya has delivered a Finance review pack for Harbour expansion. Priya's cost modelling task (validate warehouse cost assumptions) is blocked as of 22 September, overdue since 25 September. Alex's operations task (confirm rollout owner and dates) remains open and due 30 September. Key follow-up: clarify cost modelling blocker with Priya, confirm Alex's rollout status before deadline.",
+        "findings": [
+          {
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered.",
+            "entity_ids": [
+              "person:maya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:finance-pack"
+            ]
+          },
+          {
+            "text": "For Harbour expansion, I own Cost modelling. Validate warehouse cost assumptions. Status: blocked. Follow up by 2026-09-25.",
+            "entity_ids": [
+              "person:priya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:cost-model"
+            ]
+          },
+          {
+            "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30.",
+            "entity_ids": [
+              "person:alex",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:operations"
+            ]
+          }
+        ],
+        "gaps": [
+          "Reason for Priya's cost modelling blocker not recorded",
+          "Alex's current organizational role not established in Harbour project context",
+          "Delivery status of work by other Harbour team members (Jack, Oliver) not recorded"
+        ],
+        "next_steps": [
+          "Contact Priya to understand the cost modelling blocker and support resolution before 30 September",
+          "Request status update from Alex on rollout owner confirmation and dates, due 30 September",
+          "Confirm work status and any blockers with Jack and Oliver to assess overall project progress"
+        ],
+        "clarification": "",
+        "evidence": [
+          {
+            "id": "evidence:work:cost-model",
+            "channel": "outlook",
+            "at": "2026-09-22T09:00:00Z",
+            "from": "Priya Shah",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Cost modelling. Validate warehouse cost assumptions. Status: blocked. Follow up by 2026-09-25."
+          },
+          {
+            "id": "evidence:work:finance-pack",
+            "channel": "outlook",
+            "at": "2026-09-20T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered."
+          },
+          {
+            "id": "evidence:work:operations",
+            "channel": "outlook",
+            "at": "2026-09-24T09:00:00Z",
+            "from": "Alex Morgan",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30."
+          }
+        ],
+        "entities": [
+          {
+            "id": "person:owner",
+            "name": "Jordan Ellis",
+            "kind": "person",
+            "tags": [
+              "Harbour expansion",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:maya",
+            "name": "Maya Chen",
+            "kind": "person",
+            "tags": [
+              "Client",
+              "Collaborator",
+              "Accounting",
+              "Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:priya",
+            "name": "Priya Shah",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Logistics",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:alex",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:sam",
+            "name": "Sam Rivera",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:nora",
+            "name": "Nora Bennett",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:leo",
+            "name": "Leo Park",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:alex2",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:oliver",
+            "name": "Oliver Reed",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:ella",
+            "name": "Ella Brooks",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:amir",
+            "name": "Amir Khan",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:grace",
+            "name": "Grace Liu",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ben",
+            "name": "Ben Walsh",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:sofia",
+            "name": "Sofia Costa",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:theo",
+            "name": "Theo Martin",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:aisha",
+            "name": "Aisha Rahman",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:jack",
+            "name": "Jack Wilson",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:lily",
+            "name": "Lily James",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:daniel",
+            "name": "Daniel Kim",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ruby",
+            "name": "Ruby Thomas",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:ethan",
+            "name": "Ethan Scott",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:isla",
+            "name": "Isla Wright",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:noah",
+            "name": "Noah Patel",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:chloe",
+            "name": "Chloe Evans",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:max",
+            "name": "Max Turner",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "org:north",
+            "name": "Northline Advisory",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:atlas",
+            "name": "Atlas Logistics",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:uni",
+            "name": "Coastal University",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "project:harbour",
+            "name": "Harbour expansion",
+            "kind": "project",
+            "tags": []
+          },
+          {
+            "id": "project:bridge",
+            "name": "Research bridge",
+            "kind": "project",
+            "tags": []
+          }
+        ],
+        "model": "claude-haiku-4-5-20251001",
+        "backend": "anthropic",
+        "data_source": "synthetic",
+        "version": 1,
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "project:harbour",
+        "mode": "current",
+        "retrieval": {
+          "coverage": [
+            {
+              "id": "req_deliverables",
+              "label": "Completed work on Harbour expansion",
+              "terms": [
+                "delivered",
+                "completed",
+                "finished",
+                "Harbour expansion"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "scope_entity_id": "project:harbour",
+              "evidence_ids": [
+                "evidence:harbour-alex",
+                "evidence:harbour-jack",
+                "evidence:harbour-maya",
+                "evidence:harbour-oliver",
+                "evidence:harbour-owner",
+                "evidence:harbour-priya",
+                "evidence:work:cost-model",
+                "evidence:work:finance-pack",
+                "evidence:work:operations"
+              ]
+            },
+            {
+              "id": "req_blockers",
+              "label": "Blocked or delayed tasks",
+              "terms": [
+                "blocked",
+                "delayed",
+                "stuck",
+                "issue",
+                "problem",
+                "blocker"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "scope_entity_id": "project:harbour",
+              "evidence_ids": [
+                "evidence:work:cost-model"
+              ]
+            },
+            {
+              "id": "req_team",
+              "label": "Team members assigned to Harbour expansion",
+              "terms": [
+                "Harbour expansion",
+                "assigned",
+                "team member",
+                "responsible"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "scope_entity_id": "project:harbour",
+              "evidence_ids": [
+                "evidence:harbour-alex",
+                "evidence:harbour-jack",
+                "evidence:harbour-maya",
+                "evidence:harbour-oliver",
+                "evidence:harbour-owner",
+                "evidence:harbour-priya",
+                "evidence:work:cost-model",
+                "evidence:work:finance-pack",
+                "evidence:work:operations"
+              ]
+            },
+            {
+              "id": "req_timeline",
+              "label": "Project timeline and milestones",
+              "terms": [
+                "timeline",
+                "milestone",
+                "deadline",
+                "schedule",
+                "phase"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "scope_entity_id": "project:harbour",
+              "evidence_ids": []
+            },
+            {
+              "id": "req_next_steps",
+              "label": "Next actions and follow-ups",
+              "terms": [
+                "next",
+                "follow up",
+                "todo",
+                "action item",
+                "pending"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "scope_entity_id": "project:harbour",
+              "evidence_ids": [
+                "evidence:work:cost-model",
+                "evidence:work:operations"
+              ]
+            }
+          ],
+          "budget": {
+            "limit_bytes": 28000,
+            "bytes": 25412,
+            "candidate_records": 40,
+            "selected_records": 40,
+            "omitted_records": 0,
+            "omitted_paths": 0
+          },
+          "scope": {
+            "as_of": "2026-09-27T12:00:00+00:00",
+            "focus": "project:harbour",
+            "mode": "current",
+            "include_pending": false,
+            "scanned_people": 24,
+            "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+          }
+        },
+        "trace": [
+          {
+            "kind": "context",
+            "terms": [],
+            "entity_id": "project:harbour",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "Harbour expansion",
+              "delivered",
+              "completed",
+              "work"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2
+          },
+          {
+            "kind": "neighborhood",
+            "terms": [],
+            "entity_id": "project:harbour",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "finished",
+              "blocked",
+              "delayed",
+              "stuck",
+              "issue",
+              "problem",
+              "blocker",
+              "assigned"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2,
+            "supplemental": true
+          }
+        ],
+        "usage": {
+          "input_tokens": 14838,
+          "output_tokens": 843
+        }
+      }
+    }
+  ],
+  "pre_scope_fix_results": [
+    {
+      "status": "executed",
+      "question": "I am starting Cybertest: authorized adversarial AI-agent security testing for vibe coding. Who could help, which capabilities are unverified, and where should I start?",
+      "elapsed_seconds": 36.17,
+      "answer": {
+        "summary": "No contacts demonstrate verified expertise in cybersecurity, adversarial testing, or AI safety—the three core specialties Cybertest requires. Engineering contacts (Amir, Daniel, Noah) can support test infrastructure. Sam has active research partnership work. Maya is an established collaborator. Cybersecurity and AI safety expertise are not documented in current records; recommend validating interests and asking engineering/research contacts for referrals to specialists in security testing and AI agent robustness.",
+        "findings": [
+          {
+            "text": "I am Amir Khan. My professional focus is engineering.\nI am Daniel Kim. My professional focus is engineering.\nI am Noah Patel. My professional focus is engineering.\nJordan and Amir Khan exchanged contact details for industry work.\nJordan and Daniel Kim exchanged contact details for industry work.\nJordan and Noah Patel exchanged contact details for industry work.",
+            "entity_ids": [
+              "person:amir",
+              "person:daniel",
+              "person:noah"
+            ],
+            "evidence_ids": [
+              "evidence:profile:amir:function",
+              "evidence:profile:daniel:function",
+              "evidence:profile:noah:function",
+              "evidence:contact-amir",
+              "evidence:contact-daniel",
+              "evidence:contact-noah"
+            ]
+          },
+          {
+            "text": "For Research bridge, I own Partnerships. Confirm university workshop participants. Status: open. Follow up by 2026-09-29.\nJordan and Sam Rivera exchanged contact details for industry work.\nJordan, please meet Priya. She has led finance work for logistics operators.",
+            "entity_ids": [
+              "person:priya",
+              "person:sam",
+              "project:bridge"
+            ],
+            "evidence_ids": [
+              "evidence:work:university",
+              "evidence:contact-sam",
+              "evidence:intro-sam"
+            ]
+          },
+          {
+            "text": "Maya and I co-designed the Harbour finance workshop.\nJordan, our advisory team would like to engage you for the project discovery work.\nFor Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered.\nJordan and Maya Chen exchanged contact details for industry work.",
+            "entity_ids": [
+              "person:maya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:collab-maya",
+              "evidence:client-maya",
+              "evidence:work:finance-pack",
+              "evidence:contact-maya"
+            ]
+          }
+        ],
+        "gaps": [
+          "No recorded expertise in cybersecurity, penetration testing, or adversarial testing among contacts.",
+          "No documented AI safety, AI agent security, or prompt injection expertise in current network.",
+          "Vibe coding or emerging alternative programming language knowledge is not established in any contact records."
+        ],
+        "next_steps": [
+          "Ask engineering contacts (Amir, Daniel, Noah) whether they know or can refer specialists in authorized adversarial testing or AI security testing frameworks.",
+          "Contact Sam Rivera to discuss research partnership capacity and inquire for referrals to AI safety or security-focused researchers at affiliated universities.",
+          "Validate with Maya Chen whether her logistics and project delivery background extends to security testing governance, compliance frameworks, or risk assessment—and request introductions to cybersecurity advisors if relevant to Cybertest scoping."
+        ],
+        "clarification": "",
+        "evidence": [
+          {
+            "id": "evidence:client-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional relationship record",
+            "text": "Jordan, our advisory team would like to engage you for the project discovery work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:collab-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Maya and I co-designed the Harbour finance workshop.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-amir",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Amir Khan exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-daniel",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Daniel Kim exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-maya",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Maya Chen exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-noah",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Noah Patel exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:contact-sam",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Jordan Ellis",
+            "subject": "Fictional relationship record",
+            "text": "Jordan and Sam Rivera exchanged contact details for industry work.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:intro-sam",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Sam Rivera",
+            "subject": "Fictional relationship record",
+            "text": "Jordan, please meet Priya. She has led finance work for logistics operators.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:amir:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Amir Khan",
+            "subject": "Fictional professional introduction",
+            "text": "I am Amir Khan. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:daniel:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Daniel Kim",
+            "subject": "Fictional professional introduction",
+            "text": "I am Daniel Kim. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:profile:noah:function",
+            "channel": "outlook",
+            "at": "2026-01-15T09:00:00Z",
+            "from": "Noah Patel",
+            "subject": "Fictional professional introduction",
+            "text": "I am Noah Patel. My professional focus is engineering.",
+            "synthetic": true
+          },
+          {
+            "id": "evidence:work:finance-pack",
+            "channel": "outlook",
+            "at": "2026-09-20T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered."
+          },
+          {
+            "id": "evidence:work:university",
+            "channel": "outlook",
+            "at": "2026-09-23T09:00:00Z",
+            "from": "Sam Rivera",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Research bridge, I own Partnerships. Confirm university workshop participants. Status: open. Follow up by 2026-09-29."
+          }
+        ],
+        "entities": [
+          {
+            "id": "person:owner",
+            "name": "Jordan Ellis",
+            "kind": "person",
+            "tags": [
+              "Harbour expansion",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:maya",
+            "name": "Maya Chen",
+            "kind": "person",
+            "tags": [
+              "Client",
+              "Collaborator",
+              "Accounting",
+              "Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:priya",
+            "name": "Priya Shah",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Logistics",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:alex",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:sam",
+            "name": "Sam Rivera",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:nora",
+            "name": "Nora Bennett",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:leo",
+            "name": "Leo Park",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:alex2",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:oliver",
+            "name": "Oliver Reed",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:ella",
+            "name": "Ella Brooks",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:amir",
+            "name": "Amir Khan",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:grace",
+            "name": "Grace Liu",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ben",
+            "name": "Ben Walsh",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:sofia",
+            "name": "Sofia Costa",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:theo",
+            "name": "Theo Martin",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:aisha",
+            "name": "Aisha Rahman",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:jack",
+            "name": "Jack Wilson",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:lily",
+            "name": "Lily James",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:daniel",
+            "name": "Daniel Kim",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ruby",
+            "name": "Ruby Thomas",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:ethan",
+            "name": "Ethan Scott",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:isla",
+            "name": "Isla Wright",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:noah",
+            "name": "Noah Patel",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:chloe",
+            "name": "Chloe Evans",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:max",
+            "name": "Max Turner",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "org:north",
+            "name": "Northline Advisory",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:atlas",
+            "name": "Atlas Logistics",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:uni",
+            "name": "Coastal University",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "project:harbour",
+            "name": "Harbour expansion",
+            "kind": "project",
+            "tags": []
+          },
+          {
+            "id": "project:bridge",
+            "name": "Research bridge",
+            "kind": "project",
+            "tags": []
+          }
+        ],
+        "model": "claude-haiku-4-5-20251001",
+        "backend": "anthropic",
+        "data_source": "synthetic",
+        "version": 1,
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "person:owner",
+        "mode": "current",
+        "retrieval": {
+          "coverage": [
+            {
+              "id": "sec_expert",
+              "label": "Cybersecurity or adversarial testing specialist",
+              "terms": [
+                "cybersecurity",
+                "security testing",
+                "adversarial",
+                "penetration testing",
+                "threat modeling"
+              ],
+              "priority": "require",
+              "status": "searched_no_match",
+              "evidence_ids": []
+            },
+            {
+              "id": "ai_safety",
+              "label": "AI safety or AI agent security expertise",
+              "terms": [
+                "AI safety",
+                "agent security",
+                "AI testing",
+                "prompt injection",
+                "model robustness"
+              ],
+              "priority": "require",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "vibe_tech",
+              "label": "Vibe coding or related emerging tech knowledge",
+              "terms": [
+                "vibe coding",
+                "neural coding",
+                "speculative coding",
+                "alternative programming"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "eng_ops",
+              "label": "Engineering or operations capability for test infrastructure",
+              "terms": [
+                "engineering",
+                "infrastructure",
+                "deployment",
+                "testing framework",
+                "systems design"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:profile:amir:function",
+                "evidence:profile:daniel:function",
+                "evidence:profile:noah:function"
+              ]
+            },
+            {
+              "id": "research_methodol",
+              "label": "Research methodology and experimental design",
+              "terms": [
+                "research",
+                "experimental design",
+                "methodology",
+                "research protocol",
+                "validation"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:university"
+              ]
+            },
+            {
+              "id": "collab_track",
+              "label": "Prior collaborative project experience",
+              "terms": [
+                "collaboration",
+                "project management",
+                "cross-functional",
+                "research bridge",
+                "Harbour expansion"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:cost-model",
+                "evidence:work:finance-pack",
+                "evidence:work:university"
+              ]
+            },
+            {
+              "id": "unverified_caps",
+              "label": "Contacts with unverified specialized capabilities",
+              "terms": [
+                "emerging",
+                "exploratory",
+                "prototype",
+                "experimental",
+                "proof of concept"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "stakeholder_align",
+              "label": "Investment, legal, or advisory stakeholders for project governance",
+              "terms": [
+                "investment",
+                "legal",
+                "advisory",
+                "governance",
+                "risk management"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:client-maya",
+                "evidence:job-alex-advisor",
+                "evidence:profile:ella:function",
+                "evidence:profile:ethan:function",
+                "evidence:profile:max:function",
+                "evidence:profile:nora:function",
+                "evidence:profile:theo:function"
+              ]
+            }
+          ],
+          "budget": {
+            "limit_bytes": 28000,
+            "bytes": 27684,
+            "candidate_records": 94,
+            "selected_records": 47,
+            "omitted_records": 47,
+            "omitted_paths": 0
+          },
+          "scope": {
+            "as_of": "2026-09-27T12:00:00+00:00",
+            "mode": "current",
+            "include_pending": false,
+            "scanned_people": 24,
+            "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+          }
+        },
+        "trace": [
+          {
+            "kind": "people",
+            "terms": [],
+            "entity_id": "person:owner",
+            "depth": 2
+          },
+          {
+            "kind": "context",
+            "terms": [],
+            "entity_id": "project:bridge",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "cybersecurity",
+              "security testing",
+              "adversarial",
+              "penetration testing",
+              "threat modeling",
+              "AI safety",
+              "agent security",
+              "AI testing"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2,
+            "supplemental": true
+          }
+        ],
+        "usage": {
+          "input_tokens": 15947,
+          "output_tokens": 1186
+        }
+      }
+    },
+    {
+      "status": "executed",
+      "question": "Who has delivered work on Harbour expansion, what is blocked, and what should I follow up next?",
+      "elapsed_seconds": 20.76,
+      "answer": {
+        "summary": "Maya Chen delivered the finance review pack for Harbour expansion (2026-09-20). Priya Shah's cost modelling work is blocked as of 2026-09-22, with a due date of 2026-09-25. Alex Morgan's operations task remains open (due 2026-09-30). Follow up with Priya on cost model blockers and Alex on rollout confirmation to maintain project timeline.",
+        "findings": [
+          {
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered.",
+            "entity_ids": [
+              "person:maya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:finance-pack"
+            ]
+          },
+          {
+            "text": "For Harbour expansion, I own Cost modelling. Validate warehouse cost assumptions. Status: blocked. Follow up by 2026-09-25.",
+            "entity_ids": [
+              "person:priya",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:cost-model"
+            ]
+          },
+          {
+            "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30.",
+            "entity_ids": [
+              "person:alex",
+              "project:harbour"
+            ],
+            "evidence_ids": [
+              "evidence:work:operations"
+            ]
+          }
+        ],
+        "gaps": [
+          "What specifically is blocking Priya Shah's cost modelling task and what information or approvals are needed",
+          "Dependencies or external constraints preventing progress on the blockers",
+          "Whether Jack Oliver or Jordan Ellis (project members) have assigned or completed work on Harbour expansion"
+        ],
+        "next_steps": [
+          "Contact Priya Shah to identify and resolve the cost modelling blocker before the overdue 2026-09-25 date",
+          "Confirm status with Alex Morgan on Operations rollout owner and dates (due 2026-09-30)",
+          "Validate whether the finance pack delivery from Maya Chen unblocks any dependent work"
+        ],
+        "clarification": "",
+        "evidence": [
+          {
+            "id": "evidence:work:cost-model",
+            "channel": "outlook",
+            "at": "2026-09-22T09:00:00Z",
+            "from": "Priya Shah",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Cost modelling. Validate warehouse cost assumptions. Status: blocked. Follow up by 2026-09-25."
+          },
+          {
+            "id": "evidence:work:finance-pack",
+            "channel": "outlook",
+            "at": "2026-09-20T09:00:00Z",
+            "from": "Maya Chen",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered."
+          },
+          {
+            "id": "evidence:work:operations",
+            "channel": "outlook",
+            "at": "2026-09-24T09:00:00Z",
+            "from": "Alex Morgan",
+            "subject": "Fictional project work update",
+            "synthetic": true,
+            "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30."
+          }
+        ],
+        "entities": [
+          {
+            "id": "person:owner",
+            "name": "Jordan Ellis",
+            "kind": "person",
+            "tags": [
+              "Harbour expansion",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:maya",
+            "name": "Maya Chen",
+            "kind": "person",
+            "tags": [
+              "Client",
+              "Collaborator",
+              "Accounting",
+              "Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:priya",
+            "name": "Priya Shah",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Logistics",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:alex",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Northline Advisory",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:sam",
+            "name": "Sam Rivera",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:nora",
+            "name": "Nora Bennett",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:leo",
+            "name": "Leo Park",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:alex2",
+            "name": "Alex Morgan",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:oliver",
+            "name": "Oliver Reed",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:ella",
+            "name": "Ella Brooks",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:amir",
+            "name": "Amir Khan",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:grace",
+            "name": "Grace Liu",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ben",
+            "name": "Ben Walsh",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:sofia",
+            "name": "Sofia Costa",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:theo",
+            "name": "Theo Martin",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:aisha",
+            "name": "Aisha Rahman",
+            "kind": "person",
+            "tags": [
+              "Research",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:jack",
+            "name": "Jack Wilson",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Atlas Logistics",
+              "Harbour expansion"
+            ]
+          },
+          {
+            "id": "person:lily",
+            "name": "Lily James",
+            "kind": "person",
+            "tags": [
+              "Accounting",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:daniel",
+            "name": "Daniel Kim",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:ruby",
+            "name": "Ruby Thomas",
+            "kind": "person",
+            "tags": [
+              "Design",
+              "Coastal University"
+            ]
+          },
+          {
+            "id": "person:ethan",
+            "name": "Ethan Scott",
+            "kind": "person",
+            "tags": [
+              "Legal",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "person:isla",
+            "name": "Isla Wright",
+            "kind": "person",
+            "tags": [
+              "Sales",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:noah",
+            "name": "Noah Patel",
+            "kind": "person",
+            "tags": [
+              "Engineering",
+              "Atlas Logistics"
+            ]
+          },
+          {
+            "id": "person:chloe",
+            "name": "Chloe Evans",
+            "kind": "person",
+            "tags": [
+              "Operations",
+              "Coastal University",
+              "Research bridge"
+            ]
+          },
+          {
+            "id": "person:max",
+            "name": "Max Turner",
+            "kind": "person",
+            "tags": [
+              "Investment",
+              "Northline Advisory"
+            ]
+          },
+          {
+            "id": "org:north",
+            "name": "Northline Advisory",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:atlas",
+            "name": "Atlas Logistics",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "org:uni",
+            "name": "Coastal University",
+            "kind": "organization",
+            "tags": []
+          },
+          {
+            "id": "project:harbour",
+            "name": "Harbour expansion",
+            "kind": "project",
+            "tags": []
+          },
+          {
+            "id": "project:bridge",
+            "name": "Research bridge",
+            "kind": "project",
+            "tags": []
+          }
+        ],
+        "model": "claude-haiku-4-5-20251001",
+        "backend": "anthropic",
+        "data_source": "synthetic",
+        "version": 1,
+        "as_of": "2026-09-27T12:00:00+00:00",
+        "focus": "project:harbour",
+        "mode": "current",
+        "retrieval": {
+          "coverage": [
+            {
+              "id": "delivered_work",
+              "label": "Who has delivered completed work on Harbour expansion",
+              "terms": [
+                "delivered",
+                "completed",
+                "finished",
+                "done"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:finance-pack",
+                "evidence:work:research-brief"
+              ]
+            },
+            {
+              "id": "blockers",
+              "label": "What work is currently blocked on the Harbour expansion",
+              "terms": [
+                "blocked",
+                "blocked on",
+                "waiting for",
+                "stalled"
+              ],
+              "priority": "require",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:cost-model"
+              ]
+            },
+            {
+              "id": "dependencies",
+              "label": "Dependencies and external constraints blocking progress",
+              "terms": [
+                "depends on",
+                "waiting for approval",
+                "pending",
+                "contingent"
+              ],
+              "priority": "prefer",
+              "status": "searched_no_match",
+              "evidence_ids": []
+            },
+            {
+              "id": "critical_path",
+              "label": "Critical path items that enable next steps",
+              "terms": [
+                "critical",
+                "next",
+                "priority",
+                "must have"
+              ],
+              "priority": "prefer",
+              "status": "not_searched",
+              "evidence_ids": []
+            },
+            {
+              "id": "stakeholders",
+              "label": "Key stakeholders involved in Harbour expansion",
+              "terms": [
+                "owner",
+                "responsible",
+                "accountable",
+                "lead"
+              ],
+              "priority": "prefer",
+              "status": "matching_evidence",
+              "evidence_ids": [
+                "evidence:work:operations"
+              ]
+            }
+          ],
+          "budget": {
+            "limit_bytes": 28000,
+            "bytes": 6163,
+            "candidate_records": 10,
+            "selected_records": 10,
+            "omitted_records": 0,
+            "omitted_paths": 0
+          },
+          "scope": {
+            "as_of": "2026-09-27T12:00:00+00:00",
+            "mode": "current",
+            "include_pending": false,
+            "scanned_people": 24,
+            "note": "Coverage means matching text was retrieved, not verified expertise. No external search; observed synthetic records only."
+          }
+        },
+        "trace": [
+          {
+            "kind": "context",
+            "terms": [],
+            "entity_id": "project:harbour",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "Harbour expansion",
+              "delivered",
+              "completed"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "Harbour expansion",
+              "blocked",
+              "blocked on",
+              "waiting"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2
+          },
+          {
+            "kind": "people",
+            "terms": [
+              "finished",
+              "done",
+              "waiting for",
+              "stalled",
+              "depends on",
+              "waiting for approval",
+              "pending",
+              "contingent"
+            ],
+            "entity_id": "person:owner",
+            "depth": 2,
+            "supplemental": true
+          }
+        ],
+        "usage": {
+          "input_tokens": 6867,
+          "output_tokens": 816
+        }
+      }
+    }
+  ],
+  "scope_regression_passed": true
+}

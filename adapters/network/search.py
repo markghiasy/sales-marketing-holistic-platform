@@ -17,8 +17,8 @@ def contact_tags(data, query):
     evidence = {e["id"]: e for e in data["evidence"] if timestamp(e["at"]) <= query.as_of}
 
     def add(person, kind, label, assertion, relation=""):
-        refs = [eid for eid in assertion["evidence_ids"] if eid in evidence]
-        if person not in tags or not refs:
+        refs = assertion["evidence_ids"]
+        if person not in tags or not refs or not all(eid in evidence for eid in refs):
             return
         tags[person].append(
             {
@@ -35,7 +35,7 @@ def contact_tags(data, query):
         )
 
     # Search and badges always use confirmed assertions, with the same time policy as the graph.
-    q = query.model_copy(update={"include_pending": False, "mode": "current"})
+    q = query.model_copy(update={"include_pending": False})
     for claim in eligible_claims(data, q):
         source, target = claim["source"], claim["target"]
         if nodes[target]["kind"] in ("organization", "project"):
@@ -163,13 +163,14 @@ def search_contacts(data, query, text, version):
         "results": [],
         "version": version,
         "as_of": query.as_of.isoformat(),
+        "mode": query.mode,
         "backend": "synthetic",
         "interpretation": "bounded_language",
     }
     if unresolved:
         return result
     tags = contact_tags(data, query)
-    snapshot = build_snapshot(data, GraphQuery(as_of=query.as_of), version)
+    snapshot = build_snapshot(data, GraphQuery(as_of=query.as_of, mode=query.mode), version)
     for person in snapshot["ranked_contacts"]:
         reasons, missing, preference_matches = [], [], 0
         for criterion in criteria:
@@ -203,7 +204,12 @@ def search_contacts(data, query, text, version):
             )
         if any(c["mode"] == "require" for c in missing):
             continue
-        params = {"focus": person["id"], "origin": person["id"], "as_of": query.as_of.isoformat()}
+        params = {
+            "focus": person["id"],
+            "origin": person["id"],
+            "as_of": query.as_of.isoformat(),
+            "mode": query.mode,
+        }
         result["results"].append(
             {
                 "id": person["id"],

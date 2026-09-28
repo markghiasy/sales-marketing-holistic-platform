@@ -19,7 +19,7 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
   </section>`;
   const input = container.querySelector('input');
   const output = container.querySelector('.discovery-output');
-  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||'person:owner',as_of:p.get('as_of')||'2026-09-27T12:00:00Z'});};
+  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||'person:owner',as_of:p.get('as_of')||'2026-09-27T12:00:00Z',mode:p.get('mode')||'current'});};
   container.querySelector('.discovery-close').onclick = onClose;
   container.querySelector('form').onsubmit = event => { event.preventDefault(); search(); };
   container.querySelectorAll('[data-example]').forEach(button => button.onclick = () => {
@@ -46,7 +46,7 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
     output.innerHTML = '<p role="status">Finding supported matches…</p>';
     try {
       const asOf = new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z';
-      const response = await fetch(queryUrl('/network/search.json', {q: text, as_of: asOf}), {signal: controller.signal});
+      const response = await fetch(queryUrl('/network/search.json', {q: text, as_of: asOf, mode: new URLSearchParams(location.search).get('mode') || 'current'}), {signal: controller.signal});
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Search unavailable. Please retry.');
       if (closed || ticket !== generation) return;
@@ -82,7 +82,7 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
         body.textContent = 'Loading source messages…';
         try {
           const ids = [...new Set(person.reasons.flatMap(r => r.evidence_ids))];
-          await showEvidence(body, {evidence_ids: ids}, {as_of: data.as_of});
+          await showEvidence(body, {evidence_ids: ids}, {as_of: data.as_of, mode: data.mode});
           loaded = true;
         } catch (error) { if (body.isConnected) body.textContent = error.message; }
       };
