@@ -56,3 +56,17 @@ Validation: five existing browser acceptance tests passed in 19.09 seconds after
 At Eva's request the explorer, embedded graph, search dialog, evidence surfaces and navigation now use a light palette aligned with Inbox: white canvas, soft grey panels, muted violet interaction states, gold organizations and green projects. Canvas node and edge colors read the shared CSS variables so the full graph and embedded slice stay consistent. Force layout, selection, filtering, discovery and evidence behavior are unchanged.
 
 Eight browser acceptance tests passed in 29.88 seconds. Visual checks covered overview, selection with evidence, Inbox slice, search results, and 390-pixel graph/search layouts. There were no JavaScript errors or graph-library warnings and no horizontal overflow in the narrow layouts. A residual dark dropdown and low-contrast metadata text found during screenshot review were corrected. Demo screenshots and the paper figures were refreshed.
+# 28 September: expansion, entity views and Claude assistant
+
+- 349 automated tests passed; new cases cover searched-person expansion, separate
+  depth/activity bounds, temporal project work, citation-to-entity integrity,
+  Chinese multi-turn request size, bounded API budget and assistant UI follow-ups.
+- Independent review found two defects (unrelated entity links and Unicode body
+  size), both fixed. An existing early-click return-navigation race was also fixed
+  by rendering the origin link on the server before graph initialization.
+- Real Haiku 4.5 API smoke test: two calls, 7,037 input / 1,015 output tokens in
+  the final successful run. Early runs exposed unsupported references/inferences.
+  Automated tests use fake providers; screenshot capture replays saved live output.
+- Current demo source remains fictional. Strategy recommendations are advisory,
+  graph facts/links are backed by retrieved records, and project deliveries are
+  explicitly recorded updates, not inferred productivity.

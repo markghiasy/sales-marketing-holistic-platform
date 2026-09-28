@@ -23,6 +23,10 @@ class ScenarioStore:
         with self._condition:
             return deepcopy(self._data)
 
+    def capture(self):
+        with self._condition:
+            return deepcopy(self._data), self.version
+
     def snapshot(self, query):
         with self._condition:
             return build_snapshot(self._data, query, self.version)

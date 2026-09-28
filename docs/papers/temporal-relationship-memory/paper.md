@@ -150,6 +150,26 @@ The initial integration remains opt-in for the fixture-backed server. The existi
 10. ICDE 2026. *Accepted Demo Papers*: TAPE: A Temporal Graph-based Memory System for Personal LLM Agents. [Conference listing](https://icde2026.github.io/demo-papers.html). Full implementation not verified in this work.
 11. Cytoscape.js. *Graph theory library for visualization and analysis*. Official API documentation; version 3.34.3 bundled in the prototype. [Documentation](https://js.cytoscape.org/).
 
+<div class="page-break"></div>
+
+## Prototype extension: contextual views and bounded language assistance
+
+The September 28 extension separates graph distance (one to three hops) from
+observed activity and expands against eligible relationships beyond the initial
+name filter. Shared organization/project paths remain contextual associations,
+not asserted acquaintances. Person, organization and project views reuse the
+same evidence snapshot; project roles, recorded deliveries and follow-ups use
+explicit fictional work updates rather than treating message frequency as output.
+
+An optional Claude Haiku 4.5 assistant performs a retrieval-planning call, executes
+bounded local read-only queries and makes a synthesis call. Cited source IDs are
+checked against the retrieved pack. Displayed factual excerpts and entity links
+are derived from the cited records; generated strategy advice is presented
+separately. Early live probes produced unsupported references and overconfident
+capability inferences, motivating these interface boundaries. Mechanical citation
+validity does not establish semantic support or recommendation quality. These
+probes are feasibility checks, not additions to the seven-case retrieval evaluation.
+
 ## Reproducibility and status
 
 Run `python -m scripts.network_demo --port 5055` from the implementation checkout. The evaluation is reproduced with `python -m scripts.evaluate_network_demo`. Source fixtures, expected cases, results and the presentation script accompany the paper. The PDF is generated from this editable Markdown source by `python -m scripts.build_network_paper` using Pandoc and headless Microsoft Edge. Network illustrations are screenshots of the executable synthetic prototype.

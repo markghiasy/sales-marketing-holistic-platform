@@ -96,22 +96,34 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         if node["kind"] != "person" or node["id"] == data["owner_id"]:
             continue
         related = [c for c in claims if c["source"] == node["id"] or c["target"] == node["id"]]
-        if query.search.casefold() not in (node["name"] + " " + node.get("role", "")).casefold():
-            continue
-        if query.function and query.function not in node.get("functions", []):
-            continue
-        if query.project and not any(
-            c["target"] == query.project
-            and c["source"] == node["id"]
-            and c["status"] == "confirmed"
-            for c in related
+        if (
+            not query.expand
+            and query.search.casefold()
+            not in (node["name"] + " " + node.get("role", "")).casefold()
         ):
             continue
-        if query.organization and not any(
-            c["target"] == query.organization
-            and c["source"] == node["id"]
-            and c["status"] == "confirmed"
-            for c in related
+        if not query.expand and query.function and query.function not in node.get("functions", []):
+            continue
+        if (
+            not query.expand
+            and query.project
+            and not any(
+                c["target"] == query.project
+                and c["source"] == node["id"]
+                and c["status"] == "confirmed"
+                for c in related
+            )
+        ):
+            continue
+        if (
+            not query.expand
+            and query.organization
+            and not any(
+                c["target"] == query.organization
+                and c["source"] == node["id"]
+                and c["status"] == "confirmed"
+                for c in related
+            )
         ):
             continue
         messages = [m for m in data["messages"] if m["contact_id"] == node["id"]]
@@ -131,9 +143,9 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
             "label": "Observed two-way exchange" if reciprocal else "No observed two-way exchange",
         }
         reasons = []
-        if query.project:
+        if query.project and not query.expand:
             reasons.append("Confirmed member of " + nodes[query.project]["name"])
-        if query.function:
+        if query.function and not query.expand:
             reasons.append("Function: " + query.function)
         reasons.append(
             "Recent direct activity"
@@ -152,7 +164,9 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         )
     metric = "current_activity" if query.mode == "current" else "history_activity"
     scored.sort(key=lambda n: (-n[metric], n["id"]))
-    filtered = bool(query.search or query.function or query.organization or query.project)
+    filtered = not query.expand and bool(
+        query.search or query.function or query.organization or query.project
+    )
     anchors = {n["id"] for n in scored} if filtered else set(nodes)
     anchors.add(query.focus)
     if filtered:
@@ -163,17 +177,29 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         )
         anchors.add(data["owner_id"])
     pool = [c for c in claims if c["source"] in anchors and c["target"] in anchors]
+    distances = {query.focus: 0}
     if query.view == "compact" or query.expand:
         reached = {query.focus}
-        for _ in range(2 if query.expand else 1):
-            reached |= {
+        allowed = set(anchors)
+        if query.expand:
+            allowed -= {
+                p["id"] for p in scored if p[metric] < query.min_activity and p["id"] != query.focus
+            }
+            pool = [c for c in pool if c["source"] in allowed and c["target"] in allowed]
+        for hop in range(1, (1 if query.view == "compact" else query.depth) + 1):
+            frontier = reached - ({data["owner_id"]} if query.focus != data["owner_id"] else set())
+            neighbors = {
                 endpoint
                 for c in pool
-                if c["source"] in reached or c["target"] in reached
+                if c["source"] in frontier or c["target"] in frontier
                 for endpoint in (c["source"], c["target"])
             }
+            distances.update({n: hop for n in neighbors - reached})
+            reached |= neighbors
         anchors &= reached
         pool = [c for c in pool if c["source"] in anchors and c["target"] in anchors]
+        if query.expand:
+            scored = [p for p in scored if p["id"] in anchors]
     node_limit, edge_limit = (8, 12) if query.view == "compact" else (50, 100)
     priority = [query.focus, data["owner_id"]] + [n["id"] for n in scored] + sorted(anchors)
     ordered = list(dict.fromkeys(n for n in priority if n in anchors))
@@ -195,6 +221,13 @@ def build_snapshot(data: ScenarioData, query: GraphQuery, version: int) -> Graph
         "ranked_contacts": scored,
         "omitted_counts": omitted,
         "truncated": any(omitted.values()),
+        "expansion": {
+            "depth": query.depth,
+            "distances": distances,
+            "min_activity": query.min_activity,
+        }
+        if query.expand
+        else None,
         "options": {
             "functions": sorted({f for n in nodes.values() for f in n.get("functions", [])}),
             "organizations": [n for n in nodes.values() if n["kind"] == "organization"],

@@ -2158,6 +2158,51 @@
       "subject": "Fictional professional introduction",
       "text": "I am Max Turner. My professional focus is investment.",
       "synthetic": true
+    },
+    {
+      "id": "evidence:work:finance-pack",
+      "channel": "outlook",
+      "at": "2026-09-20T09:00:00Z",
+      "from": "Maya Chen",
+      "subject": "Fictional project work update",
+      "synthetic": true,
+      "text": "For Harbour expansion, I own Finance. Finance review pack delivered. Status: delivered."
+    },
+    {
+      "id": "evidence:work:cost-model",
+      "channel": "outlook",
+      "at": "2026-09-22T09:00:00Z",
+      "from": "Priya Shah",
+      "subject": "Fictional project work update",
+      "synthetic": true,
+      "text": "For Harbour expansion, I own Cost modelling. Validate warehouse cost assumptions. Status: blocked. Follow up by 2026-09-25."
+    },
+    {
+      "id": "evidence:work:operations",
+      "channel": "outlook",
+      "at": "2026-09-24T09:00:00Z",
+      "from": "Alex Morgan",
+      "subject": "Fictional project work update",
+      "synthetic": true,
+      "text": "For Harbour expansion, I own Operations. Confirm rollout owner and dates. Status: open. Follow up by 2026-09-30."
+    },
+    {
+      "id": "evidence:work:research-brief",
+      "channel": "outlook",
+      "at": "2026-09-21T09:00:00Z",
+      "from": "Grace Liu",
+      "subject": "Fictional project work update",
+      "synthetic": true,
+      "text": "For Research bridge, I own Research. Research scoping brief delivered. Status: delivered."
+    },
+    {
+      "id": "evidence:work:university",
+      "channel": "outlook",
+      "at": "2026-09-23T09:00:00Z",
+      "from": "Sam Rivera",
+      "subject": "Fictional project work update",
+      "synthetic": true,
+      "text": "For Research bridge, I own Partnerships. Confirm university workshop participants. Status: open. Follow up by 2026-09-29."
     }
   ],
   "messages": [
@@ -3876,6 +3921,73 @@
       "valid_to": null,
       "evidence_ids": [
         "evidence:profile:max:function"
+      ]
+    }
+  ],
+  "work_records": [
+    {
+      "id": "work:finance-pack",
+      "project_id": "project:harbour",
+      "person_id": "person:maya",
+      "area": "Finance",
+      "title": "Finance review pack delivered",
+      "status": "delivered",
+      "observed_at": "2026-09-20T09:00:00Z",
+      "due": null,
+      "evidence_ids": [
+        "evidence:work:finance-pack"
+      ]
+    },
+    {
+      "id": "work:cost-model",
+      "project_id": "project:harbour",
+      "person_id": "person:priya",
+      "area": "Cost modelling",
+      "title": "Validate warehouse cost assumptions",
+      "status": "blocked",
+      "observed_at": "2026-09-22T09:00:00Z",
+      "due": "2026-09-25",
+      "evidence_ids": [
+        "evidence:work:cost-model"
+      ]
+    },
+    {
+      "id": "work:operations",
+      "project_id": "project:harbour",
+      "person_id": "person:alex",
+      "area": "Operations",
+      "title": "Confirm rollout owner and dates",
+      "status": "open",
+      "observed_at": "2026-09-24T09:00:00Z",
+      "due": "2026-09-30",
+      "evidence_ids": [
+        "evidence:work:operations"
+      ]
+    },
+    {
+      "id": "work:research-brief",
+      "project_id": "project:bridge",
+      "person_id": "person:grace",
+      "area": "Research",
+      "title": "Research scoping brief delivered",
+      "status": "delivered",
+      "observed_at": "2026-09-21T09:00:00Z",
+      "due": null,
+      "evidence_ids": [
+        "evidence:work:research-brief"
+      ]
+    },
+    {
+      "id": "work:university",
+      "project_id": "project:bridge",
+      "person_id": "person:sam",
+      "area": "Partnerships",
+      "title": "Confirm university workshop participants",
+      "status": "open",
+      "observed_at": "2026-09-23T09:00:00Z",
+      "due": "2026-09-29",
+      "evidence_ids": [
+        "evidence:work:university"
       ]
     }
   ]

@@ -278,6 +278,85 @@ def build():
                     "evidence_ids": [eid],
                 }
             )
+    work = []
+    for key, project, person, area, title, state, at, due in [
+        (
+            "finance-pack",
+            "harbour",
+            "maya",
+            "Finance",
+            "Finance review pack delivered",
+            "delivered",
+            "2026-09-20",
+            None,
+        ),
+        (
+            "cost-model",
+            "harbour",
+            "priya",
+            "Cost modelling",
+            "Validate warehouse cost assumptions",
+            "blocked",
+            "2026-09-22",
+            "2026-09-25",
+        ),
+        (
+            "operations",
+            "harbour",
+            "alex",
+            "Operations",
+            "Confirm rollout owner and dates",
+            "open",
+            "2026-09-24",
+            "2026-09-30",
+        ),
+        (
+            "research-brief",
+            "bridge",
+            "grace",
+            "Research",
+            "Research scoping brief delivered",
+            "delivered",
+            "2026-09-21",
+            None,
+        ),
+        (
+            "university",
+            "bridge",
+            "sam",
+            "Partnerships",
+            "Confirm university workshop participants",
+            "open",
+            "2026-09-23",
+            "2026-09-29",
+        ),
+    ]:
+        eid = "evidence:work:" + key
+        evidence.append(
+            {
+                "id": eid,
+                "channel": "outlook",
+                "at": at + "T09:00:00Z",
+                "from": labels["person:" + person],
+                "subject": "Fictional project work update",
+                "synthetic": True,
+                "text": f"For {labels['project:' + project]}, I own {area}. {title}. Status: {state}."
+                + (f" Follow up by {due}." if due else ""),
+            }
+        )
+        work.append(
+            {
+                "id": "work:" + key,
+                "project_id": "project:" + project,
+                "person_id": "person:" + person,
+                "area": area,
+                "title": title,
+                "status": state,
+                "observed_at": at + "T09:00:00Z",
+                "due": due,
+                "evidence_ids": [eid],
+            }
+        )
     return {
         "owner_id": "person:owner",
         "nodes": nodes,
@@ -285,6 +364,7 @@ def build():
         "evidence": evidence,
         "messages": messages,
         "profile_assertions": profiles,
+        "work_records": work,
     }
 
 

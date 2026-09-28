@@ -23,6 +23,8 @@ class GraphQuery(BaseModel):
     mode: Literal["current", "history"] = "current"
     include_pending: bool = False
     expand: str = ""
+    depth: int = Field(default=2, ge=1, le=3)
+    min_activity: float = Field(default=0, ge=0, le=100)
 
     @field_validator("as_of")
     @classmethod

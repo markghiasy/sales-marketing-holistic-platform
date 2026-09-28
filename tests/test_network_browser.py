@@ -88,6 +88,84 @@ def test_neighborhood_focus_does_not_replace_origin_conversation(page):
     assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")
 
 
+def test_expand_searched_person_and_project_lens(page):
+    page.goto(page.base_url + "/network?focus=person:sam&search=sam")
+    page.get_by_role("button", name="Focus neighborhood").click()
+    page.locator('[data-person="person:priya"]').wait_for()
+    page.get_by_label("Graph distance", exact=True).select_option("3")
+    page.wait_for_url("**depth=3**")
+    page.get_by_label("Browse entities").select_option("project")
+    page.locator('[data-context="project:harbour"]').click()
+    page.get_by_role("heading", name="Work & follow-ups", exact=True).wait_for()
+    page.get_by_text("Validate warehouse cost assumptions", exact=True).wait_for()
+    assert "Overdue" in page.locator("#context-lens").inner_text()
+    page.get_by_text("Source update", exact=True).first.click()
+    page.locator("#context-lens .evidence-quote").wait_for()
+    page.screenshot(path="tmp/network-project-lens.png", full_page=True)
+
+
+def test_strategy_chat_carries_context_and_follow_up_history(page):
+    import json
+
+    received = []
+
+    def answer(route):
+        received.append(route.request.post_data_json)
+        route.fulfill(
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "summary": "Engineering evidence is adjacent; security expertise remains unverified.",
+                    "findings": [
+                        {
+                            "text": "Amir lists Engineering.",
+                            "entity_ids": ["person:amir"],
+                            "evidence_ids": ["s1"],
+                        }
+                    ],
+                    "gaps": [
+                        "No verified adversarial AI testing experience in the retrieved evidence."
+                    ],
+                    "next_steps": ["Ask Amir whether he can help validate the technical scope."],
+                    "clarification": "",
+                    "evidence": [
+                        {
+                            "id": "s1",
+                            "channel": "outlook",
+                            "at": "2026-01-15T09:00:00Z",
+                            "text": "My focus is Engineering. <script>bad()</script>",
+                        }
+                    ],
+                    "entities": [{"id": "person:amir", "name": "Amir Khan"}],
+                    "version": 1,
+                    "model": "fake-test-provider",
+                    "usage": {"input_tokens": 20, "output_tokens": 10},
+                    "trace": [
+                        {"kind": "people", "terms": ["Engineering"], "entity_id": "person:owner"}
+                    ],
+                }
+            ),
+        )
+
+    page.route("**/network/agent.json", answer)
+    page.goto(page.base_url + "/network?focus=person:sam")
+    page.get_by_role("button", name="Ask Claude about this person").click()
+    page.get_by_label("Ask about a goal or this context").fill("Who can help with Cybertest?")
+    page.get_by_role("button", name="Ask Claude", exact=True).click()
+    page.get_by_text("What is not established yet", exact=True).wait_for()
+    page.locator(".agent-finding summary").click()
+    assert "<script>bad()</script>" in page.locator(".agent-finding blockquote").inner_text()
+    assert page.locator(".agent-finding script").count() == 0
+    assert received[0]["focus"] == "person:sam"
+    page.get_by_label("Ask about a goal or this context").fill("What should I ask him first?")
+    page.get_by_role("button", name="Ask Claude", exact=True).click()
+    page.locator(".agent-turn").nth(1).get_by_text("Suggested next moves", exact=True).wait_for()
+    assert len(received[1]["history"]) == 1
+    assert "Cybertest" in received[1]["history"][0]["question"]
+    page.get_by_role("button", name="Close assistant").click()
+    assert page.locator(".network-assistant").count() == 0
+
+
 def test_business_search_tags_evidence_and_graph_navigation(page):
     page.goto(page.base_url + "/inbox")
     page.get_by_role("link", name="Knowledge graph", exact=True).wait_for()

@@ -1,3 +1,4 @@
+@import url('./intelligence.css');
 /* Contact badges stay light in Inbox; the search workspace echoes the graph. */
 .contact-tags,.discovery-tags{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:7px 0}
 .contact-tag{display:inline-flex;align-items:center;border:1px solid #dcd7e6;background:#f1edf7;color:#655079;padding:3px 8px;border-radius:5px;font-size:10px;line-height:1.4;font-weight:500;white-space:nowrap}

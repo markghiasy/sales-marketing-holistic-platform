@@ -3,16 +3,20 @@
 import argparse
 import json
 from pathlib import Path
+from urllib.parse import urlencode
 
+from dotenv import dotenv_values
 from flask import Flask, Response, jsonify, render_template, request, stream_with_context
 from pydantic import ValidationError
 
+from adapters.network.agent import AgentRequest, AgentUnavailable, ClaudeProvider, NetworkAgent
+from adapters.network.context import entity_context
 from adapters.network.model import GraphQuery, timestamp
 from adapters.network.scenario import ScenarioStore
 from adapters.network.search import contact_tags
 
 
-def create_app(*, testing=False):
+def create_app(*, testing=False, llm_config=None, agent_provider=None):
     root = Path(__file__).resolve().parent / "onboarding"
     app = Flask(
         __name__, template_folder=str(root / "templates"), static_folder=str(root / "static")
@@ -20,6 +24,13 @@ def create_app(*, testing=False):
     app.testing = testing
     store = ScenarioStore()
     app.extensions["network_store"] = store
+    app.config["MAX_CONTENT_LENGTH"] = 150000  # Includes JSON's six-byte Unicode escaping.
+    app.config["TRUSTED_HOSTS"] = ["127.0.0.1", "localhost"]
+    provider = agent_provider or ClaudeProvider(llm_config)
+    if testing and agent_provider is None:
+        provider.key = ""  # Ordinary tests must never spend API credits.
+    agent = NetworkAgent(provider)
+    app.extensions["network_agent"] = agent
 
     def query():
         return GraphQuery(**request.args.to_dict())
@@ -31,7 +42,11 @@ def create_app(*, testing=False):
     @app.get("/")
     @app.get("/network")
     def explorer():
-        return render_template("network.html")
+        origin = request.args.get("origin", "")
+        back = "/inbox"
+        if origin:
+            back += "?" + urlencode({**request.args.to_dict(), "focus": origin})
+        return render_template("network.html", return_url=back, has_origin=bool(origin))
 
     @app.get("/inbox")
     def inbox():
@@ -67,6 +82,47 @@ def create_app(*, testing=False):
         if not text or len(text) > 600:
             return jsonify(error="Enter a search between 1 and 600 characters."), 400
         return jsonify(store.search(query(), text))
+
+    @app.get("/network/context.json")
+    def context():
+        data, version = store.capture()
+        try:
+            return jsonify(**entity_context(data, query()), version=version)
+        except KeyError:
+            return jsonify(error="Context not found."), 404
+
+    @app.get("/network/agent/status.json")
+    def agent_status():
+        return jsonify(
+            configured=provider.available,
+            model=provider.model if provider.available else None,
+            remaining=agent.remaining,
+            data_source="synthetic",
+        )
+
+    @app.post("/network/agent.json")
+    def ask_agent():
+        # A website visited elsewhere must not be able to spend local API credits.
+        if request.headers.get("Origin") and request.headers["Origin"].rstrip(
+            "/"
+        ) != request.host_url.rstrip("/"):
+            return jsonify(error="Cross-origin questions are not allowed."), 403
+        if not request.is_json:
+            return jsonify(error="Send a JSON question."), 415
+        payload = AgentRequest.model_validate(request.get_json())
+        if not payload.question.strip():
+            return jsonify(error="Enter a question."), 400
+        GraphQuery(focus=payload.focus, as_of=payload.as_of)
+        data, version = store.capture()
+        try:
+            return jsonify(agent.answer(data, payload, version))
+        except AgentUnavailable as error:
+            return jsonify(error=str(error)), 503
+        except Exception:  # noqa: BLE001 - sanitize all provider failures at the HTTP boundary
+            # Provider errors can contain request details. Do not expose or log them.
+            return jsonify(
+                error="Claude could not produce a source-linked answer. Please retry; no network data was changed."
+            ), 502
 
     @app.post("/network/demo/reply")
     def reply():
@@ -163,7 +219,13 @@ def create_app(*, testing=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=5055)
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        help="Local .env containing Anthropic configuration; never served to the browser",
+    )
     args = parser.parse_args()
-    create_app().run(
+    config = dotenv_values(args.env_file) if args.env_file else None
+    create_app(llm_config=config).run(
         host="127.0.0.1", port=args.port, debug=False, threaded=True, use_reloader=False
     )

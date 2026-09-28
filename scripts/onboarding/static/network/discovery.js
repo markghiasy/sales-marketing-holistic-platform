@@ -1,4 +1,5 @@
 import {escapeHtml as esc, queryUrl, showEvidence} from './client.js';
+import {openAssistant} from './assistant.js';
 
 export function mountDiscovery(container, {onClose, onOpenContact}) {
   let controller, generation = 0, closed = false;
@@ -13,10 +14,12 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
     <form class="discovery-form"><label for="discovery-query">Search your network</label><div><input id="discovery-query" name="query" maxlength="600" autocomplete="off" placeholder="Who can help with logistics finance?" required><button type="submit">Search</button></div></form>
     <div class="discovery-examples">${examples.map((q, i) => `<button type="button" data-example="${i}">${i === 0 ? 'Logistics + accounting + past collaboration' : esc(q)}</button>`).join('')}</div>
     <div class="discovery-output" aria-live="polite"><div class="discovery-empty"><h3>Start with the work you need to do.</h3><p>Try a person, a company or a combination of skills and relationships. English and Chinese are supported for these search conditions.</p></div></div>
-    <footer>Synthetic demo. Supports names, functions, industries, organizations, projects and relationships. Other requests need clarification.</footer>
+    <button type="button" class="discovery-agent">Ask Claude about a goal or strategy ↗</button>
+    <footer>Synthetic data. Quick search checks supported conditions. Use Claude for goals, reasoning and follow-up questions.</footer>
   </section>`;
   const input = container.querySelector('input');
   const output = container.querySelector('.discovery-output');
+  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||'person:owner',as_of:p.get('as_of')||'2026-09-27T12:00:00Z'});};
   container.querySelector('.discovery-close').onclick = onClose;
   container.querySelector('form').onsubmit = event => { event.preventDefault(); search(); };
   container.querySelectorAll('[data-example]').forEach(button => button.onclick = () => {
