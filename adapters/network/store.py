@@ -132,11 +132,14 @@ class PostgresNetworkStore:
             rows = conn.execute('select * from network.source_record'+(' where kind=%s' if kind else '')+' order by key', (kind,) if kind else ())
             return tuple(SourceRecord(r['kind'],r['source_id'],r['fingerprint'],r['payload']) for r in rows)
 
-    def apply(self, batch: SourceBatch, projection: Projection | None = None) -> int:
+    def apply(self, batch: SourceBatch, projection: Projection | None = None, *,
+              schedules: dict | None = None, expected_version: int | None = None) -> int:
         if batch.binding != self.binding:
             raise StoreError('source_binding_mismatch')
         with self.connection() as conn:
             state = self._state(conn, lock=True)
+            if expected_version is not None and state['version']!=expected_version:
+                raise StoreError('version_conflict')
             keys = [r.key for r in batch.records]
             old = {r['key']:r['fingerprint'] for r in conn.execute('select key,fingerprint from network.source_record where key=ANY(%s)',(keys,))}
             updates = {r.key:r for r in batch.records if old.get(r.key) != r.fingerprint}
@@ -163,6 +166,8 @@ class PostgresNetworkStore:
                          (version,Jsonb(cursor),datetime.now(UTC),batch.observed_at))
             if projection and projection.owner_id:
                 conn.execute('update network.state set owner_id=%s',(projection.owner_id,))
+            if schedules is not None:
+                conn.execute('update network.state set schedules=%s',(Jsonb(schedules),))
             return version
 
     def _project(self, conn, projection):
@@ -177,20 +182,35 @@ class PostgresNetworkStore:
                 delete += ' and entity_ids && %s'
                 args.append(list(projection.affected_ids))
             changed = bool(conn.execute(delete,args).rowcount) or changed
+            old = {r['id']:r['fingerprint'] for r in conn.execute('select id,fingerprint from network.item where kind=%s and id=ANY(%s)',(kind,ids))}
+            items, deps_to_write = [], []
             for row in rows:
                 key, digest = kind+':'+row['id'],fingerprint(row)
                 entities = entity_ids(kind,row)
                 text = ' '.join(str(row.get(k,'')) for k in ('name','role','label','text','quote','relation','value','title'))
-                result = conn.execute('insert into network.item(kind,id,entity_ids,payload,fingerprint,search_text) values (%s,%s,%s,%s,%s,%s) on conflict(kind,id) do update set entity_ids=excluded.entity_ids,payload=excluded.payload,fingerprint=excluded.fingerprint,search_text=excluded.search_text where network.item.fingerprint<>excluded.fingerprint',
-                                      (kind,row['id'],entities,Jsonb(row),digest,text))
-                changed = bool(result.rowcount) or changed
-                conn.execute('delete from network.dependency where item_kind=%s and item_id=%s',(kind,row['id']))
+                if old.get(row['id'])!=digest:
+                    items.append((kind,row['id'],entities,Jsonb(row),digest,text))
+                    changed = True
                 deps = projection.dependencies.get(key,())
-                if deps:
-                    with conn.cursor() as cur:
-                        cur.executemany('insert into network.dependency(item_kind,item_id,source_key,fingerprint) values (%s,%s,%s,%s)',
-                                        [(kind,row['id'],k,fingerprints.get(k,'absent')) for k in deps])
+                deps_to_write.extend((kind,row['id'],k,fingerprints.get(k,'absent')) for k in deps)
+            with conn.cursor() as cur:
+                if items:
+                    cur.executemany('insert into network.item(kind,id,entity_ids,payload,fingerprint,search_text) values (%s,%s,%s,%s,%s,%s) on conflict(kind,id) do update set entity_ids=excluded.entity_ids,payload=excluded.payload,fingerprint=excluded.fingerprint,search_text=excluded.search_text',items)
+                cur.execute('delete from network.dependency where item_kind=%s and item_id=ANY(%s)',(kind,ids))
+                if deps_to_write:
+                    cur.executemany('insert into network.dependency(item_kind,item_id,source_key,fingerprint) values (%s,%s,%s,%s)',deps_to_write)
         return changed
+
+    def worker_state(self) -> dict:
+        with self.connection(read_only=True) as conn:
+            return self._state(conn)
+
+    def record_failure(self, code: str):
+        if code not in {'source_unavailable','source_budget_exceeded','version_conflict','projection_failed'}:
+            raise ValueError('invalid_error_code')
+        with self.connection() as conn:
+            self._state(conn,lock=True)
+            conn.execute('update network.state set error_code=%s',(code,))
 
     def capture(self, entity_ids: tuple[str, ...] = (), limit: int = 200) -> Snapshot:
         if not 1 <= limit <= 1000:
