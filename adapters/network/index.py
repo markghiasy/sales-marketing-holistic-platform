@@ -95,6 +95,17 @@ class IndexedRetrieval:
         self.dependencies={**self.dependencies,**snapshot.dependencies}
         self.version=snapshot.version
         self.inner=NetworkRetrieval(self.data,self.query)
+        represented={eid for unit in self.inner.records.values() for eid in unit['evidence_ids']}
+        for evidence in data['evidence']:
+            author=evidence.get('author_id')
+            if evidence['id'] in represented or author not in self.inner.nodes or not evidence['id'].startswith('message:'):
+                continue
+            # Group participation is not a person-to-person relationship. Its
+            # authored text can still be retrieved as an unverified observation.
+            self.inner._add('observation',{'id':evidence['id'],'evidence_ids':[evidence['id']],
+                'subject_id':author,'claimant_id':author,'observed_at':evidence.get('known_at',evidence['at']),
+                'basis':'reported','status':'observed'},[author],
+                'Authored source passage; not verified capability or relationship')
         self.truncated=self.truncated or data.get('truncated',False)
 
     def seed(self,text):

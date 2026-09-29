@@ -10,6 +10,15 @@ from adapters.network.store import PostgresNetworkStore
 NOW=datetime(2026,9,30,12,tzinfo=UTC)
 
 
+def test_worker_lease_does_not_hold_an_idle_transaction(network_database):
+    worker,source,store,ids=setup(network_database)
+    with worker.lease() as held:
+        assert held
+        with psycopg.connect(network_database[0]) as conn:
+            rows=conn.execute("select a.xact_start from pg_stat_activity a where a.pid in (select pid from pg_locks where locktype='advisory' and granted) and a.pid<>pg_backend_pid() and a.datname=current_database() and a.query like '%pg_try_advisory_lock%'").fetchall()
+            assert rows and all(row[0] is None for row in rows)
+
+
 def setup(network_database, **kwargs):
     from adapters.network.worker import NetworkWorker
     dsn,ids=network_database

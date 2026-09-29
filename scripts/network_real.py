@@ -1,5 +1,6 @@
 """Explicit real-data, loopback-only network trial; no demo fallback or source writes."""
 import argparse
+import atexit
 from datetime import UTC, datetime
 import json
 from pathlib import Path
@@ -11,6 +12,7 @@ from pydantic import Field, ValidationError
 from adapters.network.agent import AgentRequest, AgentUnavailable, ClaudeProvider, NetworkAgent, StrictModel
 from adapters.network.changes import ReviewCommand
 from adapters.network.service import NetworkService
+from adapters.network.database import NetworkDatabase
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore, StoreError
 
@@ -173,8 +175,10 @@ def main():
     if not config.get('DATABASE_URL'):
         parser.exit(2,'missing_database_url\n')
     try:
-        source=SourceRepository(config['DATABASE_URL'])
-        store=PostgresNetworkStore(config['DATABASE_URL'],source.audit()['binding'])
+        database=NetworkDatabase(config['DATABASE_URL'])
+        atexit.register(database.close)
+        source=SourceRepository(config['DATABASE_URL'],database=database)
+        store=PostgresNetworkStore(config['DATABASE_URL'],source.audit()['binding'],database=database)
         service=NetworkService(store,source)
     except Exception:
         parser.exit(2,'network_not_ready: audit source and explicitly initialize derived schema first\n')

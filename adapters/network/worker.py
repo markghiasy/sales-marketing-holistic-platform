@@ -36,8 +36,9 @@ class NetworkWorker:
     def lease(self):
         # Binding-specific advisory lock is held by a dedicated session for the run.
         key=int(self.store.binding[:15],16)
-        with self.store.connection() as conn:
-            held=conn.execute('select pg_try_advisory_lock(%s) as held',(key,)).fetchone()['held']
+        with psycopg.connect(self.store._dsn,autocommit=True,connect_timeout=10,
+                             application_name='ironman-network-worker-lease') as conn:
+            held=conn.execute('select pg_try_advisory_lock(%s)',(key,)).fetchone()[0]
             try:
                 yield held
             finally:

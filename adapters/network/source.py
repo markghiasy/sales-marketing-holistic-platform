@@ -68,15 +68,16 @@ REQUIRED = frozenset(('person', 'identity', 'thread', 'message', 'message_partic
 
 
 class SourceRepository:
-    def __init__(self, dsn: str, *, expected_binding: str | None = None):
+    def __init__(self, dsn: str, *, expected_binding: str | None = None, database=None):
         self._dsn = dsn
         self.expected_binding = expected_binding
+        self.database=database
 
     @contextmanager
     def connection(self):
-        with psycopg.connect(self._dsn, row_factory=dict_row, connect_timeout=10) as conn:
-            conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-            conn.execute("SET LOCAL statement_timeout = '15s'")
+        connection=self.database.connection() if self.database else psycopg.connect(self._dsn,row_factory=dict_row,connect_timeout=10)
+        with connection as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY; SET LOCAL statement_timeout = '15s'")
             yield conn
 
     def _capabilities(self, conn):

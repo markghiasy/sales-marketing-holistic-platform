@@ -1,5 +1,6 @@
 """Recoverable real-network worker; run separately from the web service."""
 import argparse
+import atexit
 from datetime import UTC, datetime
 import json
 from dataclasses import asdict
@@ -9,6 +10,7 @@ from dotenv import dotenv_values
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore
 from adapters.network.worker import NetworkWorker
+from adapters.network.database import NetworkDatabase
 
 
 def main():
@@ -20,8 +22,10 @@ def main():
     if not config.get('DATABASE_URL'):
         parser.exit(2,'missing_database_url\n')
     try:
-        source=SourceRepository(config['DATABASE_URL'])
-        store=PostgresNetworkStore(config['DATABASE_URL'],source.audit()['binding'])
+        database=NetworkDatabase(config['DATABASE_URL'],max_size=3)
+        atexit.register(database.close)
+        source=SourceRepository(config['DATABASE_URL'],database=database)
+        store=PostgresNetworkStore(config['DATABASE_URL'],source.audit()['binding'],database=database)
         worker=NetworkWorker(source,store,
             incremental_seconds=int(config.get('NETWORK_REFRESH_SECONDS') or 60),
             metadata_seconds=int(config.get('NETWORK_METADATA_SECONDS') or 300),

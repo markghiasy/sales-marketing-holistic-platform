@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -66,8 +67,9 @@ def entity_ids(kind, row):
 
 
 class PostgresNetworkStore:
-    def __init__(self, dsn: str, binding: str):
+    def __init__(self, dsn: str, binding: str, *, database=None):
         self._dsn, self.binding = dsn, binding
+        self.database=database
 
     def initialize(self):
         audit = SourceRepository(self._dsn, expected_binding=self.binding).audit()
@@ -102,10 +104,10 @@ class PostgresNetworkStore:
 
     @contextmanager
     def connection(self, *, read_only=False):
-        with psycopg.connect(self._dsn, row_factory=dict_row, connect_timeout=10) as conn:
-            conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'+(' READ ONLY' if read_only else ''))
-            conn.execute(sql.SQL('set local role {}').format(sql.Identifier(WRITER)))
-            conn.execute("SET LOCAL statement_timeout='15s'")
+        connection=self.database.connection() if self.database else psycopg.connect(self._dsn,row_factory=dict_row,connect_timeout=10)
+        with connection as conn:
+            setup='SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'+(' READ ONLY' if read_only else '')
+            conn.execute(sql.SQL(setup+"; SET LOCAL ROLE {}; SET LOCAL statement_timeout='15s'").format(sql.Identifier(WRITER)))
             yield conn
 
     def _state(self, conn, *, lock=False):
@@ -228,12 +230,14 @@ class PostgresNetworkStore:
             rows=[]
             truncated=len(entity_ids)>limit
             item_limit=min(400,limit*20)
-            for kind in SECTIONS:
-                if kind=='node':
-                    continue
-                found=conn.execute('select * from network.item where kind=%s and entity_ids && %s order by id limit %s',(kind,selected,item_limit+1)).fetchall()
-                truncated=truncated or len(found)>item_limit
-                rows.extend(found[:item_limit])
+            counts=defaultdict(int)
+            found=conn.execute('select items.* from unnest(%s::text[]) as sections(kind) cross join lateral (select * from network.item where kind=sections.kind and entity_ids && %s order by id limit %s) items',([k for k in SECTIONS if k!='node'],selected,item_limit+1)).fetchall()
+            for row in found:
+                counts[row['kind']]+=1
+                if counts[row['kind']]<=item_limit:
+                    rows.append(row)
+                else:
+                    truncated=True
             priority=list(dict.fromkeys([owner,*selected,*[e for r in rows for e in r['entity_ids']]]))
             nodes=conn.execute("select * from network.item where kind='node' and id=ANY(%s) order by array_position(%s::text[],id) limit %s",(priority,priority,limit+1)).fetchall()
             truncated=truncated or len(nodes)>limit

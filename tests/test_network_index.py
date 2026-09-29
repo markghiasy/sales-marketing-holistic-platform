@@ -79,3 +79,16 @@ def test_long_source_keeps_matched_passage_in_bounded_context(network_database):
     assert any('security' in e['text'] for e in pack['evidence'])
     assert all(len(e['text'])<=4000 for e in pack['evidence'])
     assert any(e.get('excerpt_start',0)>0 for e in pack['evidence'])
+
+
+def test_group_message_is_retrievable_without_inventing_relationship(network_database):
+    source,store,ids,retriever=setup_index(network_database)
+    with psycopg.connect(network_database[0]) as conn:
+        conn.execute('update thread set is_group=true')
+    NetworkWorker(source,store).tick(datetime(2026,10,3,tzinfo=UTC))
+    result=retriever.people(['security'])
+    pack=retriever.pack([result],[{'id':'security','label':'Security','terms':['security']}])
+    assert pack['evidence']
+    assert any(r['kind']=='observation' for r in pack['records'])
+    assert not retriever.inner.adjacency
+    assert not retriever.data['claims']

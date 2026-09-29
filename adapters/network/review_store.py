@@ -25,7 +25,7 @@ class ReviewRepository:
         if any(actual.get(k,'absent')!=v for k,v in deps.items()):
             return False
         if real_source:
-            return SourceRepository(self.store._dsn,expected_binding=self.store.binding).validate({k:v for k,v in deps.items() if not k.startswith('review:')})
+            return SourceRepository(self.store._dsn,expected_binding=self.store.binding,database=self.store.database).validate({k:v for k,v in deps.items() if not k.startswith('review:')})
         return True
 
     def propose(self,batch,dependencies):

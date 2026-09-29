@@ -170,7 +170,7 @@ def search_contacts(data, query, text, version):
     if unresolved:
         return result
     tags = contact_tags(data, query)
-    snapshot = build_snapshot(data, GraphQuery(as_of=query.as_of, mode=query.mode), version)
+    snapshot = build_snapshot(data, GraphQuery(focus=data['owner_id'],as_of=query.as_of, mode=query.mode), version)
     for person in snapshot["ranked_contacts"]:
         reasons, missing, preference_matches = [], [], 0
         for criterion in criteria:

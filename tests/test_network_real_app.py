@@ -89,6 +89,13 @@ def test_absent_or_future_source_never_appears_in_historical_slice(real_client):
     assert client.get('/inbox/conversation/unknown.json').status_code==404
 
 
+def test_real_name_search_uses_bound_owner_instead_of_demo_owner(real_client):
+    client,store,ids=real_client
+    response=client.get('/network/search.json?q=Morgan&as_of=2026-10-02T00:00:00Z')
+    assert response.status_code==200,response.json
+    assert any(p['id']=='identity:'+ids['contact'] for p in response.json['results'])
+
+
 def test_selected_extraction_and_confirmed_project_ui_contract(network_database):
     from test_network_changes import setup
     from scripts.network_real import create_app
