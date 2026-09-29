@@ -215,35 +215,57 @@ class PostgresNetworkStore:
             self._state(conn,lock=True)
             conn.execute('update network.state set error_code=%s',(code,))
 
-    def capture(self, entity_ids: tuple[str, ...] = (), limit: int = 200) -> Snapshot:
-        if not 1 <= limit <= 1000:
+    def capture(self, entity_ids: tuple[str, ...] = (), limit: int = 200,
+                *, evidence_ids: tuple[str,...] = ()) -> Snapshot:
+        if not 2 <= limit <= 1000:
             raise ValueError('snapshot_limit')
         with self.connection(read_only=True) as conn:
             state = self._state(conn)
-            selected = list(entity_ids)
+            owner=state['owner_id']
+            selected=list(dict.fromkeys(i for i in entity_ids if i!=owner))[:limit-1]
             if not selected:
-                selected = [r['id'] for r in conn.execute("select id from network.item where kind='node' order by id limit %s",(limit,))]
-            rows = conn.execute('select * from network.item where entity_ids && %s order by kind,id limit %s',(selected,limit*20+1)).fetchall()
-            truncated = len(rows)>limit*20
-            rows = rows[:limit*20]
-            # Include endpoints of the selected claims without fetching unrelated neighborhoods.
-            endpoints = sorted({e for row in rows for e in row['entity_ids']})
-            nodes = conn.execute("select * from network.item where kind='node' and id=ANY(%s) order by id limit %s",(endpoints,limit+1)).fetchall()
-            allowed = {r['id'] for r in nodes[:limit]}
-            truncated = truncated or len(nodes)>limit
-            rows = [r for r in rows if r['kind']!='node' and set(r['entity_ids']).issubset(allowed)] + nodes[:limit]
-            evidence_ids = sorted({e for r in rows for e in r['payload'].get('evidence_ids',[])})
-            extra = conn.execute("select * from network.item where kind='evidence' and id=ANY(%s) order by id limit %s",(evidence_ids,limit*20)).fetchall()
-            rows = list({(r['kind'],r['id']):r for r in [*rows,*extra]}.values())
-            data = {section:[] for section in SECTIONS.values()}
-            data.update(owner_id=state['owner_id'],data_source='real',truncated=truncated)
-            deps = {}
+                selected=[r['id'] for r in conn.execute("select id from network.item where kind='node' and id<>%s order by payload->>'name',id limit %s",(owner,limit-1))]
+            rows=[]
+            truncated=len(entity_ids)>limit
+            item_limit=min(400,limit*20)
+            for kind in SECTIONS:
+                if kind=='node':
+                    continue
+                found=conn.execute('select * from network.item where kind=%s and entity_ids && %s order by id limit %s',(kind,selected,item_limit+1)).fetchall()
+                truncated=truncated or len(found)>item_limit
+                rows.extend(found[:item_limit])
+            priority=list(dict.fromkeys([owner,*selected,*[e for r in rows for e in r['entity_ids']]]))
+            nodes=conn.execute("select * from network.item where kind='node' and id=ANY(%s) order by array_position(%s::text[],id) limit %s",(priority,priority,limit+1)).fetchall()
+            truncated=truncated or len(nodes)>limit
+            nodes=nodes[:limit]
+            allowed={r['id'] for r in nodes}
+            rows=[r for r in rows if set(r['entity_ids']).issubset(allowed)]
+            wanted=list(dict.fromkeys([*evidence_ids,*[e for r in rows for e in r['payload'].get('evidence_ids',[])]]))
+            if len(wanted)>item_limit:
+                truncated=True
+            wanted=wanted[:item_limit]
+            extra=conn.execute("select * from network.item where kind='evidence' and id=ANY(%s) order by array_position(%s::text[],id)",(wanted,wanted)).fetchall()
+            # Explicit search hits take precedence over the deterministic browse sample.
+            evidence_rows=list({r['id']:r for r in [*extra,*[r for r in rows if r['kind']=='evidence']]}.values())[:item_limit]
+            refs={r['id'] for r in evidence_rows}
+            rows=[r for r in rows if r['kind']!='evidence']+evidence_rows+nodes
+            data={section:[] for section in SECTIONS.values()}
+            data.update(owner_id=owner,data_source='real',truncated=truncated)
+            kept=[]
             for row in rows:
-                data[SECTIONS[row['kind']]].append(row['payload'])
-            if rows:
-                keys = [r['kind']+':'+r['id'] for r in rows]
-                for r in conn.execute("select source_key,fingerprint from network.dependency where (item_kind||':'||item_id)=ANY(%s)",(keys,)):
-                    deps[r['source_key']] = r['fingerprint']
+                value=dict(row['payload'])
+                if value.get('evidence_ids'):
+                    original=value['evidence_ids']
+                    value['evidence_ids']=[e for e in original if e in refs]
+                    if not value['evidence_ids']:
+                        continue
+                    if len(value['evidence_ids'])!=len(original):
+                        value['omitted_evidence_count']=len(original)-len(value['evidence_ids'])
+                        data['truncated']=True
+                data[SECTIONS[row['kind']]].append(value)
+                kept.append(row)
+            keys=[r['kind']+':'+r['id'] for r in kept]
+            deps={r['source_key']:r['fingerprint'] for r in conn.execute("select source_key,fingerprint from network.dependency where (item_kind||':'||item_id)=ANY(%s)",(keys,))}
             return Snapshot(state['version'],data,deps)
 
     def dependencies_current(self, dependencies: dict[str, str]) -> bool:
