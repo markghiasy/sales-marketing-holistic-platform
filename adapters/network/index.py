@@ -61,7 +61,7 @@ class IndexedRetrieval:
         self.truncated=self.truncated or len(selected)>self.entity_limit-1 or len(source_ids)>200
         self.selected=selected[:self.entity_limit-1]
         self.source_ids=source_ids[:200]
-        snapshot=self.store.capture(tuple(self.selected),self.entity_limit,evidence_ids=tuple(self.source_ids))
+        snapshot=self.store.capture(tuple(self.selected),self.entity_limit,evidence_ids=tuple(self.source_ids),as_of=self.query.as_of)
         data=deepcopy(snapshot.data)
         now=self.query.as_of
         def known(row):

@@ -96,6 +96,36 @@ def test_real_name_search_uses_bound_owner_instead_of_demo_owner(real_client):
     assert any(p['id']=='identity:'+ids['contact'] for p in response.json['results'])
 
 
+def test_high_volume_conversation_includes_latest_message_not_uuid_sample(network_database):
+    from datetime import timedelta
+    from uuid import UUID
+    from adapters.network.source import SourceRepository
+    from adapters.network.store import PostgresNetworkStore
+    from adapters.network.worker import NetworkWorker
+    from adapters.network.service import NetworkService
+    dsn,ids=network_database
+    start=datetime(2026,9,30,tzinfo=UTC)
+    rows=[]
+    for i in range(401):
+        mid=str(UUID(int=i+1)) if i<400 else 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+        rows.append((mid,ids['thread'],f'volume-{i}',start+timedelta(seconds=i),ids['contact'],'Latest update' if i==400 else 'Earlier update'))
+    with psycopg.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.executemany("insert into message(id,thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,%s,'outlook',%s,'inbound',%s,%s,%s,'{}','2026-09-30')",rows)
+            cur.executemany("insert into message_participant values (%s,%s,'to')",[(r[0],ids['self']) for r in rows])
+    source=SourceRepository(dsn)
+    store=PostgresNetworkStore(dsn,source.audit()['binding'])
+    store.initialize()
+    NetworkWorker(source,store).tick(datetime(2026,10,2,tzinfo=UTC))
+    service=NetworkService(store,source)
+    conversation=service.conversation('identity:'+ids['contact'],service.query({'as_of':'2026-10-02T00:00:00Z'}))
+    assert conversation['messages'][-1]['text']=='Latest update'
+    assert datetime.fromisoformat(conversation['last_message_at'])==start+timedelta(seconds=400)
+    assert len(conversation['messages'])<=400 and conversation['truncated']
+    history=service.conversation('identity:'+ids['contact'],service.query({'as_of':start.isoformat()}))
+    assert datetime.fromisoformat(history['last_message_at'])==start
+
+
 def test_selected_extraction_and_confirmed_project_ui_contract(network_database):
     from test_network_changes import setup
     from scripts.network_real import create_app
@@ -123,6 +153,36 @@ def test_selected_extraction_and_confirmed_project_ui_contract(network_database)
     for row in actual['strategic_assertions']:
         validate_assertion(actual,row)
     assert profile['assertions'][0]['status']=='confirmed'
+
+
+@pytest.mark.parametrize('decision', ['reject', 'confirm'])
+def test_entity_only_extraction_is_visible_and_reviewable(network_database, decision):
+    from test_network_changes import setup
+    from scripts.network_real import create_app
+    from adapters.network.service import NetworkService
+    source,store,ids,snapshot,batch=setup(network_database)
+    class Provider:
+        available=True
+        model='fake-project-mention'
+        def structured(self,schema,system,payload):
+            return batch.model_copy(update={'relations':[], 'assertions':[]}),{}
+    client=create_app(service=NetworkService(store,source),agent_provider=Provider(),testing=True).test_client()
+    person='identity:'+ids['contact']
+    response=client.post('/network/profile/extract',json={'focus':person,'as_of':'2026-10-02T00:00:00Z','evidence_ids':['message:'+ids['message']]})
+    assert response.status_code==200
+    saved=response.json
+    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    assert [p['id'] for p in profile['proposals']]==[saved['id']]
+    payload={'proposal_id':saved['id'],'expected_version':saved['version'],'decision':decision}
+    if decision=='confirm': payload['entity_bindings']={'new:aurora':'create'}
+    assert client.post('/network/profile/review',json=payload).status_code==200
+    assert not any(c['relation']=='Project member' for c in store.capture((),100).data['claims'])
+    assert store.proposals(focus=person)[0]['status']==('confirmed' if decision=='confirm' else 'rejected')
+
+
+def test_untrusted_host_cannot_read_real_source(real_client):
+    client,_,_=real_client
+    assert client.get('/network/graph.json',headers={'Host':'attacker.example'}).status_code==400
 
 
 def test_real_browser_graph_sources_and_model_unavailability(real_client,tmp_path):

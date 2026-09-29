@@ -20,3 +20,13 @@ def test_smoke_rejects_nonlocal_target_without_contacting_it():
     from scripts.check_network_real import check
     with pytest.raises(ValueError,match='loopback'):
         check('https://example.com')
+
+
+def test_declared_flask_versions_enforce_trusted_hosts():
+    import tomllib
+    from packaging.requirements import Requirement
+    root=Path(__file__).resolve().parents[1]
+    dependencies=tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['dependencies']
+    requirement=next(Requirement(d) for d in dependencies if Requirement(d).name.casefold()=='flask')
+    assert '3.0.3' not in requirement.specifier
+    assert '3.1.0' in requirement.specifier

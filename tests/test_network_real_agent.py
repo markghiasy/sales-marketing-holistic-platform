@@ -71,3 +71,41 @@ def test_projection_revision_during_planning_cannot_replace_used_dependencies(ne
         NetworkWorker(source,store).tick(datetime(2026,10,3,tzinfo=UTC))
     with pytest.raises(RuntimeError,match='source_changed'):
         NetworkService(store,source).answer(AgentRequest(question='security',focus=store.worker_state()['owner_id'],as_of='2026-10-02T00:00:00Z'),NetworkAgent(Provider(after_plan=correction)))
+
+
+def test_hiding_contact_during_model_call_invalidates_answer(network_database):
+    from adapters.network.service import NetworkService
+    source,store,ids,_=setup_index(network_database)
+    def hide():
+        with psycopg.connect(network_database[0]) as conn:
+            conn.execute('insert into contact_hidden(contact_key) values (%s)',(ids['contact'],))
+    with pytest.raises(RuntimeError,match='source_changed'):
+        NetworkService(store,source).answer(AgentRequest(question='security',focus=store.worker_state()['owner_id'],as_of='2026-10-02T00:00:00Z'),NetworkAgent(Provider(hide)))
+
+
+def test_merge_reversal_during_model_call_invalidates_answer(network_database):
+    from adapters.network.service import NetworkService
+    dsn,ids=network_database
+    with psycopg.connect(dsn) as conn:
+        parent=conn.execute("insert into person(primary_name) values ('Parent') returning id").fetchone()[0]
+        child=conn.execute("insert into person(primary_name,merged_into) values ('Child',%s) returning id",(parent,)).fetchone()[0]
+        conn.execute('update identity set person_id=%s where id=%s',(child,ids['contact']))
+    source,store,ids,_=setup_index(network_database)
+    def undo():
+        with psycopg.connect(dsn) as conn:
+            conn.execute('update person set merged_into=null where id=%s',(child,))
+    with pytest.raises(RuntimeError,match='source_changed'):
+        NetworkService(store,source).answer(AgentRequest(question='security',focus=store.worker_state()['owner_id'],as_of='2026-10-02T00:00:00Z'),NetworkAgent(Provider(undo)))
+
+
+def test_unrelated_new_message_during_model_call_preserves_answer(network_database):
+    from adapters.network.service import NetworkService
+    source,store,ids,_=setup_index(network_database)
+    def unrelated_message():
+        with psycopg.connect(network_database[0]) as conn:
+            sender=conn.execute("insert into identity(channel,handle,display_name) values ('outlook','unrelated@example.test','Unrelated') returning id").fetchone()[0]
+            thread=conn.execute("insert into thread(channel,external_id) values ('outlook','unrelated') returning id").fetchone()[0]
+            message=conn.execute("insert into message(thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,'outlook','unrelated','inbound','2026-10-02',%s,'Unrelated update','{}','2026-10-02') returning id",(thread,sender)).fetchone()[0]
+            conn.execute("insert into message_participant values (%s,%s,'to')",(message,ids['self']))
+    result=NetworkService(store,source).answer(AgentRequest(question='security',focus=store.worker_state()['owner_id'],as_of='2026-10-02T00:00:00Z'),NetworkAgent(Provider(unrelated_message)))
+    assert result['findings']

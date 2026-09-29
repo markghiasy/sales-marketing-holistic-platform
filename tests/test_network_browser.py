@@ -49,6 +49,31 @@ def test_embedded_slice_round_trip(page):
     assert page.locator(".detail-head").inner_text().startswith("MC\nMaya Chen")
 
 
+def test_many_sources_load_a_bounded_page_and_keep_successes_on_one_failure(page):
+    from playwright.sync_api import expect
+    page.goto(page.base_url+'/network')
+    count=[]
+    def evidence(route):
+        count.append(route.request.url)
+        if '/source-1.json' in route.request.url:
+            route.fulfill(status=409,content_type='application/json',body='{}')
+        else:
+            route.fulfill(content_type='application/json',body='{"channel":"outlook","at":"2026-09-27T00:00:00Z","text":"Available source"}')
+    page.route('**/network/evidence/source-*.json*',evidence)
+    page.evaluate('''async () => {
+      const {showEvidence}=await import('/static/network/client.js');
+      const target=document.createElement('div');target.id='large-evidence-test';document.body.append(target);
+      await showEvidence(target,{evidence_ids:Array.from({length:400},(_,i)=>`source-${i}`)},
+        {as_of:'2026-09-27T12:00:00Z',version:1});
+    }''')
+    assert len(count)==3
+    expect(page.locator('#large-evidence-test .evidence-quote')).to_have_count(2)
+    expect(page.locator('#large-evidence-test')).to_contain_text('unavailable')
+    page.locator('#large-evidence-test').get_by_role('button',name='Load more sources').click()
+    expect(page.locator('#large-evidence-test .evidence-quote')).to_have_count(5)
+    assert len(count)==6
+
+
 @pytest.mark.parametrize("entry", ["explorer", "inbox"])
 def test_assistant_preserves_history_and_explains_retrieval_coverage(page, entry):
     import json

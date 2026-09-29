@@ -218,7 +218,7 @@ class PostgresNetworkStore:
             conn.execute('update network.state set error_code=%s',(code,))
 
     def capture(self, entity_ids: tuple[str, ...] = (), limit: int = 200,
-                *, evidence_ids: tuple[str,...] = ()) -> Snapshot:
+                *, evidence_ids: tuple[str,...] = (), as_of: datetime | None = None) -> Snapshot:
         if not 2 <= limit <= 1000:
             raise ValueError('snapshot_limit')
         with self.connection(read_only=True) as conn:
@@ -231,7 +231,7 @@ class PostgresNetworkStore:
             truncated=len(entity_ids)>limit
             item_limit=min(400,limit*20)
             counts=defaultdict(int)
-            found=conn.execute('select items.* from unnest(%s::text[]) as sections(kind) cross join lateral (select * from network.item where kind=sections.kind and entity_ids && %s order by id limit %s) items',([k for k in SECTIONS if k!='node'],selected,item_limit+1)).fetchall()
+            found=conn.execute("select items.* from unnest(%s::text[]) as sections(kind) cross join lateral (select * from network.item where kind=sections.kind and entity_ids && %s and (kind<>'message' or %s::timestamptz is null or (payload->>'at')::timestamptz<=%s) order by case when kind='message' then (payload->>'at')::timestamptz end desc nulls last,id limit %s) items",([k for k in SECTIONS if k!='node'],selected,as_of,as_of,item_limit+1)).fetchall()
             for row in found:
                 counts[row['kind']]+=1
                 if counts[row['kind']]<=item_limit:

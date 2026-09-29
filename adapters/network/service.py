@@ -40,7 +40,7 @@ class NetworkService:
                 with self.store.connection(read_only=True) as conn:
                     rows=conn.execute("select entity_ids from network.item where kind='claim' and entity_ids @> %s and payload->>'status'='confirmed' order by id limit %s",([context],limit)).fetchall()
                 ids.extend(i for row in rows for i in row['entity_ids'])
-        return self._dated(self.store.capture(tuple(ids),limit),query)
+        return self._dated(self.store.capture(tuple(ids),limit,as_of=query.as_of),query)
 
     def _dated(self,snapshot,query):
         data=snapshot.data
@@ -102,12 +102,12 @@ class NetworkService:
         ids=ids[:limit]
         if not ids:
             return [],None
-        snapshot=self._dated(self.store.capture(tuple(ids),min(1000,len(ids)+15)),query)
+        snapshot=self._dated(self.store.capture(tuple(ids),min(1000,len(ids)+15),as_of=query.as_of),query)
         nodes={n['id']:n for n in snapshot.data['nodes']}
         return [self._contact(nodes[i],snapshot.data,query) for i in ids if i in nodes],ids[-1] if more else None
 
     def conversation(self,person,query):
-        snapshot=self._dated(self.store.capture((person,),30),query)
+        snapshot=self._dated(self.store.capture((person,),30,as_of=query.as_of),query)
         node=next((n for n in snapshot.data['nodes'] if n['id']==person and n['kind']=='person'),None)
         if not node:
             raise KeyError(person)

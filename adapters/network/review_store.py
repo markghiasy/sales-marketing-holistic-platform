@@ -16,6 +16,7 @@ class ReviewRepository:
         ids,eids=batch.references()
         evidence=[r['payload'] for r in conn.execute("select payload from network.item where kind='evidence' and id=ANY(%s)",(list(eids),))]
         ids|={e['author_id'] for e in evidence if e.get('author_id')}
+        ids|={i for e in evidence for i in e.get('participant_ids',[])}
         nodes=[r['payload'] for r in conn.execute("select payload from network.item where kind='node' and id=ANY(%s)",(list(ids),))]
         state=self.store._state(conn)
         return Snapshot(state['version'],{'nodes':nodes,'evidence':evidence,'owner_id':state['owner_id']},{})
@@ -45,8 +46,9 @@ class ReviewRepository:
                 raise StoreError('source_changed')
             digest=fingerprint([batch.model_dump(mode='json',exclude={'model'}),deps])
             pid='proposal:'+digest[:32]
+            context_ids=sorted(n['id'] for n in snapshot.data['nodes'])
             added=conn.execute('insert into network.proposal(id,fingerprint,payload,dependencies) values (%s,%s,%s,%s) on conflict(fingerprint) do nothing',
-                               (pid,digest,Jsonb({'batch':batch.model_dump(mode='json')}),Jsonb(deps))).rowcount
+                               (pid,digest,Jsonb({'batch':batch.model_dump(mode='json'),'context_entity_ids':context_ids}),Jsonb(deps))).rowcount
             version=state['version']+int(bool(added))
             conn.execute('update network.state set version=%s',(version,))
             return {'id':pid,'version':version,'added':int(bool(added))}
@@ -103,7 +105,7 @@ class ReviewRepository:
             raise ValueError('proposal_limit')
         with self.store.connection(read_only=True) as conn:
             self.store._state(conn)
-            return tuple(conn.execute("select id,payload,status from network.proposal where %s::text is null or jsonb_path_exists(payload,'$.batch.** ? (@ == $focus)',jsonb_build_object('focus',%s::text)) order by created_at desc,id limit %s",(focus,focus,limit)))
+            return tuple(conn.execute("select id,payload,status from network.proposal where %s::text is null or payload->'context_entity_ids' ? %s or jsonb_path_exists(payload,'$.batch.** ? (@ == $focus)',jsonb_build_object('focus',%s::text)) or (not payload ? 'context_entity_ids' and exists(select 1 from jsonb_path_query(payload,'$.batch.**.evidence_id') ref join network.item e on e.kind='evidence' and e.id=ref#>>'{}' where e.payload->>'author_id'=%s or e.payload->'participant_ids' ? %s)) order by created_at desc,id limit %s",(focus,focus,focus,focus,focus,limit)))
 
     def restore_active(self,conn):
         # Base source projection may replace derived items. Reapply only proposals
