@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Explorer</title><link rel="stylesheet" href="/static/network/network.css">
+<link rel="stylesheet" href="/static/network/discovery.css">
+<script src="/static/vendor/cytoscape.min.js"></script></head>
+<body class="network-app with-app-nav">
+<script>window.NETWORK_CONFIG={{ (network_config|default({}))|tojson }};</script>
+<nav class="app-nav" aria-label="Main navigation">
+<a href="/inbox" aria-label="Inbox" title="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14h5l2 3h2l2-3h5"/></svg><span>Inbox</span></a>
+<a href="/inbox?discover=1" aria-label="Search contacts" title="Search contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><span>Search</span></a>
+<a href="/network" aria-label="Knowledge graph" title="Knowledge graph" aria-current="page"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5 19 7 12 20 5 5 4 16 19 7" stroke="currentColor"/><circle cx="5" cy="5" r="2" fill="currentColor"/><circle cx="19" cy="7" r="2" fill="currentColor"/><circle cx="12" cy="20" r="2" fill="currentColor"/><circle cx="4" cy="16" r="1.5" fill="currentColor"/></svg><span>Graph</span></a>
+</nav>
+<header class="network-header"><a class="wordmark" href="/inbox"><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M7 7 21 9 14 22 7 7 5 18 21 9" stroke="currentColor" stroke-width="1" opacity=".6"/><circle cx="7" cy="7" r="2.5" fill="currentColor"/><circle cx="21" cy="9" r="2" fill="currentColor"/><circle cx="14" cy="22" r="2.5" fill="currentColor"/><circle cx="5" cy="18" r="1.5" fill="currentColor"/></svg>Comms<span> / Network</span></a><span class="demo-label">{{ 'Local network trial' if network_real else 'Synthetic demo' }}</span><a id="return-link" href="{{ return_url }}">{{ "Return to conversation" if has_origin else "Back to inbox" }}</a><span class="owner-avatar">{{ 'You' if network_real else 'JE' }}</span></header>
+<main>
+<div class="page-heading"><div><h1>Your network</h1><p>Explore the people and relationships behind your conversations.</p></div><div class="heading-actions"><button class="primary" id="ask-network">Ask your network</button>{% if not network_real %}<button id="reset">Reset scenario</button><button class="primary" id="reply">Simulate reply</button>{% endif %}</div></div>
+<form class="network-filters" id="filters" autocomplete="off">
+<label class="search-label">Find a person<input name="search" type="search" placeholder="Search name or expertise"></label>
+<label>Function<select name="function"><option value="">All functions</option></select></label>
+<label>Organization<select name="organization"><option value="">All organizations</option></select></label>
+<label>Project<select name="project"><option value="">All projects</option></select></label>
+<button type="button" id="clear-filters">Clear filters</button>
+</form>
+<div class="network-workspace">
+<aside class="people-panel"><div class="panel-heading"><h2>People</h2><span id="people-count"></span></div><p class="panel-caption" id="ranking-caption">Ordered by recent direct activity</p><select class="people-lens" id="entity-lens" aria-label="Browse entities"><option value="person">People</option><option value="organization">Organizations</option><option value="project">Projects</option></select><div id="people" aria-label="Matching people"></div></aside>
+<section class="graph-panel" aria-label="Relationship network"><div class="graph-toolbar"><div class="segmented" aria-label="Ranking view"><button data-mode="current" class="active">Current relevance</button><button data-mode="history">Relationship history</button></div><button id="fit" title="Fit all visible nodes">Fit view</button></div>
+<div class="expansion-controls" id="expansion-controls" hidden>
+<fieldset class="relationship-scopes"><legend>Explore relationships</legend>
+<label><input id="scope-direct" name="scopes" type="checkbox" value="direct">Direct interaction</label>
+<label><input id="scope-explicit" name="scopes" type="checkbox" value="explicit">Collaboration or introduction</label>
+<label><input id="scope-project" name="scopes" type="checkbox" value="project">Shared project or team</label>
+<label><input id="scope-organization" name="scopes" type="checkbox" value="organization">Shared organization or company</label>
+</fieldset>
+<div class="scope-filters"><label>Relationship event window<select id="scope-window" aria-label="Relationship event window"><option value="0">All recorded time</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="180">Last 180 days</option></select></label>
+<label>Order people<select id="scope-sort" aria-label="Order people"><option value="recent">Recent relationship event</option><option value="frequency">Direct interaction frequency</option><option value="name">Name</option></select></label>
+<label>Minimum direct sessions<input id="scope-min-sessions" type="number" min="0" max="1000" step="1" value="0"></label></div>
+<div class="scope-actions"><button id="expand-more">Expand more</button><button id="exit-expansion">Back to search</button></div>
+<p id="scope-note">The event window applies to direct interaction and collaboration or introduction. Shared contexts remain visible; affiliation alone does not establish acquaintance.</p>
+<p id="scope-counts" aria-live="polite"></p><p id="scope-empty" hidden>No relationship scopes selected. Select a scope to explore connections from this focus.</p>
+</div><div id="graph" class="network-canvas"></div><div class="graph-empty" id="graph-empty" hidden>No matching connections. Clear a filter to explore more of your network.</div>
+<div class="graph-legend"><span><i class="dot person"></i>Person</span><span><i class="dot organization"></i>Organization</span><span><i class="dot project"></i>Project</span><span class="muted">Select a connection to inspect its evidence</span></div>
+<div class="timeline"><label>Known by <input id="as-of" type="date" value="{{ network_config.as_of[:10] if network_real else '2026-09-27' }}"></label>{% if network_real %}<button id="live-network" type="button">Live updates</button>{% endif %}<span id="snapshot-count"></span><label class="hypotheses"><input id="hypotheses" type="checkbox">Show unconfirmed</label></div>
+</section>
+<aside class="evidence-panel" id="inspector" aria-live="polite"><div class="inspector-placeholder"><div class="connection-symbol">◎</div><h2>Follow a connection</h2><p>Select a person or relationship to see why it is here, what changed, and the original evidence.</p><p class="muted">{% if network_real %}Your recorded network.<br>Relationships require source evidence.{% else %}Network owner: Jordan Ellis<br>All names and messages are fictional.{% endif %}</p></div></aside>
+</div><div id="network-status" class="network-status" role="status">Loading network…</div>
+</main><script type="module" src="/static/network/explorer.js"></script></body></html>

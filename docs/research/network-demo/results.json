@@ -1,0 +1,364 @@
+{
+  "design": "Seven hand-authored diagnostic cases; baselines deliberately lack project/time relations. Not a held-out benchmark.",
+  "settings": {
+    "fast_half_life_days": 30,
+    "slow_half_life_days": 180,
+    "saturation_scale": 4
+  },
+  "summary": {
+    "filter_only": {
+      "exact_sets": 3,
+      "cases": 7
+    },
+    "filter_recency": {
+      "exact_sets": 3,
+      "cases": 7
+    },
+    "temporal_context": {
+      "exact_sets": 7,
+      "cases": 7
+    }
+  },
+  "integrity_checks": {
+    "dangling_evidence_links": 0,
+    "pending_or_rejected_in_default": 0,
+    "separate_client_and_collaborator": true
+  },
+  "results": [
+    {
+      "scenario": "accountants-for-harbour",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:maya",
+        "person:priya"
+      ],
+      "returned_ids": [
+        "person:lily",
+        "person:maya",
+        "person:priya"
+      ],
+      "exact_set": false,
+      "precision": 0.6666666666666666,
+      "recall": 1.0
+    },
+    {
+      "scenario": "accountants-for-harbour",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:maya",
+        "person:priya"
+      ],
+      "returned_ids": [
+        "person:priya",
+        "person:lily",
+        "person:maya"
+      ],
+      "exact_set": false,
+      "precision": 0.6666666666666666,
+      "recall": 1.0
+    },
+    {
+      "scenario": "accountants-for-harbour",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:maya",
+        "person:priya"
+      ],
+      "returned_ids": [
+        "person:priya",
+        "person:maya"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "research-partners",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:aisha",
+        "person:grace",
+        "person:sam"
+      ],
+      "returned_ids": [
+        "person:aisha",
+        "person:alex2",
+        "person:grace",
+        "person:sam"
+      ],
+      "exact_set": false,
+      "precision": 0.75,
+      "recall": 1.0
+    },
+    {
+      "scenario": "research-partners",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:aisha",
+        "person:grace",
+        "person:sam"
+      ],
+      "returned_ids": [
+        "person:sam",
+        "person:grace",
+        "person:aisha",
+        "person:alex2"
+      ],
+      "exact_set": false,
+      "precision": 0.75,
+      "recall": 1.0
+    },
+    {
+      "scenario": "research-partners",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:aisha",
+        "person:grace",
+        "person:sam"
+      ],
+      "returned_ids": [
+        "person:sam",
+        "person:grace",
+        "person:aisha"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "current-employer",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:jack",
+        "person:oliver"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:jack",
+        "person:oliver"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "current-employer",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:jack",
+        "person:oliver"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:oliver",
+        "person:jack"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "current-employer",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:jack",
+        "person:oliver"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:oliver",
+        "person:jack"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "historical-employer",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [],
+      "exact_set": false,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    {
+      "scenario": "historical-employer",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [],
+      "exact_set": false,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    {
+      "scenario": "historical-employer",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [
+        "person:alex"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "late-arriving-evidence",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [],
+      "exact_set": false,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    {
+      "scenario": "late-arriving-evidence",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [],
+      "exact_set": false,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    {
+      "scenario": "late-arriving-evidence",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex"
+      ],
+      "returned_ids": [
+        "person:alex"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "same-name-people",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "same-name-people",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "same-name-people",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "returned_ids": [
+        "person:alex",
+        "person:alex2"
+      ],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "no-supported-expertise",
+      "policy": "filter_only",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [],
+      "returned_ids": [],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "no-supported-expertise",
+      "policy": "filter_recency",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [],
+      "returned_ids": [],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    {
+      "scenario": "no-supported-expertise",
+      "policy": "temporal_context",
+      "backend": "synthetic",
+      "status": "executed",
+      "expected_ids": [],
+      "returned_ids": [],
+      "exact_set": true,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  ]
+}

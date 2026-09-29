@@ -41,6 +41,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e .[dev]
+      - name: Install the browser used by the complete UI suite
+        run: python -m playwright install --with-deps msedge
       - name: Apply every migration (fail on the first SQL error)
         shell: bash
         run: |

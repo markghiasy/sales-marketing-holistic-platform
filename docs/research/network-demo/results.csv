@@ -1,0 +1,22 @@
+scenario,policy,backend,status,expected_ids,returned_ids,exact_set,precision,recall
+accountants-for-harbour,filter_only,synthetic,executed,"['person:maya', 'person:priya']","['person:lily', 'person:maya', 'person:priya']",False,0.6666666666666666,1.0
+accountants-for-harbour,filter_recency,synthetic,executed,"['person:maya', 'person:priya']","['person:priya', 'person:lily', 'person:maya']",False,0.6666666666666666,1.0
+accountants-for-harbour,temporal_context,synthetic,executed,"['person:maya', 'person:priya']","['person:priya', 'person:maya']",True,1.0,1.0
+research-partners,filter_only,synthetic,executed,"['person:aisha', 'person:grace', 'person:sam']","['person:aisha', 'person:alex2', 'person:grace', 'person:sam']",False,0.75,1.0
+research-partners,filter_recency,synthetic,executed,"['person:aisha', 'person:grace', 'person:sam']","['person:sam', 'person:grace', 'person:aisha', 'person:alex2']",False,0.75,1.0
+research-partners,temporal_context,synthetic,executed,"['person:aisha', 'person:grace', 'person:sam']","['person:sam', 'person:grace', 'person:aisha']",True,1.0,1.0
+current-employer,filter_only,synthetic,executed,"['person:alex', 'person:jack', 'person:oliver']","['person:alex', 'person:jack', 'person:oliver']",True,1.0,1.0
+current-employer,filter_recency,synthetic,executed,"['person:alex', 'person:jack', 'person:oliver']","['person:alex', 'person:oliver', 'person:jack']",True,1.0,1.0
+current-employer,temporal_context,synthetic,executed,"['person:alex', 'person:jack', 'person:oliver']","['person:alex', 'person:oliver', 'person:jack']",True,1.0,1.0
+historical-employer,filter_only,synthetic,executed,['person:alex'],[],False,0.0,0.0
+historical-employer,filter_recency,synthetic,executed,['person:alex'],[],False,0.0,0.0
+historical-employer,temporal_context,synthetic,executed,['person:alex'],['person:alex'],True,1.0,1.0
+late-arriving-evidence,filter_only,synthetic,executed,['person:alex'],[],False,0.0,0.0
+late-arriving-evidence,filter_recency,synthetic,executed,['person:alex'],[],False,0.0,0.0
+late-arriving-evidence,temporal_context,synthetic,executed,['person:alex'],['person:alex'],True,1.0,1.0
+same-name-people,filter_only,synthetic,executed,"['person:alex', 'person:alex2']","['person:alex', 'person:alex2']",True,1.0,1.0
+same-name-people,filter_recency,synthetic,executed,"['person:alex', 'person:alex2']","['person:alex', 'person:alex2']",True,1.0,1.0
+same-name-people,temporal_context,synthetic,executed,"['person:alex', 'person:alex2']","['person:alex', 'person:alex2']",True,1.0,1.0
+no-supported-expertise,filter_only,synthetic,executed,[],[],True,1.0,1.0
+no-supported-expertise,filter_recency,synthetic,executed,[],[],True,1.0,1.0
+no-supported-expertise,temporal_context,synthetic,executed,[],[],True,1.0,1.0

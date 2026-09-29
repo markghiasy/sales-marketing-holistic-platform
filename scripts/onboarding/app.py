@@ -20,7 +20,7 @@ from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, Response, jsonify, render_template, request, send_file, stream_with_context
 
 from adapters import contact_editor, inbox_query
 from adapters.linkedin import login as linkedin_login
@@ -192,6 +192,26 @@ def _background_monitor_loop() -> None:
         except Exception as e:  # noqa: BLE001 — the loop must survive a bad check
             print(f"background monitor check failed: {e}", file=sys.stderr)
         time.sleep(_MONITOR_INTERVAL_SECONDS)
+
+
+def _format_sse_event(payload: str) -> str:
+    return f"event: update\ndata: {payload}\n\n"
+
+
+def _listen_for_inbox_updates():
+    # A dedicated connection, not _db_cursor()'s shared one — this one
+    # blocks on LISTEN for as long as the browser tab stays open, so
+    # reusing the shared (lock-guarded) connection here would stall every
+    # other request on the app for that whole time. autocommit=True
+    # because LISTEN takes effect for the rest of the session, not inside
+    # a transaction.
+    conn = psycopg.connect(os.environ["DATABASE_URL"], autocommit=True)
+    try:
+        conn.execute("listen inbox_updated")
+        for notify in conn.notifies():
+            yield _format_sse_event(notify.payload)
+    finally:
+        conn.close()
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -417,6 +437,14 @@ def create_app(testing: bool = False) -> Flask:
         with _db_cursor() as cur:
             inbox_query.unhide_contact(cur, person_key)
         return jsonify({"status": "ok"})
+
+    @flask_app.get("/inbox/events")
+    def inbox_events():
+        return Response(
+            stream_with_context(_listen_for_inbox_updates()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @flask_app.get("/contact/<person_key>")
     def contact_info_json(person_key):

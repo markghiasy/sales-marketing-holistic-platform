@@ -135,11 +135,22 @@ Coverage: {"PARTIAL history: older messages or message text were omitted to fit 
 
 Call {_TOOL_NAME} with your summary. "summary" is one short third-person
 sentence describing what this contact needs or wants right now. "context"
-is a list of full first-person-voice sentences of background. "topic" is
+is a LIST of SEPARATE full first-person-voice sentences of background —
+each list item is its own single fact, one sentence long. Never merge
+multiple facts into one run-on sentence or collapse the list down to a
+single item unless there is genuinely only one fact to report. "topic" is
 a short 1-3 word phrase for this contact's current thread. "graph.org" is
 this contact's employer if known, else null. "graph.people" is only
 people the messages or facts actually support a relation for. "urgency"
 is 1, 2, or 3 (3 = needs action soon).
+
+Weight recency heavily when deciding WHICH facts to keep: the most recent
+messages describe the contact's CURRENT state and should dominate
+"summary", "topic", and "urgency". Older facts are background only —
+keep a "context" item for one solely where it still explains something
+about the current state (an open ask, a relationship, a commitment); drop
+an old fact entirely once later messages have resolved or superseded it.
+Each surviving fact still gets its own separate sentence in the list.
 """
 
 

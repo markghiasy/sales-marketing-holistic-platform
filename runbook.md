@@ -1,5 +1,14 @@
 # Runbook
 
+## Existing-instance Network trial
+
+For the separate real-data Network trial, use the
+[existing-instance upgrade guide](docs/demos/network-trial-upgrade.md) and its
+linked release/acceptance record. It reuses the operator's current configuration,
+initializes only the derived `network` schema, and runs a separate loopback app
+and worker. Do not follow the fresh-instance source migrations below for this
+upgrade. Mac execution remains a separate target-machine acceptance check.
+
 Kept current at every block checkpoint (build plan §13 rule 7) — this is
 what makes the cutover in §14 possible at all.
 

@@ -79,3 +79,35 @@ def db_conn(isolated_database_url):
     finally:
         conn.rollback()
         conn.close()
+
+
+@pytest.fixture
+def source_seed(isolated_database_url):
+    ids = {k: str(uuid.uuid4()) for k in ('owner', 'self', 'contact', 'thread', 'message')}
+    with psycopg.connect(isolated_database_url) as conn:
+        conn.execute('insert into person(id, primary_name) values (%s, %s)', (ids['owner'], 'Owner'))
+        for key, name, own in [('self', 'Owner', True), ('contact', 'Morgan', False)]:
+            conn.execute('insert into identity(id,channel,handle,display_name,person_id,is_self) values (%s,%s,%s,%s,%s,%s)',
+                         (ids[key], 'outlook', key+'@example.test', name, ids['owner'] if own else None, own))
+        conn.execute('insert into thread(id,channel,external_id) values (%s,%s,%s)', (ids['thread'], 'outlook', 't'))
+        conn.execute("insert into message(id,thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,%s,'outlook','m','inbound','2020-01-01',%s,'Project note','{\"private_raw\":true}','2026-09-30')",
+                     (ids['message'], ids['thread'], ids['contact']))
+        conn.execute("insert into message_participant values (%s,%s,'to')", (ids['message'], ids['self']))
+    return isolated_database_url, ids
+
+
+
+@pytest.fixture
+def network_database(source_seed):
+    dsn, ids = source_seed
+    with psycopg.connect(dsn, autocommit=True) as guard:
+        guard.execute('select pg_advisory_lock(741030)')
+        try:
+            exists = guard.execute("select to_regnamespace('network')").fetchone()[0]
+            if exists:
+                raise RuntimeError('test network schema already exists; refusing to overwrite')
+            yield dsn, ids
+        finally:
+            if not exists:
+                guard.execute('drop schema if exists network cascade')
+            guard.execute('select pg_advisory_unlock(741030)')

@@ -1,0 +1,222 @@
+from datetime import UTC, datetime
+
+import psycopg
+import pytest
+from test_network_index import setup_index
+
+
+@pytest.fixture
+def real_client(network_database):
+    from adapters.network.service import NetworkService
+    from scripts.network_demo import create_app
+    source,store,ids,_=setup_index(network_database,5)
+    app=create_app(testing=True,network_service=NetworkService(store,source))
+    return app.test_client(),store,ids
+
+
+def test_real_routes_never_load_fixtures(real_client,monkeypatch):
+    from adapters.network.service import NetworkService
+    from adapters.network.source import SourceRepository
+    from scripts.network_demo import create_app
+    client,store,_ids=real_client
+    monkeypatch.setattr('scripts.network_demo.ScenarioStore',lambda:pytest.fail('fixture loaded'))
+    app=create_app(testing=True,network_service=NetworkService(store,SourceRepository(store._dsn)))
+    client=app.test_client()
+    for path in ('/inbox','/network'):
+        page=client.get(path)
+        assert page.status_code==200
+        assert b'Synthetic demo' not in page.data and b'Jordan Ellis' not in page.data
+    for path in ('reply','reset'):
+        assert client.post('/network/demo/'+path).status_code==404
+    status=client.get('/network/agent/status.json').json
+    assert status['data_source']=='real' and not status['configured']
+    graph=client.get('/network/graph.json').json
+    assert graph['backend']=='postgresql' and graph['data_source']=='real'
+    assert datetime.fromisoformat(graph['as_of']).date()==datetime.now(UTC).date()
+    assert graph['freshness']['version']==store.status().version
+
+
+def test_real_contacts_paginate_and_source_links_are_revision_bound(real_client):
+    client,store,ids=real_client
+    first=client.get('/inbox/conversations.json?limit=2').json
+    second=client.get('/inbox/conversations.json?limit=2&after='+first[-1]['person_key']).json
+    assert len(first)==len(second)==2
+    assert not {p['person_key'] for p in first}&{p['person_key'] for p in second}
+    person='identity:'+ids['contact']
+    detail=client.get('/inbox/conversation/'+person+'.json?as_of=2026-10-02T00:00:00Z').json
+    assert detail['messages'] and detail['data_source']=='real'
+    assert all('Fictional' not in m['subject'] for m in detail['messages'])
+    graph=client.get('/network/graph.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    evidence_id=graph['edges'][0]['evidence_ids'][0]
+    evidence=client.get('/network/evidence/'+evidence_id+'.json?as_of=2026-10-02T00:00:00Z&version='+str(graph['version']))
+    assert evidence.status_code==200 and 'security' in evidence.json['text']
+    assert client.get('/network/evidence/'+evidence_id+'.json?version=999999').status_code==409
+    with psycopg.connect(store._dsn) as conn:
+        conn.execute("update message set body_text='Corrected source'")
+    assert client.get('/network/evidence/'+evidence_id+'.json?as_of=2026-10-02T00:00:00Z&version='+str(graph['version'])).status_code==409
+
+
+def test_mutations_enforce_local_origin_and_selected_evidence(real_client):
+    client,_store,ids=real_client
+    for path in ('/network/agent.json','/network/profile/extract','/network/profile/review'):
+        assert client.post(path,json={},headers={'Origin':'https://other.example'}).status_code==403
+        assert client.post(path,data='{}').status_code==415
+    assert client.post('/network/profile/extract',json={'focus':'identity:'+ids['contact']}).status_code==400
+    assert client.post('/network/agent.json',json={'question':'security'}).status_code==503
+
+
+def test_context_profile_and_events_report_real_state(real_client):
+    client,_store,ids=real_client
+    person='identity:'+ids['contact']
+    for path in ('context','profile'):
+        response=client.get('/network/'+path+'.json?focus='+person)
+        assert response.status_code==200
+        assert response.json['data_source']=='real'
+        assert 'Synthetic' not in response.json['coverage']
+    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    assert profile['source_choices'] and not profile['assertions']
+    response=client.get('/network/events',buffered=False)
+    assert b'event: update' in next(iter(response.response))
+    response.close()
+
+
+def test_absent_or_future_source_never_appears_in_historical_slice(real_client):
+    client,_store,_ids=real_client
+    graph=client.get('/network/graph.json?as_of=2019-01-01T00:00:00Z').json
+    assert not graph['edges']
+    assert client.get('/network/evidence/unknown.json').status_code==404
+    assert client.get('/inbox/conversation/unknown.json').status_code==404
+
+
+def test_real_name_search_uses_bound_owner_instead_of_demo_owner(real_client):
+    client,_store,ids=real_client
+    response=client.get('/network/search.json?q=Morgan&as_of=2026-10-02T00:00:00Z')
+    assert response.status_code==200,response.json
+    assert any(p['id']=='identity:'+ids['contact'] for p in response.json['results'])
+
+
+def test_high_volume_conversation_includes_latest_message_not_uuid_sample(network_database):
+    from datetime import timedelta
+    from uuid import UUID
+
+    from adapters.network.service import NetworkService
+    from adapters.network.source import SourceRepository
+    from adapters.network.store import PostgresNetworkStore
+    from adapters.network.worker import NetworkWorker
+    dsn,ids=network_database
+    start=datetime(2026,9,30,tzinfo=UTC)
+    rows=[]
+    for i in range(401):
+        mid=str(UUID(int=i+1)) if i<400 else 'ffffffff-ffff-ffff-ffff-ffffffffffff'
+        rows.append((mid,ids['thread'],f'volume-{i}',start+timedelta(seconds=i),ids['contact'],'Latest update' if i==400 else 'Earlier update'))
+    with psycopg.connect(dsn) as conn:  # noqa: SIM117 - keep transaction and operation contexts explicit.
+        with conn.cursor() as cur:
+            cur.executemany("insert into message(id,thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,%s,'outlook',%s,'inbound',%s,%s,%s,'{}','2026-09-30')",rows)
+            cur.executemany("insert into message_participant values (%s,%s,'to')",[(r[0],ids['self']) for r in rows])
+    source=SourceRepository(dsn)
+    store=PostgresNetworkStore(dsn,source.audit()['binding'])
+    store.initialize()
+    NetworkWorker(source,store).tick(datetime(2026,10,2,tzinfo=UTC))
+    service=NetworkService(store,source)
+    conversation=service.conversation('identity:'+ids['contact'],service.query({'as_of':'2026-10-02T00:00:00Z'}))
+    assert conversation['messages'][-1]['text']=='Latest update'
+    assert datetime.fromisoformat(conversation['last_message_at'])==start+timedelta(seconds=400)
+    assert len(conversation['messages'])<=400 and conversation['truncated']
+    history=service.conversation('identity:'+ids['contact'],service.query({'as_of':start.isoformat()}))
+    assert datetime.fromisoformat(history['last_message_at'])==start
+
+
+def test_selected_extraction_and_confirmed_project_ui_contract(network_database):
+    from test_network_changes import setup
+
+    from adapters.network.service import NetworkService
+    from scripts.network_real import create_app
+    source,store,ids,_snapshot,batch=setup(network_database)
+    class Provider:
+        available=True
+        model='fake-selected'
+        def structured(self,schema,system,payload):
+            assert [e['id'] for e in payload['evidence']]==['message:'+ids['message']]
+            return batch,{'input_tokens':10,'output_tokens':20}
+    client=create_app(service=NetworkService(store,source),agent_provider=Provider(),testing=True).test_client()
+    person='identity:'+ids['contact']
+    response=client.post('/network/profile/extract',json={'focus':person,'as_of':'2026-10-02T00:00:00Z','evidence_ids':['message:'+ids['message']]})
+    assert response.status_code==200,response.json
+    saved=response.json
+    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    assert profile['proposals'][0]['status']=='pending'
+    assert not profile['assertions']
+    response=client.post('/network/profile/review',json={'proposal_id':saved['id'],'expected_version':saved['version'],'decision':'confirm','entity_bindings':{'new:aurora':'create'}})
+    assert response.status_code==200,response.json
+    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    from adapters.network.profiles import validate_assertion
+    actual=store.capture((person,),100).data
+    for row in actual['strategic_assertions']:
+        validate_assertion(actual,row)
+    assert profile['assertions'][0]['status']=='confirmed'
+
+
+@pytest.mark.parametrize('decision', ['reject', 'confirm'])
+def test_entity_only_extraction_is_visible_and_reviewable(network_database, decision):
+    from test_network_changes import setup
+
+    from adapters.network.service import NetworkService
+    from scripts.network_real import create_app
+    source,store,ids,_snapshot,batch=setup(network_database)
+    class Provider:
+        available=True
+        model='fake-project-mention'
+        def structured(self,schema,system,payload):
+            return batch.model_copy(update={'relations':[], 'assertions':[]}),{}
+    client=create_app(service=NetworkService(store,source),agent_provider=Provider(),testing=True).test_client()
+    person='identity:'+ids['contact']
+    response=client.post('/network/profile/extract',json={'focus':person,'as_of':'2026-10-02T00:00:00Z','evidence_ids':['message:'+ids['message']]})
+    assert response.status_code==200
+    saved=response.json
+    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    assert [p['id'] for p in profile['proposals']]==[saved['id']]
+    payload={'proposal_id':saved['id'],'expected_version':saved['version'],'decision':decision}
+    if decision=='confirm': payload['entity_bindings']={'new:aurora':'create'}
+    assert client.post('/network/profile/review',json=payload).status_code==200
+    assert not any(c['relation']=='Project member' for c in store.capture((),100).data['claims'])
+    assert store.proposals(focus=person)[0]['status']==('confirmed' if decision=='confirm' else 'rejected')
+
+
+def test_untrusted_host_cannot_read_real_source(real_client):
+    client,_,_=real_client
+    assert client.get('/network/graph.json',headers={'Host':'attacker.example'}).status_code==400
+
+
+def test_real_browser_graph_sources_and_model_unavailability(real_client,tmp_path):
+    import threading
+
+    from playwright.sync_api import expect, sync_playwright
+    from werkzeug.serving import make_server
+    client,_store,ids=real_client
+    server=make_server('127.0.0.1',0,client.application,threaded=True)
+    threading.Thread(target=server.serve_forever,daemon=True).start()
+    try:
+        with sync_playwright() as p:
+            browser=p.chromium.launch(channel='msedge',headless=True)
+            page=browser.new_page(viewport={'width':1500,'height':950})
+            errors=[]
+            page.on('pageerror',lambda error:errors.append(str(error)))
+            url=f'http://127.0.0.1:{server.server_port}'
+            person='identity:'+ids['contact']
+            page.goto(url+'/network?as_of=2026-10-02T00:00:00Z&focus='+person)
+            expect(page.locator('#network-status')).to_contain_text('Local source')
+            page.get_by_role('button',name='View evidence').first.click()
+            expect(page.locator('.evidence-quote').first).to_contain_text('security')
+            assert 'Fictional' not in page.locator('#inspector').inner_text()
+            page.get_by_role('button',name='Focus neighborhood').click()
+            expect(page.locator('#expansion-controls')).to_be_visible()
+            page.get_by_role('button',name='Ask your network',exact=True).click()
+            expect(page.locator('.agent-provider')).to_contain_text('not configured')
+            page.screenshot(path=str(tmp_path/'real-network.png'),full_page=True)
+            page.goto(url+'/inbox?as_of=2026-10-02T00:00:00Z&focus='+person)
+            expect(page.get_by_role('link',name='Open full network')).to_be_visible()
+            expect(page.locator('.demo-inbox-banner')).to_contain_text('Your source data')
+            assert not errors
+            browser.close()
+    finally:
+        server.shutdown()
