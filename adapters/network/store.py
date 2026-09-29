@@ -268,8 +268,16 @@ class PostgresNetworkStore:
                         data['truncated']=True
                 data[SECTIONS[row['kind']]].append(value)
                 kept.append(row)
-            keys=[r['kind']+':'+r['id'] for r in kept]
-            deps={r['source_key']:r['fingerprint'] for r in conn.execute("select source_key,fingerprint from network.dependency where (item_kind||':'||item_id)=ANY(%s)",(keys,))}
+            # Join the existing composite index, and deduplicate proof shared by
+            # many items on the server before transferring it over the network.
+            dependencies=conn.execute("select distinct d.source_key,d.fingerprint from unnest(%s::text[],%s::text[]) as selected(kind,id) join network.dependency d on d.item_kind=selected.kind and d.item_id=selected.id",
+                ([r['kind'] for r in kept],[r['id'] for r in kept]))
+            deps={}
+            for dependency in dependencies:
+                key,value=dependency['source_key'],dependency['fingerprint']
+                if key in deps and deps[key]!=value:
+                    raise StoreError('source_changed')
+                deps[key]=value
             return Snapshot(state['version'],data,deps)
 
     def dependencies_current(self, dependencies: dict[str, str]) -> bool:

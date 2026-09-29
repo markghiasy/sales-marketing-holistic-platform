@@ -124,3 +124,41 @@ def test_initialization_rejects_source_public_write_grants(network_database):
         store.initialize()
     with psycopg.connect(dsn) as conn:
         assert conn.execute("select to_regnamespace('network')").fetchone()[0] is None
+
+
+def test_capture_transfers_shared_dependencies_once_and_rejects_conflicts(network_database, monkeypatch):
+    from contextlib import contextmanager
+    from adapters.network.store import Projection, StoreError
+    source, store = opened(network_database)
+    for page in source.snapshot_pages(30):
+        store.apply(page)
+    record = store.records('message')[0]
+    nodes = tuple({'id':f'person:shared-{i}', 'kind':'person', 'name':f'Shared {i}'} for i in range(20))
+    projection = Projection(entities=nodes, assertions=(), evidence=(),
+        dependencies={'node:'+n['id']:(record.key,) for n in nodes})
+    empty = replace(source.metadata(), records=(), manifests={}, complete_kinds=frozenset())
+    store.apply(empty, projection)
+    original = store.connection
+    transferred = []
+    class CountingConnection:
+        def __init__(self, conn): self.conn = conn
+        def __getattr__(self, key): return getattr(self.conn, key)
+        def execute(self, query, *args, **kwargs):
+            cursor = self.conn.execute(query, *args, **kwargs)
+            if 'network.dependency' in str(query) and str(query).lower().startswith('select'):
+                rows = cursor.fetchall()
+                transferred.append(len(rows))
+                return rows
+            return cursor
+    @contextmanager
+    def connection(*args, **kwargs):
+        with original(*args, **kwargs) as conn:
+            yield CountingConnection(conn)
+    monkeypatch.setattr(store, 'connection', connection)
+    snapshot = store.capture(tuple(n['id'] for n in nodes), 30)
+    assert snapshot.dependencies == {record.key:record.fingerprint}
+    assert transferred == [1], 'Shared proof should be deduplicated before network transfer'
+    with psycopg.connect(network_database[0]) as conn:
+        conn.execute("update network.dependency set fingerprint='different-version' where item_id=%s", (nodes[0]['id'],))
+    with pytest.raises(StoreError, match='source_changed'):
+        store.capture(tuple(n['id'] for n in nodes), 30)
