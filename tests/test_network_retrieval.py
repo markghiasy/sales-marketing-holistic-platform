@@ -27,6 +27,24 @@ def test_quiet_but_relevant_contact_is_not_pruned_by_activity():
     assert engine(data).people(["warehouse cost assumptions"])["people"][0]["id"] == "person:priya"
 
 
+def test_pack_tokenizes_each_candidate_once_instead_of_each_greedy_iteration(monkeypatch):
+    import adapters.network.retrieval as module
+    retriever = engine()
+    terms = ['security', 'research', 'project', 'logistics']
+    result = retriever.people(terms)
+    requirements = [{'id':t, 'label':t, 'terms':[t]} for t in terms]
+    original = module.tokens
+    calls = []
+    def counted(text):
+        calls.append(text)
+        return original(text)
+    monkeypatch.setattr(module, 'tokens', counted)
+    pack = retriever.pack([result], requirements, max_bytes=8000)
+    assert pack['evidence'] and pack['budget']['bytes'] <= 8000
+    assert len(calls) <= len(set(result['unit_ids'])) + len(terms)
+    assert {r['id'] for r in pack['coverage']} == set(terms)
+
+
 def test_missing_or_future_sources_are_not_searchable():
     data = load_scenario()
     data["evidence"] = [e for e in data["evidence"] if e["id"] != "evidence:work:cost-model"]

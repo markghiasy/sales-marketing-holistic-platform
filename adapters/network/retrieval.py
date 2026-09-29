@@ -255,10 +255,19 @@ class NetworkRetrieval:
         coverage_pool = {
             k for k in pool if scope_entity is None or scope_entity in self.records[k]["entity_ids"]
         }
-        hits = {
-            r["id"]: {k for k in coverage_pool if any(matches(self.text[k], t) for t in r["terms"])}
-            for r in requirements
-        }
+        # Tokenization and lexical relevance do not change during selection.
+        # Compute them once rather than rescanning long excerpts in every sort.
+        all_terms = list(dict.fromkeys([*terms, *(t for r in requirements for t in r['terms'])]))
+        record_words = {k: tokens(self.text[k]) for k in pool}
+        term_words = {t: tokens(t) for t in all_terms}
+        term_hits = {t: {k for k, words in record_words.items() if wanted and wanted <= words}
+                     for t, wanted in term_words.items()}
+        hits = {r['id']: coverage_pool & set().union(*(term_hits[t] for t in r['terms']))
+                for r in requirements}
+        candidates = [(keys, path,
+                       {rid for rid, found in hits.items() if set(keys) & found},
+                       sum(bool(set(keys) & term_hits[t]) for t in terms),
+                       self._order(keys[-1])) for keys, path in candidates]
         selected, selected_paths, covered = set(), [], set()
 
         def core(keys, paths):
@@ -269,25 +278,21 @@ class NetworkRetrieval:
                 "paths": paths,
             }
 
+        needs_sort = True
         while candidates:
-
-            def priority(bundle, covered=covered):
-                keys, path = bundle
-                newly_covered = sum(
-                    bool(set(keys) & keys_hit) and req_id not in covered
-                    for req_id, keys_hit in hits.items()
-                )
-                relevance = sum(any(matches(self.text[k], t) for k in keys) for t in terms)
-                return (-newly_covered, -relevance, 0 if path else 1, self._order(keys[-1]))
-
-            candidates.sort(key=priority)
-            keys, path = candidates.pop(0)
+            if needs_sort:
+                candidates.sort(key=lambda bundle: (
+                    -len(bundle[2] - covered), -bundle[3], 0 if bundle[1] else 1, bundle[4]))
+                needs_sort = False
+            keys, path, _, _, _ = candidates.pop(0)
             next_keys = selected | set(keys)
             next_paths = [*selected_paths, path] if path else selected_paths
             if encoded_size(core(next_keys, next_paths)) > max_bytes:
                 continue
             selected, selected_paths = next_keys, next_paths
-            covered = {rid for rid, keys_hit in hits.items() if keys_hit & selected}
+            next_covered = {rid for rid, keys_hit in hits.items() if keys_hit & selected}
+            needs_sort = next_covered != covered
+            covered = next_covered
         result = core(selected, selected_paths)
         coverage = []
         for requirement in requirements:
