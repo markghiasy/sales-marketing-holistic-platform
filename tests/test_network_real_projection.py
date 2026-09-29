@@ -8,6 +8,24 @@ from adapters.network.source import SourceRepository, SourceRecord, fingerprint
 NOW = datetime(2026,9,30,12,tzinfo=UTC)
 
 
+def test_many_messages_keep_linear_dependencies_and_visibility_proofs(source_seed):
+    from adapters.network.real_projection import project_records
+    dsn,ids=source_seed
+    source=SourceRepository(dsn)
+    records=tuple(r for batch in source.snapshot_pages(100) for r in batch.records)
+    original=next(r for r in records if r.kind=='message')
+    messages=[]
+    for i in range(200):
+        payload={**original.payload,'id':str(i)}
+        messages.append(SourceRecord('message',str(i),fingerprint(payload),payload))
+    projection=project_records(tuple(r for r in records if r.kind!='message')+tuple(messages),(),NOW)
+    # A message depends on its own content and identity/visibility bindings, not
+    # every other message from the same contact. The node retains that proof.
+    assert sum(len(v) for v in projection.dependencies.values())<200*30
+    assert all('message:'+str(i) in projection.dependencies['node:identity:'+ids['contact']] for i in range(200))
+    assert 'contact_hidden:'+ids['contact'] in projection.dependencies['evidence:message:0']
+
+
 def project(dsn):
     from adapters.network.real_projection import project_records
     source = SourceRepository(dsn)

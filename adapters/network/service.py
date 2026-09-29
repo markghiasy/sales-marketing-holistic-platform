@@ -68,10 +68,10 @@ class NetworkService:
             state=self.store._state(conn)
             if version is not None and version!=state['version']:
                 raise StoreError('version_conflict')
-            row=conn.execute("select payload from network.item where kind='evidence' and id=%s",(evidence_id,)).fetchone()
+            row=conn.execute("select payload,entity_ids from network.item where kind='evidence' and id=%s",(evidence_id,)).fetchone()
             if row is None or any(timestamp(row['payload'][k])>query.as_of for k in ('at','known_at','observed_at') if row['payload'].get(k)):
                 raise KeyError(evidence_id)
-            deps={r['source_key']:r['fingerprint'] for r in conn.execute("select source_key,fingerprint from network.dependency where item_kind='evidence' and item_id=%s",(evidence_id,))}
+            deps={r['source_key']:r['fingerprint'] for r in conn.execute("select source_key,fingerprint from network.dependency where (item_kind='evidence' and item_id=%s) or (item_kind='node' and item_id=ANY(%s))",(evidence_id,row['entity_ids']))}
         if not self.validate(deps):
             raise StoreError('source_changed')
         return {**row['payload'],'version':state['version'],'data_source':'real'}

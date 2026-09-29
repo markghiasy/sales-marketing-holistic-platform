@@ -51,6 +51,7 @@ def project_records(records: tuple[SourceRecord, ...], reviews: tuple[dict, ...]
                      for k in deps if k.startswith('contact_hidden:'))}
     hidden.discard(owner)
     manual_hidden = set(hidden)
+    binding_deps = {person:set(deps) for person,deps in node_deps.items()}
     contact_messages, senders, small_recipients = defaultdict(list), set(), set()
     for mid, source in tables['message'].items():
         parts = source.get('participants',[])
@@ -118,7 +119,7 @@ def project_records(records: tuple[SourceRecord, ...], reviews: tuple[dict, ...]
         eid = 'message:'+mid
         deps = {eid,'thread:'+source['thread_id']} | owner_deps
         for entity in mapped:
-            deps.update(node_deps[entity])
+            deps.update(binding_deps[entity])
         at = source['sent_at']
         row = {'id':eid,'contact_id':contact,'channel':source['channel'],
                'direction':'out' if sender==owner else 'in','direct':is_direct,
