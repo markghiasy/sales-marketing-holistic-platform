@@ -1,10 +1,14 @@
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const initials = name => name.split(' ').map(s => s[0]).slice(0, 2).join('');
+export const realNetwork = () => Boolean(window.NETWORK_CONFIG?.real);
+export const defaultDate = () => realNetwork() ? new Date().toISOString() : '2026-09-27T12:00:00Z';
+export const defaultOwner = () => window.NETWORK_CONFIG?.owner_id || 'person:owner';
 export function readQuery() {
   const p = new URLSearchParams(location.search);
   return {
-    focus: p.get('focus') || 'person:owner', origin: p.get('origin') || '',
-    as_of: p.get('as_of') || '2026-09-27T12:00:00Z', search: p.get('search') || '',
+    focus: p.get('focus') || defaultOwner(), origin: p.get('origin') || '',
+    as_of: p.get('as_of') || defaultDate(), search: p.get('search') || '',
+    live: realNetwork() && (!p.has('as_of') || p.get('live')==='1') ? '1' : '0',
     function: p.get('function') || '', organization: p.get('organization') || '',
     project: p.get('project') || '', mode: p.get('mode') || 'current',
     include_pending: p.get('include_pending') || 'false', expand: p.get('expand') || '',
@@ -21,7 +25,9 @@ export function createNetworkClient({query, onSnapshot, onError}) {
     const ticket = ++generation;
     controller?.abort();
     controller = new AbortController();
-    const requested = {...state}, signature = JSON.stringify(requested);
+    const requested = {...state};
+    if(realNetwork() && requested.live==='1')requested.as_of=defaultDate();
+    const signature = JSON.stringify(state);
     try {
       const response = await fetch(queryUrl('/network/graph.json', requested), {signal: controller.signal});
       if (!response.ok) throw new Error((await response.json()).error || 'Network unavailable');
@@ -40,6 +46,7 @@ export function createNetworkClient({query, onSnapshot, onError}) {
     try { if (JSON.parse(event.data).version === lastVersion) return; } catch { /* Refresh unknown payloads. */ }
     refresh();
   });
+  events.addEventListener('health',event=>{try{window.dispatchEvent(new CustomEvent('network-health',{detail:JSON.parse(event.data)}));}catch{}});
   events.addEventListener('open', refresh);
   events.onerror = () => { if (!closed) onError('Connection interrupted. Showing the last snapshot; reconnecting automatically.'); };
   refresh();
@@ -54,12 +61,12 @@ export function claimMarkup(edge, nodes) {
 }
 export async function showEvidence(container, edge, query) {
   const results = await Promise.all(edge.evidence_ids.map(async id => {
-    const response = await fetch(queryUrl('/network/evidence/' + encodeURIComponent(id) + '.json', {as_of: query.as_of}));
+    const response = await fetch(queryUrl('/network/evidence/' + encodeURIComponent(id) + '.json', {as_of: query.as_of, ...(query.version ? {version:query.version} : {})}));
     if (!response.ok) throw new Error('Evidence unavailable for this date.');
     return response.json();
   }));
   if (!container.isConnected) return;
-  container.innerHTML = results.map(e => `<div class="evidence-meta">Fictional ${escapeHtml(e.channel)} message · ${escapeHtml(e.at.slice(0,10))}</div><blockquote class="evidence-quote">${escapeHtml(e.text)}</blockquote>`).join('');
+  container.innerHTML = results.map(e => `<div class="evidence-meta">${e.data_source==='real'?'Source record':'Fictional'} ${escapeHtml(e.channel)} · ${escapeHtml(e.at.slice(0,10))}</div><blockquote class="evidence-quote">${escapeHtml(e.text)}</blockquote>`).join('');
 }
 // Expanded evidence survives a new data revision.
 export function bindEvidence(container, snapshot, query, expanded, onSelect = () => {}) {
@@ -67,7 +74,7 @@ export function bindEvidence(container, snapshot, query, expanded, onSelect = ()
     const id = button.dataset.evidence;
     async function load() {
       const body = button.nextElementSibling;
-      try { await showEvidence(body, snapshot.edges.find(e => e.id === id), query); }
+      try { await showEvidence(body, snapshot.edges.find(e => e.id === id), {...query,version:snapshot.version}); }
       catch (error) { if (body.isConnected) body.textContent = error.message; }
     }
     button.onclick = () => { expanded.add(id); onSelect(id); load(); };

@@ -1,3 +1,4 @@
+import {defaultDate, defaultOwner, realNetwork} from './client.js';
 import {escapeHtml as esc, queryUrl, showEvidence} from './client.js';
 import {openAssistant} from './assistant.js';
 
@@ -15,11 +16,11 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
     <div class="discovery-examples">${examples.map((q, i) => `<button type="button" data-example="${i}">${i === 0 ? 'Logistics + accounting + past collaboration' : esc(q)}</button>`).join('')}</div>
     <div class="discovery-output" aria-live="polite"><div class="discovery-empty"><h3>Start with the work you need to do.</h3><p>Try a person, a company or a combination of skills and relationships. English and Chinese are supported for these search conditions.</p></div></div>
     <button type="button" class="discovery-agent">Ask Claude about a goal or strategy ↗</button>
-    <footer>Synthetic data. Search checks names and supported conditions directly; goals and complex questions continue with Claude using this session's question budget.</footer>
+    <footer>${realNetwork()?'Bounded search over observed records.':'Synthetic data.'} Search checks names and supported conditions directly; goals and complex questions continue with Claude using this session's question budget.</footer>
   </section>`;
   const input = container.querySelector('input');
   const output = container.querySelector('.discovery-output');
-  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||'person:owner',as_of:p.get('as_of')||'2026-09-27T12:00:00Z',mode:p.get('mode')||'current'});};
+  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||defaultOwner(),as_of:p.get('as_of')||defaultDate(),mode:p.get('mode')||'current'});};
   container.querySelector('.discovery-close').onclick = onClose;
   container.querySelector('form').onsubmit = event => { event.preventDefault(); search(); };
   container.querySelectorAll('[data-example]').forEach(button => button.onclick = () => {
@@ -45,7 +46,7 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
     const ticket = ++generation;
     output.innerHTML = '<p role="status">Finding supported matches…</p>';
     try {
-      const asOf = new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z';
+      const asOf = new URLSearchParams(location.search).get('as_of') || defaultDate();
       const response = await fetch(queryUrl('/network/search.json', {q: text, as_of: asOf, mode: new URLSearchParams(location.search).get('mode') || 'current'}), {signal: controller.signal});
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Search unavailable. Please retry.');
@@ -53,7 +54,7 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
       if(data.status==='needs_clarification'){
         const p=new URLSearchParams(location.search);
         onClose();
-        openAssistant({question:text,autoSubmit:true,focus:p.get('focus')||'person:owner',as_of:asOf,mode:p.get('mode')||'current'});
+        openAssistant({question:text,autoSubmit:true,focus:p.get('focus')||defaultOwner(),as_of:asOf,mode:p.get('mode')||'current'});
         return;
       }
       render(data);

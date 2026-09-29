@@ -30,7 +30,8 @@ export function mountEmbedded(container, personKey) {
   });
   select.onchange = () => chooseNode(select.value);
   syncLink();
-  const client = createNetworkClient({query, onSnapshot(data) {
+  const client = createNetworkClient({query, onSnapshot(data,state) {
+    Object.assign(query,state);
     snapshot = data;
     if (selectedClaim && !data.edges.some(e => e.id === selectedClaim)) selectedClaim = '';
     if (!data.nodes.some(n => n.id === selectedId)) selectedId = personKey;
@@ -40,7 +41,7 @@ export function mountEmbedded(container, personKey) {
     select.innerHTML = data.nodes.map(n => `<option value="${esc(n.id)}">${esc(n.name)}</option>`).join('');
     select.value = selectedId;
     inspect(); syncLink();
-    status.textContent = `Synthetic demo · ${data.nodes.length} entities · ${data.edges.length} connections${data.truncated ? ' · ' + data.omitted_counts.nodes + ' more in full network' : ''}`;
+    status.textContent = `${data.data_source==='real'?'Source-backed slice':'Synthetic demo'} · ${data.nodes.length} entities · ${data.edges.length} connections${data.truncated ? ' · Bounded view; open full network' : ''}`;
   }, onError: message => status.textContent = message});
   return {destroy() { client.destroy(); graph.destroy(); }};
 }

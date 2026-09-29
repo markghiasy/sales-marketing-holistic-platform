@@ -37,7 +37,10 @@ class ProfileExtraction(StrictModel):
     mode: Literal["current", "history"] = "current"
 
 
-def create_app(*, testing=False, llm_config=None, agent_provider=None):
+def create_app(*, testing=False, llm_config=None, agent_provider=None, network_service=None):
+    if network_service is not None:
+        from scripts.network_real import create_app as create_real_app
+        return create_real_app(service=network_service,testing=testing,llm_config=llm_config,agent_provider=agent_provider)
     root = Path(__file__).resolve().parent / "onboarding"
     app = Flask(
         __name__, template_folder=str(root / "templates"), static_folder=str(root / "static")

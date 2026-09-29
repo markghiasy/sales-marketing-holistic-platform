@@ -289,9 +289,9 @@ class PostgresNetworkStore:
         from .review_store import ReviewRepository
         return ReviewRepository(self).review(command)
 
-    def proposals(self):
+    def proposals(self,focus=None,limit=100):
         from .review_store import ReviewRepository
-        return ReviewRepository(self).list()
+        return ReviewRepository(self).list(focus=focus,limit=limit)
 
     def reviews(self) -> tuple[dict,...]:
         with self.connection(read_only=True) as conn:

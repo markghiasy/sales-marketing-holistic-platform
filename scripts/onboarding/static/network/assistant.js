@@ -1,14 +1,15 @@
+import {defaultDate, defaultOwner, realNetwork} from './client.js';
 import {escapeHtml as esc, queryUrl} from './client.js';
 import {mountStrategyMap} from './strategy-map.js';
 
 let activeAssistant;
-export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z', mode='current', name='Your network', question='', autoSubmit=false}={}) {
+export function openAssistant({focus=defaultOwner(), as_of=defaultDate(), mode='current', name='Your network', question='', autoSubmit=false}={}) {
   activeAssistant?.();
   const returnFocus=document.activeElement, panel=document.createElement('aside');
   panel.className='network-assistant'; panel.setAttribute('aria-label','Network strategy assistant');
   let closed=false, controller, turns=[], maps=[];
   panel.innerHTML=`<header><div><span class="agent-kicker">Your network</span><h2>Find people and opportunities</h2></div><button data-close aria-label="Close assistant">&times;</button></header>
-    <div class="agent-scope"><strong>${esc(name)}</strong><span>Known by ${esc(as_of.slice(0,10))} &middot; ${mode==='history'?'Relationship history':'Current relationships'} &middot; Confirmed synthetic evidence</span></div>
+    <div class="agent-scope"><strong>${esc(name)}</strong><span>Known by ${esc(as_of.slice(0,10))} &middot; ${mode==='history'?'Relationship history':'Current relationships'} &middot; ${realNetwork()?'Source-backed evidence':'Confirmed synthetic evidence'}</span></div>
     <p class="agent-provider" role="status">Checking Claude connection…</p>
     <div class="agent-thread" aria-live="polite"><div class="agent-welcome"><h3>From connections to a plan.</h3><p>Explore who could help, what the evidence supports, and what you still need to learn.</p>
     <button data-prompt="I am starting Cybertest: authorized adversarial AI-agent security testing for vibe coding. Who could help, what capabilities are unverified, and how should I expand my network?">Plan a Cybertest team <span>↗</span></button>
@@ -38,7 +39,7 @@ export function openAssistant({focus='person:owner', as_of='2026-09-27T12:00:00Z
         ${data.gaps.length?`<h3>What is not established yet</h3><ul>${data.gaps.map(g=>`<li>${esc(g)}</li>`).join('')}</ul>`:''}
         ${data.next_steps.length?`<h3>Suggested next moves</h3><ol>${data.next_steps.map(g=>`<li>${esc(g)}</li>`).join('')}</ol>`:''}
         ${data.clarification?`<p class="agent-clarification">${esc(data.clarification)}</p>`:''}
-        <details class="agent-trace"><summary>How this answer was grounded</summary><p>Snapshot ${esc(data.version)} · ${esc(data.model)} · ${data.usage.input_tokens+data.usage.output_tokens} tokens</p><ul>${data.trace.map(t=>`<li>${esc(t.kind)} · ${esc(t.terms.length?t.terms.join(', '):entities.get(t.entity_id)||t.entity_id)}</li>`).join('')}</ul>${data.retrieval?`<p>${data.retrieval.scope.scanned_people} contacts searched &middot; ${data.retrieval.budget.selected_records} evidence records included${data.retrieval.budget.omitted_records?' &middot; '+data.retrieval.budget.omitted_records+' records omitted to fit the context':''}</p><ul class="agent-coverage">${data.retrieval.coverage.map(c=>`<li><strong>${esc(c.label)}</strong>: ${esc(({matching_evidence:'Matching records found; capability still needs validation',searched_no_match:'No match in searched records',budget_omitted:'Matching records found but omitted from this answer',not_searched:'Not fully searched'})[c.status]||c.status)}</li>`).join('')}</ul>`:''}<p>References are checked against retrieved records; relevance still needs human judgment.</p></details>`;
+        <details class="agent-trace"><summary>How this answer was grounded</summary><p>Snapshot ${esc(data.version)} · ${esc(data.model)} · ${data.usage.input_tokens+data.usage.output_tokens} tokens</p><ul>${data.trace.map(t=>`<li>${esc(t.kind)} · ${esc(t.terms.length?t.terms.join(', '):entities.get(t.entity_id)||t.entity_id)}</li>`).join('')}</ul>${data.retrieval?`<p>${data.retrieval.scope.scanned_people} contacts searched &middot; ${data.retrieval.budget.selected_records} evidence records included${data.retrieval.budget.omitted_records?' &middot; '+data.retrieval.budget.omitted_records+' records omitted to fit the context':''}</p><ul class="agent-coverage">${data.retrieval.coverage.map(c=>`<li><strong>${esc(c.label)}</strong>: ${esc(({matching_evidence:'Matching records found; capability still needs validation',searched_no_match:'No match in searched records',budget_omitted:realNetwork()?'Retrieval budget reached; coverage remains unknown':'Matching records found but omitted from this answer',not_searched:'Not fully searched'})[c.status]||c.status)}</li>`).join('')}</ul>`:''}<p>References are checked against retrieved records; relevance still needs human judgment.</p></details>`;
       if(data.strategy_graph){
         panel.classList.add('has-strategy-map');
         const mapContainer=document.createElement('div');

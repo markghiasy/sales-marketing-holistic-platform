@@ -98,10 +98,12 @@ class ReviewRepository:
             conn.execute('update network.state set version=%s',(version,))
             return {'version':version,'as_of':at,'id':row['id'],'status':status}
 
-    def list(self):
+    def list(self,focus=None,limit=100):
+        if not 1<=limit<=100:
+            raise ValueError('proposal_limit')
         with self.store.connection(read_only=True) as conn:
             self.store._state(conn)
-            return tuple(conn.execute('select * from network.proposal order by created_at,id'))
+            return tuple(conn.execute("select id,payload,status from network.proposal where %s::text is null or jsonb_path_exists(payload,'$.batch.** ? (@ == $focus)',jsonb_build_object('focus',%s::text)) order by created_at desc,id limit %s",(focus,focus,limit)))
 
     def restore_active(self,conn):
         # Base source projection may replace derived items. Reapply only proposals

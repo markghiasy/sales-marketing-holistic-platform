@@ -26,7 +26,7 @@ const client=createNetworkClient({query,onSnapshot(data,state){
   graph.setSnapshot(data);renderOptions();renderPeople();renderInspector();renderExpansion();restoreFocus();syncUrl();
   document.getElementById('snapshot-count').textContent=`${data.nodes.length} entities / ${data.edges.length} connections${data.truncated?' · '+data.omitted_counts.nodes+' more hidden':''}`;
   document.getElementById('graph-empty').hidden=!!data.ranked_contacts.length||!!query.expand;
-  setStatus(`Synthetic demo · Snapshot ${data.version} · ${data.truncated?'Bounded view; refine filters to explore further.':'All eligible connections in this view.'}`);
+  setStatus(`${data.data_source==='real'?'Local source · Last refresh '+(data.freshness?.last_success_at||'pending'):'Synthetic demo'} · Snapshot ${data.version} · ${data.truncated?'Bounded view; refine filters to explore further.':'All eligible connections in this view.'}${data.freshness?.error_code?' · Refresh delayed; showing last successful state.':''}`);
 },onError:message=>setStatus(message,true)});
 
 function updateQuery(patch){Object.assign(query,patch);syncUrl();client.setQuery(patch);}
@@ -92,7 +92,7 @@ function renderInspector(){
   const edge=snapshot.edges.find(e=>e.id===selectedClaim);
   document.body.classList.toggle('has-inspection',!inspectorDismissed&&!!(edge||(node&&node.id!==snapshot.owner_id)));
   if(edge){
-    inspector.innerHTML=`<span class="entity-kind">Relationship evidence</span><h2>${esc(edge.relation)}</h2>${claimMarkup(edge,snapshot.nodes)}<p class="muted">This claim is ${esc(edge.status)}. Its source is a fictional scenario record.</p>`;graph.select(edge.id);
+    inspector.innerHTML=`<span class="entity-kind">Relationship evidence</span><h2>${esc(edge.relation)}</h2>${claimMarkup(edge,snapshot.nodes)}<p class="muted">This claim is ${esc(edge.status)}. ${snapshot.data_source==='real'?'Inspect the original source and its limitations.':'Its source is a fictional scenario record.'}</p>`;graph.select(edge.id);
   }else if(node){
     const person=snapshot.ranked_contacts.find(n=>n.id===node.id),edges=snapshot.edges.filter(e=>e.source===node.id||e.target===node.id);
     const explanation=person?(query.expand?scopeInspector(person.relationship_scope):activityInspector(person)):'';
@@ -132,10 +132,11 @@ let timer;document.querySelector('[name=search]').oninput=e=>{clearTimeout(timer
 for(const key of ['function','organization','project'])document.querySelector(`[name=${key}]`).onchange=e=>updateQuery({[key]:e.target.value,expand:''});
 document.getElementById('clear-filters').onclick=()=>{for(const key of ['search','function','organization','project'])document.querySelector(`[name=${key}]`).value='';updateQuery({search:'',function:'',organization:'',project:'',expand:'',focus:'person:owner'});};
 document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b===button));updateQuery({mode:button.dataset.mode});});
-document.getElementById('as-of').onchange=e=>{if(e.target.value)updateQuery({as_of:e.target.value+'T12:00:00Z'});};
+document.getElementById('as-of').onchange=e=>{if(e.target.value)updateQuery({as_of:e.target.value+'T23:59:59Z',live:'0'});};
+document.getElementById('live-network')?.addEventListener('click',()=>updateQuery({as_of:new Date().toISOString(),live:'1'}));
 document.getElementById('hypotheses').onchange=e=>updateQuery({include_pending:String(e.target.checked)});
 document.getElementById('fit').onclick=()=>graph.fit();
-for(const action of ['reply','reset'])document.getElementById(action).onclick=async()=>{try{const response=await fetch('/network/demo/'+action,{method:'POST'});if(!response.ok)throw new Error('Scenario action failed. Retry.');client.refresh();setTimeout(()=>setStatus('Scenario updated. '+(action==='reply'?'Maya replied; recent activity has changed.':'Initial fictional data restored.')),500);}catch(error){setStatus(error.message,true);}};
+for(const action of ['reply','reset'])if(document.getElementById(action))document.getElementById(action).onclick=async()=>{try{const response=await fetch('/network/demo/'+action,{method:'POST'});if(!response.ok)throw new Error('Scenario action failed. Retry.');client.refresh();setTimeout(()=>setStatus('Scenario updated. '+(action==='reply'?'Maya replied; recent activity has changed.':'Initial fictional data restored.')),500);}catch(error){setStatus(error.message,true);}};
 window.addEventListener('pagehide',()=>{client.destroy();graph.destroy();});
 document.getElementById('entity-lens').onchange=renderPeople;
 document.querySelectorAll('[name=scopes]').forEach(input=>input.onchange=()=>updateQuery({scopes:[...document.querySelectorAll('[name=scopes]:checked')].map(i=>i.value).join(',')}));
@@ -151,4 +152,8 @@ document.getElementById('ask-network').onclick=()=>openAssistant({focus:selected
 window.addEventListener('network-profile-updated',event=>{
   if(!event.detail?.as_of)return;
   query.as_of=event.detail.as_of;document.getElementById('as-of').value=query.as_of.slice(0,10);updateQuery({as_of:query.as_of});
+});
+window.addEventListener('network-health',event=>{
+  const health=event.detail;
+  if(snapshot?.data_source==='real')setStatus(`Local source · Snapshot ${snapshot.version} · Last refresh ${health.last_success_at||'pending'}${health.error_code||health.stale?' · Refresh delayed; showing last successful state.':''}${snapshot.truncated?' · Bounded view.':''}`);
 });

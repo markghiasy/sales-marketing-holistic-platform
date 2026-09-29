@@ -67,6 +67,7 @@ class StrategicAssertion(Candidate):
     synthetic: bool = True
     origin: str = Field(default="", max_length=200)
     reviewed_at: datetime | None = None
+    proposal_id: str | None = Field(default=None,max_length=160)
 
     @field_validator("observed_at", "reviewed_at")
     @classmethod

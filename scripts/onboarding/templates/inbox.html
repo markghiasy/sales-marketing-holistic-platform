@@ -38,7 +38,8 @@
 <link rel="stylesheet" href="/static/network/discovery.css">
 <script src="/static/vendor/cytoscape.min.js"></script>
 <style>.row-hide-btn,.detail-draft{display:none!important}.detail-body{gap:24px!important}@media(max-width:800px){.detail-body{flex-direction:column}.detail-col{min-height:240px}.detail-panel{overflow:auto}}</style>
-<div class="demo-inbox-banner">Synthetic demo · Jordan Ellis's network <a href="/network">Explore network</a></div>
+<script>window.NETWORK_CONFIG={{ (network_config|default({}))|tojson }};</script>
+<div class="demo-inbox-banner">{{ 'Local network trial · Your source data' if network_real else "Synthetic demo · Jordan Ellis's network" }} <a href="/network">Explore network</a></div>
 {% endif %}
 <style>
   :root {
@@ -384,6 +385,7 @@
     <div class="list-panel">
       <h2>Inbox</h2>
       <div id="list"></div>
+      {% if network_real %}<p id="network-list-status" role="status">Loading source-backed contacts…</p><button type="button" id="network-load-more" hidden>Load more contacts</button>{% endif %}
     </div>
     <div class="side-panel">
       <div class="filter-box">
@@ -444,17 +446,25 @@ let embeddedNetwork = null;
 let discoveryInstance = null;
 let detailGeneration = 0;
 
-async function loadConversations() {
+let networkNextCursor = null;
+async function loadConversations(append=false) {
   const params = new URLSearchParams();
   if (state.hidden) params.set('hidden', '1');
   if (NETWORK_DEMO) params.set('mode', new URLSearchParams(location.search).get('mode') || 'current');
-  if (NETWORK_DEMO) params.set('as_of', new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z');
+  if (NETWORK_DEMO) params.set('as_of', new URLSearchParams(location.search).get('as_of') || (window.NETWORK_CONFIG?.real ? new Date().toISOString() : '2026-09-27T12:00:00Z'));
+  if (append && networkNextCursor) params.set('after', networkNextCursor);
   const resp = await fetch(`/inbox/conversations.json${params.size ? '?' + params : ''}`);
-  CONVERSATIONS = await resp.json();
+  const rows = await resp.json();
+  if (!resp.ok) { const status=document.getElementById('network-list-status'); if(status)status.textContent=rows.error||'Contacts unavailable. Retry shortly.'; return; }
+  CONVERSATIONS = append ? [...CONVERSATIONS,...rows] : rows;
+  networkNextCursor=resp.headers.get('X-Next-Cursor');
+  const more=document.getElementById('network-load-more');
+  if(more){more.hidden=!networkNextCursor;more.onclick=()=>loadConversations(true);document.getElementById('network-list-status').textContent=`${CONVERSATIONS.length} contacts loaded${networkNextCursor?' · More available':''}. Filters and ordering apply to loaded contacts; search the full index above.`;}
   render();
 }
 
 function formatRelativeTime(iso) {
+  if(!iso)return 'No message in this slice';
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "just now";
@@ -521,10 +531,10 @@ function renderList() {
         </div>
         ${NETWORK_DEMO ? `<div class="contact-tags">${(c.tags || []).slice(0,3).map(t => `<span class="contact-tag" data-kind="${escapeHtml(t.kind)}" title="${escapeHtml(t.kind)}">${escapeHtml(t.label)}</span>`).join('')}${(c.tags || []).length > 3 ? `<button type="button" class="contact-tag-more" aria-label="Show all tags for ${escapeHtml(c.name)}">+${c.tags.length-3}</button>` : ''}</div>` : ''}
         <div class="row-preview">${escapeHtml(c.summary)}</div>
-        ${NETWORK_DEMO ? `<div class="contact-topic">Current topic: ${escapeHtml(c.topic)}</div>` : ''}
+        ${NETWORK_DEMO && c.topic ? `<div class="contact-topic">Current topic: ${escapeHtml(c.topic)}</div>` : ''}
         ${c.brief_notice ? `<div class="row-preview" role="status">${escapeHtml(c.brief_notice)}</div>` : ""}
       </div>
-      <div class="channel-icon">${CHANNELS[c.channel].icon}</div>
+      <div class="channel-icon">${(CHANNELS[c.channel]?.icon || '')}</div>
       <button class="row-hide-btn" data-hide-id="${c.person_key}" title="${state.hidden ? "Unhide" : "Hide"}">${state.hidden ? "&#8635;" : "&times;"}</button>
     </div>
   `).join("");
@@ -625,7 +635,7 @@ function wireGraphNodes() {
 
 async function openDetail(personKey) {
   const ticket = ++detailGeneration;
-  const detailDate = new URLSearchParams(location.search).get('as_of') || '2026-09-27T12:00:00Z';
+  const detailDate = new URLSearchParams(location.search).get('as_of') || (window.NETWORK_CONFIG?.real ? new Date().toISOString() : '2026-09-27T12:00:00Z');
   const resp = await fetch(`/inbox/conversation/${personKey}.json${NETWORK_DEMO ? '?as_of=' + encodeURIComponent(detailDate) + '&mode=' + encodeURIComponent(new URLSearchParams(location.search).get('mode') || 'current') : ''}`);
   if (!resp.ok) return;
   const c = await resp.json();
@@ -640,7 +650,7 @@ async function openDetail(personKey) {
         <div class="avatar" style="background:${avatarColor(c.name)}">${initials(c.name)}</div>
         <div>
           <div class="row-name contact-link" data-contact-id="${c.person_key}">${escapeHtml(c.name)}</div>
-          <div class="row-time">${CHANNELS[c.channel].label} &middot; ${formatRelativeTime(c.last_message_at)}</div>
+          <div class="row-time">${(CHANNELS[c.channel]?.label || 'Source contact')} &middot; ${formatRelativeTime(c.last_message_at)}</div>
         </div>
       </div>
       <div class="detail-body">
