@@ -156,6 +156,9 @@ class PostgresNetworkStore:
             if changed:
                 conn.execute('delete from network.item i using network.dependency d where i.kind=d.item_kind and i.id=d.item_id and d.source_key=ANY(%s)',(list(changed),))
             projection_changed = self._project(conn,projection) if projection else False
+            if projection:
+                from .review_store import ReviewRepository
+                ReviewRepository(self).restore_active(conn)
             version = state['version']+int(bool(changed) or projection_changed)
             cursor = state['cursor']
             if batch.cursor:
@@ -173,7 +176,7 @@ class PostgresNetworkStore:
     def _project(self, conn, projection):
         changed = False
         all_deps = sorted({k for keys in projection.dependencies.values() for k in keys})
-        fingerprints = {r['key']:r['fingerprint'] for r in conn.execute('select key,fingerprint from network.source_record where key=ANY(%s)',(all_deps,))}
+        fingerprints = self._dependency_values(conn,all_deps)
         for kind, rows in projection.sections().items():
             ids = [r['id'] for r in rows]
             delete = 'delete from network.item where kind=%s and not (id=ANY(%s))'
@@ -246,8 +249,27 @@ class PostgresNetworkStore:
     def dependencies_current(self, dependencies: dict[str, str]) -> bool:
         with self.connection(read_only=True) as conn:
             self._state(conn)
-            actual = {r['key']:r['fingerprint'] for r in conn.execute('select key,fingerprint from network.source_record where key=ANY(%s)',(list(dependencies),))}
+            actual = self._dependency_values(conn,list(dependencies))
             return all(actual.get(k,'absent')==v for k,v in dependencies.items())
+
+    def _dependency_values(self,conn,keys):
+        actual={r['key']:r['fingerprint'] for r in conn.execute('select key,fingerprint from network.source_record where key=ANY(%s)',(keys,))}
+        pids=[k.removeprefix('review:') for k in keys if k.startswith('review:')]
+        for row in conn.execute('select id,status,payload from network.proposal where id=ANY(%s)',(pids,)):
+            actual['review:'+row['id']]=fingerprint([row['status'],row['payload'].get('bindings'),row['payload'].get('reviewed_at')])
+        return actual
+
+    def propose(self,batch,dependencies):
+        from .review_store import ReviewRepository
+        return ReviewRepository(self).propose(batch,dependencies)
+
+    def review(self,command):
+        from .review_store import ReviewRepository
+        return ReviewRepository(self).review(command)
+
+    def proposals(self):
+        from .review_store import ReviewRepository
+        return ReviewRepository(self).list()
 
     def reviews(self) -> tuple[dict,...]:
         with self.connection(read_only=True) as conn:
