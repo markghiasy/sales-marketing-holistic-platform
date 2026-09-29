@@ -4,10 +4,10 @@ import pytest
 
 
 def test_release_contains_runtime_assets_and_explicit_clis():
-    from scripts.network_real import create_app
-    from scripts.network_worker import main
-    from scripts.network_schema import main as schema_main
     from scripts.check_network_real import check
+    from scripts.network_real import create_app
+    from scripts.network_schema import main as schema_main
+    from scripts.network_worker import main
     root=Path(__file__).resolve().parents[1]
     for name in ('scripts/onboarding/templates/inbox.html','scripts/onboarding/templates/network.html',
                  'scripts/onboarding/static/network/profiles.js','scripts/onboarding/static/vendor/cytoscape.min.js',
@@ -24,6 +24,7 @@ def test_smoke_rejects_nonlocal_target_without_contacting_it():
 
 def test_declared_flask_versions_enforce_trusted_hosts():
     import tomllib
+
     from packaging.requirements import Requirement
     root=Path(__file__).resolve().parents[1]
     dependencies=tomllib.loads((root/'pyproject.toml').read_text(encoding='utf-8'))['project']['dependencies']

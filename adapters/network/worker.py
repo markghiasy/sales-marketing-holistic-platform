@@ -1,18 +1,17 @@
 """Single-writer, bounded refresh. Completed source snapshots publish atomically."""
 from __future__ import annotations
 
+import json
+import threading
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, datetime
-import json
-import threading
 
 import psycopg
 
-from .source import SourceBatch
-from .store import StoreError, entity_ids
 from .real_projection import project_records
+from .store import StoreError, entity_ids
 
 
 class SourceBudgetExceeded(ValueError):

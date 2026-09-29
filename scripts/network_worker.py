@@ -1,16 +1,17 @@
 """Recoverable real-network worker; run separately from the web service."""
 import argparse
 import atexit
-from datetime import UTC, datetime
 import json
-from dataclasses import asdict
 import threading
+from dataclasses import asdict
+from datetime import UTC, datetime
+
 from dotenv import dotenv_values
 
+from adapters.network.database import NetworkDatabase
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore
 from adapters.network.worker import NetworkWorker
-from adapters.network.database import NetworkDatabase
 
 
 def main():
@@ -44,7 +45,7 @@ def main():
             worker.run(threading.Event())
     except KeyboardInterrupt:
         pass
-    except Exception:
+    except Exception:  # noqa: BLE001 - sanitize configuration/DB failures at the CLI boundary.
         parser.exit(2,'network_worker_unavailable: inspect sanitized health and database configuration\n')
 
 

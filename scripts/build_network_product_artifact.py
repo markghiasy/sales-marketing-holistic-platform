@@ -1,8 +1,8 @@
 """Build a portable, dependency-free stakeholder review from its Markdown source."""
-from pathlib import Path
 import base64
 import html
 import re
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/artifacts/network-product-review-for-mark.md'
@@ -38,10 +38,10 @@ def blocks(text):
 md = SOURCE.read_text(encoding='utf-8')
 intro, rest = md.split('## Numbered feature catalogue', 1)
 features_text, ending = rest.split('## What has actually been demonstrated', 1)
-features = re.findall(r'### (\d+)\. ([^\n]+)\n\n(.*?)(?=\n### |\Z)', features_text, re.S)
+features = re.findall(r'### (\d+)\. ([^\n]+)\n\n(.*?)(?=\n### |\Z)', features_text, re.DOTALL)
 nav = ''; cards = ''
 for number, title, body in features:
-    fields = dict(re.findall(r'\*\*([^*]+):\*\*\s*(.*?)(?=\s*\*\*[^*]+:\*\*|\Z)', body, re.S))
+    fields = dict(re.findall(r'\*\*([^*]+):\*\*\s*(.*?)(?=\s*\*\*[^*]+:\*\*|\Z)', body, re.DOTALL))
     nav += f'<a href="#feature-{number}"><span>{number}</span>{html.escape(title)}</a>'
     cards += f'<article class="feature" id="feature-{number}"><div class="feature-head"><span class="number">{number}</span><h3>{html.escape(title)}</h3></div>'
     for label in ('Origin','Status','Value hypothesis','Research','Choice/reason','Boundary'):

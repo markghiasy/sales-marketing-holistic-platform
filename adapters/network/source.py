@@ -1,12 +1,12 @@
 """Read-only, paged source boundary. Never selects quarantined message.raw."""
 from __future__ import annotations
 
+import hashlib
+import json
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-import hashlib
-import json
-from typing import Iterator
 
 import psycopg
 from psycopg import sql
@@ -65,6 +65,7 @@ FIELDS = {
     'contact_hidden': 'contact_key hidden_at',
 }
 REQUIRED = frozenset(('person', 'identity', 'thread', 'message', 'message_participant'))
+ALL_ROWS = sql.SQL('true')
 
 
 class SourceRepository:
@@ -101,7 +102,7 @@ class SourceRepository:
             raise SourceError('source_binding_mismatch')
         return schema, columns, binding
 
-    def _read(self, conn, schema, columns, kind, where=sql.SQL('true'), params=(), limit=None, order=None):
+    def _read(self, conn, schema, columns, kind, where=ALL_ROWS, params=(), limit=None, order=None):
         if kind not in columns:
             return []
         fields = FIELDS[kind].split()

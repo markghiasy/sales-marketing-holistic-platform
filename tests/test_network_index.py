@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 
 import psycopg
 
+from adapters.network.model import GraphQuery
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore
 from adapters.network.worker import NetworkWorker
-from adapters.network.model import GraphQuery
 
 NOW=datetime(2026,10,2,tzinfo=UTC)
 
@@ -26,7 +26,7 @@ def setup_index(network_database, count=0):
 
 
 def test_index_selects_candidates_before_loading_catalog(network_database):
-    _,store,ids,retriever=setup_index(network_database,100)
+    _,_store,ids,retriever=setup_index(network_database,100)
     data=retriever.seed('security testing')
     assert len(data['nodes'])<=30
     assert 'identity:'+ids['contact'] in {n['id'] for n in data['nodes']}
@@ -69,7 +69,7 @@ def test_hidden_contact_never_appears_in_index_results(network_database):
 
 
 def test_long_source_keeps_matched_passage_in_bounded_context(network_database):
-    source,store,ids,retriever=setup_index(network_database)
+    source,store,_ids,retriever=setup_index(network_database)
     with psycopg.connect(network_database[0]) as conn:
         conn.execute('update message set body_text=%s',('Background details. '*400+'My work includes security testing.',))
     NetworkWorker(source,store).tick(datetime(2026,10,3,tzinfo=UTC))
@@ -82,7 +82,7 @@ def test_long_source_keeps_matched_passage_in_bounded_context(network_database):
 
 
 def test_group_message_is_retrievable_without_inventing_relationship(network_database):
-    source,store,ids,retriever=setup_index(network_database)
+    source,store,_ids,retriever=setup_index(network_database)
     with psycopg.connect(network_database[0]) as conn:
         conn.execute('update thread set is_group=true')
     NetworkWorker(source,store).tick(datetime(2026,10,3,tzinfo=UTC))

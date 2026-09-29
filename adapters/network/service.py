@@ -1,15 +1,14 @@
 """Real network boundary: bounded retrieval and validation of actual source dependencies."""
-from datetime import UTC, datetime
 from dataclasses import asdict
+from datetime import UTC, datetime
 
+from .context import entity_context
 from .index import IndexedRetrieval
 from .model import GraphQuery, timestamp
-from .context import entity_context
 from .profiles import profile_context
-from .search import contact_tags
-from .store import Snapshot, StoreError
 from .projection import build_snapshot
-from .search import search_contacts
+from .search import contact_tags, search_contacts
+from .store import Snapshot, StoreError
 
 
 class NetworkService:
@@ -31,7 +30,7 @@ class NetworkService:
             retriever=IndexedRetrieval(self.store,query,entity_limit=min(limit,100))
             retriever.neighborhood(query.expand,2)
             return Snapshot(retriever.version,retriever.data,retriever.dependencies)
-        terms=' '.join([query.search,query.function]).strip()
+        terms=f'{query.search} {query.function}'.strip()
         if terms:
             retriever=IndexedRetrieval(self.store,query,entity_limit=min(limit,100))
             ids.extend(retriever._hits([terms])[0])

@@ -1,8 +1,8 @@
 """Indexed candidate selection before bounded evidence materialization."""
 from __future__ import annotations
 
-from copy import deepcopy
 import re
+from copy import deepcopy
 
 from .model import timestamp
 from .retrieval import NetworkRetrieval, tokens

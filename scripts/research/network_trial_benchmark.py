@@ -1,20 +1,20 @@
 """Fictional real-adapter workload in an explicitly disposable local test DB."""
 import argparse
-from datetime import UTC, datetime, timedelta
 import json
-from pathlib import Path
 import statistics
 import sys
 import time
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import psycopg
 
+from adapters.network.index import IndexedRetrieval
+from adapters.network.model import GraphQuery
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore
 from adapters.network.worker import NetworkWorker
-from adapters.network.index import IndexedRetrieval
-from adapters.network.model import GraphQuery
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
         parser.error('workload outside bounded benchmark limits')
     # Reuse the repo's strong loopback/disposable-name guard; never load app .env.
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tests'))
-    from conftest import read_test_database_url, isolated_test_schema
+    from conftest import isolated_test_schema, read_test_database_url
     url=read_test_database_url()
     now=datetime.now(UTC)
     with psycopg.connect(url,autocommit=True) as guard:

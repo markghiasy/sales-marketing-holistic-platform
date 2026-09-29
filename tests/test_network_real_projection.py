@@ -1,9 +1,8 @@
 from datetime import UTC, datetime
-from dataclasses import replace
 
 import psycopg
 
-from adapters.network.source import SourceRepository, SourceRecord, fingerprint
+from adapters.network.source import SourceRecord, SourceRepository, fingerprint
 
 NOW = datetime(2026,9,30,12,tzinfo=UTC)
 
@@ -48,7 +47,7 @@ def test_canonical_identity_direct_message_and_exact_source(source_seed):
 
 
 def test_group_and_cc_messages_do_not_make_direct_relationships(source_seed):
-    dsn, ids = source_seed
+    dsn, _ids = source_seed
     with psycopg.connect(dsn) as conn:
         conn.execute('update thread set is_group=true')
     p = project(dsn)

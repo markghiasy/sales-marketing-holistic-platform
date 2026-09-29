@@ -1,5 +1,4 @@
 from dataclasses import replace
-from datetime import UTC, datetime
 
 import psycopg
 import pytest
@@ -18,7 +17,7 @@ def opened(network_database):
 
 def test_explicit_initialization_binding_and_schema_version(network_database):
     from adapters.network.store import PostgresNetworkStore, StoreError
-    source, store = opened(network_database)
+    _source, store = opened(network_database)
     assert store.status().version == 0
     store.initialize()
     with pytest.raises(StoreError, match='source_binding_mismatch'):
@@ -66,7 +65,7 @@ def test_derived_writer_cannot_write_source_business_tables(network_database):
     _, store = opened(network_database)
     with psycopg.connect(network_database[0]) as conn:
         schema = conn.execute('select current_schema()').fetchone()[0]
-    with store.connection() as conn:
+    with store.connection() as conn:  # noqa: SIM117 - keep transaction and operation contexts explicit.
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute(psycopg.sql.SQL('update {} set primary_name=%s').format(psycopg.sql.Identifier(schema,'person')), ('Wrong',))
     with psycopg.connect(network_database[0]) as conn:
@@ -74,7 +73,6 @@ def test_derived_writer_cannot_write_source_business_tables(network_database):
 
 
 def test_dependency_versions_and_concurrent_reader(network_database):
-    from adapters.network.store import Projection
     source, store = opened(network_database)
     pages = list(source.snapshot_pages(30))
     for page in pages:
@@ -128,6 +126,7 @@ def test_initialization_rejects_source_public_write_grants(network_database):
 
 def test_capture_transfers_shared_dependencies_once_and_rejects_conflicts(network_database, monkeypatch):
     from contextlib import contextmanager
+
     from adapters.network.store import Projection, StoreError
     source, store = opened(network_database)
     for page in source.snapshot_pages(30):

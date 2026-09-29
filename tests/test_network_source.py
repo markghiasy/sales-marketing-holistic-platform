@@ -1,6 +1,5 @@
 """Real PostgreSQL boundary tests: never load an application .env."""
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 import psycopg
 import pytest
@@ -30,7 +29,7 @@ def test_source_snapshot_is_paged_complete_without_raw_and_optional_brief(source
 
 def test_source_transactions_reject_writes(source_seed):
     dsn, _ = source_seed
-    with repository(dsn).connection() as conn:
+    with repository(dsn).connection() as conn:  # noqa: SIM117 - keep transaction and operation contexts explicit.
         with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
             conn.execute("update person set primary_name='Changed'")
 
@@ -47,7 +46,6 @@ def test_source_binding_and_missing_required_schema_are_explicit(source_seed):
 
 
 def test_equal_timestamp_pagination_and_late_old_sent_message(source_seed):
-    from adapters.network.source import Cursor
     dsn, ids = source_seed
     at = datetime(2026, 9, 30, tzinfo=UTC)
     with psycopg.connect(dsn) as conn:

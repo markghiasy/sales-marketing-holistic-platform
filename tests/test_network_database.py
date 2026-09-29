@@ -17,7 +17,7 @@ def test_pool_reuses_connection_without_leaking_writer_role_or_transaction(netwo
             writer=conn.execute('select pg_backend_pid() as pid,current_user as role').fetchone()
             assert writer['role']=='ironman_network_writer'
             assert writer['pid']==first['pid']
-        with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
+        with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):  # noqa: SIM117 - keep transaction and operation contexts explicit.
             with source.connection() as conn:
                 conn.execute("update identity set display_name='must not write'")
         with source.connection() as conn:

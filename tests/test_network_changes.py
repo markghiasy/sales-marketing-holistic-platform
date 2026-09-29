@@ -63,7 +63,7 @@ def test_pending_entities_do_not_enter_graph_and_review_requires_binding(network
 
 def test_rejection_restart_and_replay_do_not_revive_proposal(network_database):
     from adapters.network.changes import ReviewCommand
-    source,store,ids,snap,batch=setup(network_database)
+    source,store,_ids,snap,batch=setup(network_database)
     result=store.propose(batch,snap.dependencies)
     store.review(ReviewCommand(proposal_id=result['id'],expected_version=result['version'],decision='reject'))
     restarted=PostgresNetworkStore(network_database[0],source.audit()['binding'])
@@ -77,7 +77,7 @@ def test_rejection_restart_and_replay_do_not_revive_proposal(network_database):
 def test_stale_source_and_stale_review_are_rejected(network_database):
     from adapters.network.changes import ReviewCommand
     from adapters.network.store import StoreError
-    source,store,ids,snap,batch=setup(network_database)
+    _source,store,_ids,snap,batch=setup(network_database)
     result=store.propose(batch,snap.dependencies)
     with pytest.raises(StoreError,match='version_conflict'):
         store.review(ReviewCommand(proposal_id=result['id'],expected_version=result['version']-1,decision='reject'))
@@ -103,7 +103,7 @@ def test_source_correction_retracts_confirmed_items_but_preserves_review(network
 
 def test_project_mention_alone_does_not_generate_membership(network_database):
     from adapters.network.changes import ReviewCommand
-    _,store,ids,snap,batch=setup(network_database)
+    _,store,_ids,snap,batch=setup(network_database)
     only_entity=batch.model_copy(update={'relations':[],'assertions':[]})
     result=store.propose(only_entity,snap.dependencies)
     store.review(ReviewCommand(proposal_id=result['id'],expected_version=result['version'],decision='confirm',entity_bindings={'new:aurora':'create'}))
@@ -113,7 +113,7 @@ def test_project_mention_alone_does_not_generate_membership(network_database):
 def test_scoped_model_extraction_uses_only_selected_sources_and_stale_result_fails(network_database):
     from adapters.network.agent import NetworkAgent
     from adapters.network.model import GraphQuery
-    _,store,ids,snap,batch=setup(network_database)
+    _,_store,ids,snap,batch=setup(network_database)
     class Provider:
         available=True
         model='fake-extraction'
@@ -122,7 +122,7 @@ def test_scoped_model_extraction_uses_only_selected_sources_and_stale_result_fai
             assert payload['evidence'][0]['id']=='message:'+ids['message']
             return batch,{'input_tokens':10,'output_tokens':10}
     agent=NetworkAgent(Provider(),max_requests=2)
-    result,usage=agent.extract_network(snap,GraphQuery(focus='identity:'+ids['contact'],as_of='2026-10-02T00:00:00Z'),
+    result,_usage=agent.extract_network(snap,GraphQuery(focus='identity:'+ids['contact'],as_of='2026-10-02T00:00:00Z'),
                                      ['message:'+ids['message']],lambda:True)
     assert result.model=='fake-extraction' and len(result.relations)==1
     checks=iter([True,False])

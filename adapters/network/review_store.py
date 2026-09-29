@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 
 from psycopg.types.json import Jsonb
 
-from .changes import ProposalBatch, ReviewCommand, validate_proposals, project_proposal
+from .changes import ProposalBatch, ReviewCommand, project_proposal, validate_proposals
 from .source import SourceRepository, fingerprint
-from .store import StoreError, Snapshot
+from .store import Snapshot, StoreError
 
 
 class ReviewRepository:

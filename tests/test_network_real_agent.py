@@ -2,9 +2,9 @@ from datetime import UTC, datetime
 
 import psycopg
 import pytest
-
-from adapters.network.agent import NetworkAgent, AgentRequest, RetrievalPlan, Answer
 from test_network_index import setup_index
+
+from adapters.network.agent import AgentRequest, Answer, NetworkAgent, RetrievalPlan
 
 
 class Provider:
@@ -33,7 +33,7 @@ class Provider:
 
 def test_real_answer_is_bounded_and_source_linked(network_database):
     from adapters.network.service import NetworkService
-    source,store,ids,_=setup_index(network_database,90)
+    source,store,_ids,_=setup_index(network_database,90)
     provider=Provider()
     result=NetworkService(store,source).answer(AgentRequest(question='Who works on security?',focus=store.worker_state()['owner_id'],as_of='2026-10-02T00:00:00Z'),NetworkAgent(provider))
     assert result['data_source']=='real'
@@ -43,7 +43,7 @@ def test_real_answer_is_bounded_and_source_linked(network_database):
 
 def test_corrected_source_during_model_call_cannot_publish(network_database):
     from adapters.network.service import NetworkService
-    source,store,ids,_=setup_index(network_database)
+    source,store,_ids,_=setup_index(network_database)
     def correction():
         with psycopg.connect(network_database[0]) as conn:
             conn.execute("update message set body_text='Correction: no security experience.'")
@@ -53,7 +53,7 @@ def test_corrected_source_during_model_call_cannot_publish(network_database):
 
 def test_unrelated_new_identity_does_not_discard_valid_answer(network_database):
     from adapters.network.service import NetworkService
-    source,store,ids,_=setup_index(network_database)
+    source,store,_ids,_=setup_index(network_database)
     def unrelated():
         with psycopg.connect(network_database[0]) as conn:
             conn.execute("insert into identity(channel,handle,display_name) values ('linkedin','new','Unrelated')")
@@ -64,7 +64,7 @@ def test_unrelated_new_identity_does_not_discard_valid_answer(network_database):
 def test_projection_revision_during_planning_cannot_replace_used_dependencies(network_database):
     from adapters.network.service import NetworkService
     from adapters.network.worker import NetworkWorker
-    source,store,ids,_=setup_index(network_database)
+    source,store,_ids,_=setup_index(network_database)
     def correction():
         with psycopg.connect(network_database[0]) as conn:
             conn.execute("update message set body_text='Correction: only logistics, no security.'")

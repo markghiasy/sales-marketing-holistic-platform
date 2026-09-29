@@ -1,10 +1,11 @@
 """Explicit, derived-only schema initialization for the local network trial."""
 import argparse
-from dataclasses import asdict
 import json
+from dataclasses import asdict
 
 from dotenv import dotenv_values
-from adapters.network.source import SourceRepository, SourceError
+
+from adapters.network.source import SourceError, SourceRepository
 from adapters.network.store import PostgresNetworkStore, StoreError
 
 
@@ -26,7 +27,7 @@ def main():
         print(json.dumps(asdict(store.status()),default=str))
     except (SourceError,StoreError) as exc:
         parser.exit(2,str(exc)+'\n')
-    except Exception:
+    except Exception:  # noqa: BLE001 - sanitize configuration/DB failures at the CLI boundary.
         parser.exit(2,'network_schema_unavailable: verify database binding and initialization privileges locally\n')
 
 

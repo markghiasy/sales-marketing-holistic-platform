@@ -1,12 +1,12 @@
 """Transactional PostgreSQL derived state, with a restricted writer role."""
 from __future__ import annotations
 
-from contextlib import contextmanager
+import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-import time
 
 import psycopg
 from psycopg import sql

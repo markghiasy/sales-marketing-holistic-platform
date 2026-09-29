@@ -1,10 +1,10 @@
 """Read-only loopback acceptance checks. Reports counts/timings, never source content."""
 import argparse
-from datetime import UTC,datetime
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
-from urllib.parse import quote,urlsplit
+from urllib.parse import quote, urlsplit
 
 import requests
 
@@ -64,7 +64,7 @@ def main():
     args=parser.parse_args()
     try:
         result=check(args.base_url)
-    except Exception as error:
+    except Exception:  # noqa: BLE001 - sanitize configuration/DB failures at the CLI boundary.
         # Requests/DB errors may include URLs or content; never print their text.
         parser.exit(2,'network_check_failed: inspect local app health and retry\n')
     body=json.dumps(result,indent=2)

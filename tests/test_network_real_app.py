@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 
 import psycopg
 import pytest
-
 from test_network_index import setup_index
 
 
@@ -17,9 +16,9 @@ def real_client(network_database):
 
 def test_real_routes_never_load_fixtures(real_client,monkeypatch):
     from adapters.network.service import NetworkService
-    from scripts.network_demo import create_app
     from adapters.network.source import SourceRepository
-    client,store,ids=real_client
+    from scripts.network_demo import create_app
+    client,store,_ids=real_client
     monkeypatch.setattr('scripts.network_demo.ScenarioStore',lambda:pytest.fail('fixture loaded'))
     app=create_app(testing=True,network_service=NetworkService(store,SourceRepository(store._dsn)))
     client=app.test_client()
@@ -58,7 +57,7 @@ def test_real_contacts_paginate_and_source_links_are_revision_bound(real_client)
 
 
 def test_mutations_enforce_local_origin_and_selected_evidence(real_client):
-    client,store,ids=real_client
+    client,_store,ids=real_client
     for path in ('/network/agent.json','/network/profile/extract','/network/profile/review'):
         assert client.post(path,json={},headers={'Origin':'https://other.example'}).status_code==403
         assert client.post(path,data='{}').status_code==415
@@ -67,7 +66,7 @@ def test_mutations_enforce_local_origin_and_selected_evidence(real_client):
 
 
 def test_context_profile_and_events_report_real_state(real_client):
-    client,store,ids=real_client
+    client,_store,ids=real_client
     person='identity:'+ids['contact']
     for path in ('context','profile'):
         response=client.get('/network/'+path+'.json?focus='+person)
@@ -82,7 +81,7 @@ def test_context_profile_and_events_report_real_state(real_client):
 
 
 def test_absent_or_future_source_never_appears_in_historical_slice(real_client):
-    client,store,ids=real_client
+    client,_store,_ids=real_client
     graph=client.get('/network/graph.json?as_of=2019-01-01T00:00:00Z').json
     assert not graph['edges']
     assert client.get('/network/evidence/unknown.json').status_code==404
@@ -90,7 +89,7 @@ def test_absent_or_future_source_never_appears_in_historical_slice(real_client):
 
 
 def test_real_name_search_uses_bound_owner_instead_of_demo_owner(real_client):
-    client,store,ids=real_client
+    client,_store,ids=real_client
     response=client.get('/network/search.json?q=Morgan&as_of=2026-10-02T00:00:00Z')
     assert response.status_code==200,response.json
     assert any(p['id']=='identity:'+ids['contact'] for p in response.json['results'])
@@ -99,17 +98,18 @@ def test_real_name_search_uses_bound_owner_instead_of_demo_owner(real_client):
 def test_high_volume_conversation_includes_latest_message_not_uuid_sample(network_database):
     from datetime import timedelta
     from uuid import UUID
+
+    from adapters.network.service import NetworkService
     from adapters.network.source import SourceRepository
     from adapters.network.store import PostgresNetworkStore
     from adapters.network.worker import NetworkWorker
-    from adapters.network.service import NetworkService
     dsn,ids=network_database
     start=datetime(2026,9,30,tzinfo=UTC)
     rows=[]
     for i in range(401):
         mid=str(UUID(int=i+1)) if i<400 else 'ffffffff-ffff-ffff-ffff-ffffffffffff'
         rows.append((mid,ids['thread'],f'volume-{i}',start+timedelta(seconds=i),ids['contact'],'Latest update' if i==400 else 'Earlier update'))
-    with psycopg.connect(dsn) as conn:
+    with psycopg.connect(dsn) as conn:  # noqa: SIM117 - keep transaction and operation contexts explicit.
         with conn.cursor() as cur:
             cur.executemany("insert into message(id,thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,%s,'outlook',%s,'inbound',%s,%s,%s,'{}','2026-09-30')",rows)
             cur.executemany("insert into message_participant values (%s,%s,'to')",[(r[0],ids['self']) for r in rows])
@@ -128,9 +128,10 @@ def test_high_volume_conversation_includes_latest_message_not_uuid_sample(networ
 
 def test_selected_extraction_and_confirmed_project_ui_contract(network_database):
     from test_network_changes import setup
-    from scripts.network_real import create_app
+
     from adapters.network.service import NetworkService
-    source,store,ids,snapshot,batch=setup(network_database)
+    from scripts.network_real import create_app
+    source,store,ids,_snapshot,batch=setup(network_database)
     class Provider:
         available=True
         model='fake-selected'
@@ -158,9 +159,10 @@ def test_selected_extraction_and_confirmed_project_ui_contract(network_database)
 @pytest.mark.parametrize('decision', ['reject', 'confirm'])
 def test_entity_only_extraction_is_visible_and_reviewable(network_database, decision):
     from test_network_changes import setup
-    from scripts.network_real import create_app
+
     from adapters.network.service import NetworkService
-    source,store,ids,snapshot,batch=setup(network_database)
+    from scripts.network_real import create_app
+    source,store,ids,_snapshot,batch=setup(network_database)
     class Provider:
         available=True
         model='fake-project-mention'
@@ -187,9 +189,10 @@ def test_untrusted_host_cannot_read_real_source(real_client):
 
 def test_real_browser_graph_sources_and_model_unavailability(real_client,tmp_path):
     import threading
-    from playwright.sync_api import sync_playwright,expect
+
+    from playwright.sync_api import expect, sync_playwright
     from werkzeug.serving import make_server
-    client,store,ids=real_client
+    client,_store,ids=real_client
     server=make_server('127.0.0.1',0,client.application,threaded=True)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     try:

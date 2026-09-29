@@ -4,10 +4,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 
-from .model import timestamp
-from .source import SourceRecord, SourceError, fingerprint
-from .store import Projection
 from ..resolution.organizations import normalise_org_name
+from .model import timestamp
+from .source import SourceError, SourceRecord, fingerprint
+from .store import Projection
 
 
 def project_records(records: tuple[SourceRecord, ...], reviews: tuple[dict, ...],
@@ -36,8 +36,8 @@ def project_records(records: tuple[SourceRecord, ...], reviews: tuple[dict, ...]
         raise SourceError('owner_unresolved')
     owners = {mappings[i] for i in self_ids}
     owner = next(iter(owners)) if len(owners)==1 else 'owner:'+binding[:24]
-    for iid in mappings:
-        if mappings[iid] in owners:
+    for iid, person in mappings.items():
+        if person in owners:
             mappings[iid] = owner
     # All self bindings determine the virtual owner and the direction of activity.
     owner_deps = {k for i in self_ids for k in identity_deps[i]}

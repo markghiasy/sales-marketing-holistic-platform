@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .profiles import Candidate
-from .store import Snapshot, Projection
+from .store import Projection, Snapshot
 
 
 class Strict(BaseModel):
@@ -59,7 +60,7 @@ def validate_proposals(batch: ProposalBatch, snapshot: Snapshot) -> ProposalBatc
     nodes={n['id']:n for n in snapshot.data['nodes']}
     evidence={e['id']:e for e in snapshot.data['evidence']}
     nodes.update({e.id:{'id':e.id,'kind':e.kind,'name':e.name} for e in batch.entities})
-    refs,source_ids=batch.references()
+    refs,_source_ids=batch.references()
     if not refs<=nodes.keys():
         raise ValueError('unknown_entity')
     for row in [*batch.entities,*batch.relations,*batch.assertions]:

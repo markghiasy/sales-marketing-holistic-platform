@@ -189,8 +189,8 @@ class NetworkAgent:
     def extract_network(self, snapshot, query, evidence_ids, validate_sources):
         """Explicit selected-source extraction; proposals never mutate confirmed facts."""
         from .changes import ProposalBatch, validate_proposals
-        from .store import Snapshot
         from .model import timestamp
+        from .store import Snapshot
 
         if not self.provider.available:
             raise AgentUnavailable('Claude is not configured for this network.')

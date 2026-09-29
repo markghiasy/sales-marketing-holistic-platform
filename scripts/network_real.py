@@ -1,18 +1,24 @@
 """Explicit real-data, loopback-only network trial; no demo fallback or source writes."""
 import argparse
 import atexit
-from datetime import UTC, datetime
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import dotenv_values
 from flask import Flask, Response, jsonify, render_template, request, stream_with_context
 from pydantic import Field, ValidationError
 
-from adapters.network.agent import AgentRequest, AgentUnavailable, ClaudeProvider, NetworkAgent, StrictModel
+from adapters.network.agent import (
+    AgentRequest,
+    AgentUnavailable,
+    ClaudeProvider,
+    NetworkAgent,
+    StrictModel,
+)
 from adapters.network.changes import ReviewCommand
-from adapters.network.service import NetworkService
 from adapters.network.database import NetworkDatabase
+from adapters.network.service import NetworkService
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore, StoreError
 
@@ -180,7 +186,7 @@ def main():
         source=SourceRepository(config['DATABASE_URL'],database=database)
         store=PostgresNetworkStore(config['DATABASE_URL'],source.audit()['binding'],database=database)
         service=NetworkService(store,source)
-    except Exception:
+    except Exception:  # noqa: BLE001 - sanitize configuration/DB failures at the CLI boundary.
         parser.exit(2,'network_not_ready: audit source and explicitly initialize derived schema first\n')
     create_app(service=service,llm_config=config).run(host='127.0.0.1',port=args.port,debug=False,threaded=True,use_reloader=False)
 

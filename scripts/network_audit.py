@@ -18,7 +18,7 @@ def main():
         print(json.dumps(SourceRepository(config['DATABASE_URL']).audit(), indent=2))
     except SourceError as exc:
         parser.exit(2, str(exc)+'\n')
-    except Exception:
+    except Exception:  # noqa: BLE001 - sanitize configuration/DB failures at the CLI boundary.
         parser.exit(2, 'source_unavailable: check connection, credentials and schema locally\n')
 
 

@@ -1,8 +1,6 @@
 from datetime import UTC, datetime, timedelta
-from dataclasses import replace
 
 import psycopg
-import pytest
 
 from adapters.network.source import SourceRepository
 from adapters.network.store import PostgresNetworkStore
@@ -11,7 +9,7 @@ NOW=datetime(2026,9,30,12,tzinfo=UTC)
 
 
 def test_worker_lease_does_not_hold_an_idle_transaction(network_database):
-    worker,source,store,ids=setup(network_database)
+    worker,_source,_store,_ids=setup(network_database)
     with worker.lease() as held:
         assert held
         with psycopg.connect(network_database[0]) as conn:
@@ -66,7 +64,7 @@ def test_incomplete_reconciliation_keeps_previous_graph_and_checkpoint(network_d
 
 
 def test_metadata_hide_and_full_reconciliation_delete_support(network_database):
-    worker,source,store,ids=setup(network_database)
+    worker,_source,store,ids=setup(network_database)
     worker.tick(NOW)
     with psycopg.connect(network_database[0]) as conn:
         conn.execute('insert into contact_hidden(contact_key) values (%s)',(ids['contact'],))
@@ -98,7 +96,7 @@ def test_worker_exclusion_and_source_failure_does_not_advance_schedule(network_d
 
 
 def test_bounded_backfill_refuses_oversized_source_without_partial_publication(network_database):
-    worker,source,store,_=setup(network_database,max_records=1)
+    worker,_source,store,_=setup(network_database,max_records=1)
     status=worker.tick(NOW)
     assert status.error_code=='source_budget_exceeded'
     assert status.version==0 and store.records()==()
@@ -110,7 +108,7 @@ def test_incremental_projection_does_not_remove_unrelated_contacts(network_datab
         another=conn.execute("insert into identity(channel,handle,display_name) values ('outlook','other@test','Other') returning id").fetchone()[0]
         mid=conn.execute("insert into message(thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) select thread_id,channel,'other',direction,sent_at,%s,'Unrelated','{}',ingested_at from message returning id",(another,)).fetchone()[0]
         conn.execute("insert into message_participant values (%s,%s,'to')",(mid,ids['self']))
-    worker,source,store,_=setup(network_database)
+    worker,_source,store,_=setup(network_database)
     worker.tick(NOW)
     with psycopg.connect(dsn) as conn:
         conn.execute("update message set body_text='Updated' where id=%s",(ids['message'],))
@@ -126,7 +124,7 @@ def test_corrected_sender_reprojects_both_old_and_new_contacts(network_database)
         for external,author in [('old-kept',ids['contact']),('other-kept',other)]:
             mid=conn.execute("insert into message(thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) select thread_id,channel,%s,direction,sent_at,%s,'Retained','{}',ingested_at from message where id=%s returning id",(external,author,ids['message'])).fetchone()[0]
             conn.execute("insert into message_participant values (%s,%s,'to')",(mid,ids['self']))
-    worker,source,store,_=setup(network_database)
+    worker,_source,store,_=setup(network_database)
     worker.tick(NOW)
     with psycopg.connect(dsn) as conn:
         conn.execute('update message set from_identity_id=%s where id=%s',(other,ids['message']))
@@ -137,7 +135,7 @@ def test_corrected_sender_reprojects_both_old_and_new_contacts(network_database)
 
 
 def test_old_late_commit_outside_lookback_recovered_by_reconciliation(network_database):
-    worker,source,store,ids=setup(network_database)
+    worker,_source,store,ids=setup(network_database)
     worker.tick(NOW)
     with psycopg.connect(network_database[0]) as conn:
         mid=conn.execute("insert into message(thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) select thread_id,channel,'late',direction,sent_at,from_identity_id,'Late committed','{}','2026-09-25' from message returning id").fetchone()[0]
