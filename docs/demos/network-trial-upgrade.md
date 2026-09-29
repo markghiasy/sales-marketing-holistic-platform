@@ -4,6 +4,9 @@ This guide is for an existing working Ironman instance, including Mark's Mac.
 It reuses that machine's database and API configuration. The original Inbox
 and collectors continue running; the trial is a separate local app and worker.
 
+Candidate ref: `network-trial-2026-10-02-rc1`. Fetch and verify its availability;
+use it as `RELEASE_REVISION` below.
+
 Release revision and measured validation: [delivery record](2026-10-02-mark-local-delivery.md)
 and [acceptance report](2026-10-02-real-network-validation.md). Use the recorded
 revision once its release gate is marked ready. Mac execution remains pending
@@ -16,7 +19,7 @@ changes. Fetch the recorded release branch/revision. Create a separate worktree
 at that revision; do not replace the running application's checkout.
 
 ```sh
-git fetch origin
+git fetch origin --tags
 git worktree add --detach ../ironman-network-trial RELEASE_REVISION
 cd ../ironman-network-trial
 python3 -m venv .venv
@@ -41,6 +44,13 @@ It needs an explicitly configured self identity; multiple self aliases are
 supported without merging source people. It does not require `ai_brief_status`.
 
 ## 2. Initialize only derived state
+
+Check the database provider's available storage quota first. In Eva's measured
+7,343-message source, the derived schema used about292MB including indexes;
+fictional larger workloads used more. Aliases, message length and topology
+change that cost. This trial does not move the source to a local database or
+promise that every existing free-tier quota is sufficient.
+
 
 ```sh
 .venv/bin/python -m scripts.network_schema --env-file "$TRIAL_ENV" --check
