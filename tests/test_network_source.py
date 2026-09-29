@@ -11,20 +11,6 @@ def repository(dsn, **kwargs):
     return SourceRepository(dsn, **kwargs)
 
 
-@pytest.fixture
-def source_seed(isolated_database_url):
-    ids = {k: str(uuid4()) for k in ('owner', 'self', 'contact', 'thread', 'message')}
-    with psycopg.connect(isolated_database_url) as conn:
-        conn.execute('insert into person(id, primary_name) values (%s, %s)', (ids['owner'], 'Owner'))
-        for key, name, own in [('self', 'Owner', True), ('contact', 'Morgan', False)]:
-            conn.execute('insert into identity(id,channel,handle,display_name,person_id,is_self) values (%s,%s,%s,%s,%s,%s)',
-                         (ids[key], 'outlook', key+'@example.test', name, ids['owner'] if own else None, own))
-        conn.execute('insert into thread(id,channel,external_id) values (%s,%s,%s)', (ids['thread'], 'outlook', 't'))
-        conn.execute("insert into message(id,thread_id,channel,external_id,direction,sent_at,from_identity_id,body_text,raw,ingested_at) values (%s,%s,'outlook','m','inbound','2020-01-01',%s,'Project note','{\"private_raw\":true}','2026-09-30')",
-                     (ids['message'], ids['thread'], ids['contact']))
-        conn.execute("insert into message_participant values (%s,%s,'to')", (ids['message'], ids['self']))
-    return isolated_database_url, ids
-
 
 def test_source_snapshot_is_paged_complete_without_raw_and_optional_brief(source_seed):
     dsn, ids = source_seed
