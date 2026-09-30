@@ -51,3 +51,7 @@ Deferred minor findings:
 - Cluster reads currently load visible identity and pending/rejected candidate metadata; the contact route computes the component twice. Traversal is bounded, but database transfer is not yet scoped to a frontier. A large-mailbox latency benchmark and batching are follow-up work.
 
 Final local verification: **399 tests passed in 95.00 seconds** after all review fixes. Full-repository Ruff and pip dependency checks passed. Headless panel verification also passed. Remote CI status is tracked on the pull request.
+
+Published PR: https://github.com/markghiasy/sales-marketing-holistic-platform/pull/5
+
+GitHub PR CI at code commit `3c9a934` passed both lint/syntax and the complete PostgreSQL suite, including fresh migrations and integration-test execution checks: https://github.com/markghiasy/sales-marketing-holistic-platform/actions/runs/36649256567 . This final record-only update does not change executable code.

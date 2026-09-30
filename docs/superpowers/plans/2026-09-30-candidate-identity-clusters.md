@@ -62,4 +62,4 @@
 - [x] Test attribution and isolated rule failure; retain pre-upgrade candidates with unknown provenance.
 - [x] Observe RED; implement, verify and commit.
 - [x] Full suite and Ruff; fresh whole-branch reviewer; fix material issues with reproducing tests.
-- [ ] Save Mark reply and upgrade notes; push branch and create reviewable PR. Verify remote commit and CI.
+- [x] Save Mark reply and upgrade notes; push branch and create reviewable PR. Verify remote commit and CI.
