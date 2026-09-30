@@ -10,7 +10,12 @@ def test_discovery_uses_ids_excludes_descendants_and_has_no_depth_cutoff(monkeyp
     visited = []
 
     def folder(id, name, children=0):
-        return {"id": id, "displayName": name, "totalItemCount": 1, "childFolderCount": children}
+        return {
+            "id": id,
+            "displayName": name,
+            "totalItemCount": 1,
+            "childFolderCount": int(children),
+        }
 
     def get(url, headers):
         visited.append(url)
@@ -70,16 +75,27 @@ def test_delta_paths_preserve_builtin_and_safely_hash_ids():
 
 def test_folder_discovery_follows_pagination(monkeypatch):
     monkeypatch.setattr(client, "get_access_token", lambda: "synthetic")
+
     def get(url, headers):
         response = MagicMock()
         if "?$select=id" in url and "$top" not in url:
             data = {"id": url.split("/mailFolders/")[-1].split("?")[0]}
         elif "page2" in url:
-            data = {"value": [{"id": "filed", "displayName": "Filed"}]}
+            data = {
+                "value": [
+                    {
+                        "id": "filed",
+                        "displayName": "Filed",
+                        "totalItemCount": 0,
+                        "childFolderCount": 0,
+                    }
+                ]
+            }
         else:
             data = {"value": [], "@odata.nextLink": client.GRAPH_BASE + "/page2"}
         response.json.return_value = data
         return response
+
     monkeypatch.setattr(client, "_get_with_retry", get)
     assert client.discover_folders() == [("filed", "Filed", 0)]
 
@@ -111,3 +127,63 @@ def test_failed_commit_does_not_advance_delta_checkpoint(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError, match="commit failed"):
         sync.run()
     assert not any(p.exists() for p in paths.values())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"unexpected": "schema"},
+        {"value": None},
+        {"value": {}},
+        {"value": [{"id": "filed", "displayName": "Filed", "totalItemCount": 0}]},
+        {"value": [], "@odata.nextLink": 42},
+    ],
+)
+def test_malformed_folder_metadata_fails_visibly(monkeypatch, body):
+    monkeypatch.setattr(client, "get_access_token", lambda: "synthetic")
+
+    def get(url, headers):
+        response = MagicMock()
+        response.json.return_value = (
+            {"id": url.split("/mailFolders/")[-1].split("?")[0]}
+            if "?$select=id" in url and "$top" not in url
+            else body
+        )
+        return response
+
+    monkeypatch.setattr(client, "_get_with_retry", get)
+    with pytest.raises(ValueError, match="folder"):
+        client.discover_folders()
+
+
+def test_initial_delta_seed_keeps_new_arrivals(monkeypatch):
+    monkeypatch.setattr(client, "get_access_token", lambda: "synthetic")
+    old = {"id": "old", "internetMessageId": "old@example.test"}
+    new = {"id": "new", "internetMessageId": "new@example.test"}
+
+    def walk(url, headers):
+        yield old
+        if "/delta" in url:
+            yield new
+            return "next-delta"
+
+    monkeypatch.setattr(client, "_walk", walk)
+    generator = client.fetch_messages()
+    assert next(generator) == old
+    assert next(generator) == new
+    with pytest.raises(StopIteration) as stop:
+        next(generator)
+    assert stop.value.value == "next-delta"
+
+
+def test_missing_builtin_id_cannot_disable_exclusions(monkeypatch):
+    monkeypatch.setattr(client, "get_access_token", lambda: "synthetic")
+
+    def get(url, headers):
+        response = MagicMock()
+        response.json.return_value = {"id": None} if "$top" not in url else {"value": []}
+        return response
+
+    monkeypatch.setattr(client, "_get_with_retry", get)
+    with pytest.raises(ValueError, match="folder"):
+        client.discover_folders()

@@ -5,6 +5,16 @@ description: Deploy this repo to a new instance (Mark's AWS box, or any fresh ch
 
 # Deploy: Comms & Outreach Platform
 
+## Existing-instance identity upgrade (30 September 2026)
+
+When updating an installation for candidate identity suggestions or all-folder
+Outlook sync, read `docs/delivery/2026-09-30-mark-identity-upgrade.md` before
+running the fresh-install steps below. Preserve the operator's local patches,
+credentials and cursor files; apply only missing migrations 0013–0015. Check
+the contact suggestion panel and `resolution_run` provenance after restart.
+Brief refresh is preview-only unless the operator authorizes provider calls.
+This update is separate from the Network trial in PR #4.
+
 Operationalizes `runbook.md` into a step-by-step walkthrough with a real
 verification check after each step — not "run this command and hope,"
 but "run this command, then run this OTHER command to confirm it

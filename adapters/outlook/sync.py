@@ -378,8 +378,7 @@ def run() -> None:
                     env = _to_envelope(raw, self_handles=self_handles)
                     if env is None:
                         continue
-                    identity_id = upsert(conn, env, self_handles)
-                    touched_identity_ids.add(identity_id)
+                    upsert(conn, env, self_handles, touched_identity_ids=touched_identity_ids)
                     count += 1
 
                 if next_delta_link:

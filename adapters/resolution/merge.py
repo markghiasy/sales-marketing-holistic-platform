@@ -245,7 +245,7 @@ def undo_merge(cur, merge_log_id: str) -> None:
     cur.execute(
         """
         update link_candidate set status = case
-            when method = 'linkedin_same_channel_dedupe' then 'retired'
+            when method in ('linkedin_same_channel_dedupe', 'email_signature_phone') then 'retired'
             else 'pending'
         end
         where identity_a_id = %s and identity_b_id = %s and status = 'confirmed'

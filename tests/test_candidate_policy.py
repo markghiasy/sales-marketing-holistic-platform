@@ -35,3 +35,21 @@ def test_signature_retirement_is_surgical_and_idempotent(db_conn):
     assert [r[0] for r in rows] == ["confirmed", "rejected", "retired"]
     assert rows[0][1] == rows[1][1] == "original evidence"
     assert rows[2][1].count("Rule retired") == 1
+
+
+def test_undo_historical_signature_merge_does_not_revive_retired_rule(db_conn):
+    from adapters.resolution.merge import undo_merge
+
+    cur = db_conn.cursor()
+    a = _make_identity(cur, "outlook", "a@example.test")
+    b = _make_identity(cur, "whatsapp", "123456789@s.whatsapp.net")
+    cur.execute(
+        """insert into link_candidate(identity_a_id,identity_b_id,method,status,score)
+        values (%s,%s,'email_signature_phone','confirmed',0.8)""",
+        (a, b),
+    )
+    apply_merge(cur, a, b, method="email_signature_phone", decision_kind="review")
+    cur.execute("select id from merge_log")
+    undo_merge(cur, str(cur.fetchone()[0]))
+    cur.execute("select status from link_candidate")
+    assert cur.fetchone()[0] == "retired"

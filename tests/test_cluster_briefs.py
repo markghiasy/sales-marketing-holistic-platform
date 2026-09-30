@@ -1,5 +1,7 @@
 from datetime import UTC, datetime
 
+import pytest
+
 from adapters.ai_brief import (
     _build_prompt,
     _gather_input,
@@ -98,3 +100,82 @@ def test_contact_api_exposes_evidence_separately_from_known_handles(db_conn, mon
     assert payload["identity_suggestions"][0]["identity_id"] == b
     assert payload["identity_suggestions"][0]["evidence"] == "same normalized name"
     assert payload["reply_signal"]["provisional"] is True
+
+
+@pytest.mark.parametrize("during_generation", [False, True])
+def test_adding_handle_to_confirmed_person_invalidates_cached_candidate_scope(
+    db_conn, during_generation
+):
+    from adapters.contact_editor import add_contact_handle
+    from adapters.resolution.merge import apply_merge
+    from tests.test_reply_signal import _make_identity
+
+    cur = db_conn.cursor()
+    a, _b, _t, _cid = seed(cur)
+    confirmed = _make_identity(cur, "outlook", "confirmed@example.test")
+    key = apply_merge(cur, a, confirmed, method="manual_link", decision_kind="manual")
+    generate_brief(cur, key, client=client())
+    assert get_detail(cur, key).context == ["Synthetic context"]
+    if during_generation:
+        provider = client()
+        create = provider.messages.create
+
+        def insert_handle(**kwargs):
+            add_contact_handle(cur, key, "new-alias@example.test")
+            return create(**kwargs)
+
+        provider.messages.create = insert_handle
+        generate_brief(cur, key, client=provider)
+    else:
+        add_contact_handle(cur, key, "new-alias@example.test")
+    assert get_detail(cur, key).context != ["Synthetic context"]
+
+
+@pytest.mark.parametrize(
+    "error_code", ["provider_failed", "invalid_response", "input_budget_exceeded"]
+)
+def test_stale_cache_does_not_hide_refresh_failure(db_conn, error_code):
+    from adapters.inbox_query import list_conversations
+
+    cur = db_conn.cursor()
+    a, _b, _t, cid = seed(cur)
+    cur.execute("update identity set display_name='Synthetic Contact' where id=%s", (a,))
+    generate_brief(cur, a, client=client())
+    cur.execute("update link_candidate set status='rejected' where id=%s", (cid,))
+    status = "skipped" if error_code == "input_budget_exceeded" else "failed"
+    cur.execute(
+        "update ai_brief_status set status=%s,error_code=%s where person_key=%s",
+        (status, error_code, a),
+    )
+    detail = get_detail(cur, a)
+    row = next(r for r in list_conversations(cur) if r.person_key == a)
+    for result in (detail, row):
+        assert result.brief_status == status
+        assert status in result.brief_notice
+        assert "withheld" in result.brief_notice
+    assert detail.context != ["Synthetic context"]
+
+
+def test_outbound_participants_refresh_candidate_dependent_briefs(db_conn):
+    from adapters.envelope import Channel, Direction, Envelope
+    from adapters.store_writer import upsert
+
+    cur = db_conn.cursor()
+    a, b, _t, _cid = seed(cur)
+    generate_brief(cur, a, client=client())
+    touched = set()
+    env = Envelope(
+        Channel.outlook,
+        "outbound-new",
+        "sent-thread",
+        Direction.outbound,
+        datetime.now(UTC),
+        "me@example.test",
+        to_handles=["p1@example.test"],
+        cc_handles=["cc@example.test"],
+        body_text="New reply",
+    )
+    upsert(db_conn, env, "me@example.test", touched_identity_ids=touched)
+    assert b in touched
+    assert a in person_keys_for_identities(cur, touched)
+    assert get_detail(cur, a).context != ["Synthetic context"]

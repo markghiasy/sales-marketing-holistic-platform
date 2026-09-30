@@ -29,6 +29,10 @@ Use an isolated checkout to inspect this release, or stash/commit local work fir
 
 Candidate topology invalidation is deliberately conservative for this first release: unrelated cached briefs can also need refresh after an identity decision. Source messages, identity records and previous cache rows remain stored. Folder discovery fails visibly if it cannot identify required built-in folders, rather than guessing their English names.
 
+Outgoing-message refresh now includes recipients and CC identities in all three live sync adapters. When refresh fails, the inbox retains the failure reason alongside the stale-cache notice. Initial Outlook backfill retains messages arriving between its plain-list and delta-seed passes.
+
+Validation and remaining scale/UI limitations are recorded in [the review record](2026-09-30-identity-validation.md). In particular, candidate metadata is currently read in batches across the visible store; large-mailbox latency has not yet been benchmarked.
+
 The network trial in PR #4 remains a separate branch. These changes target the production inbox/resolution stack and must be integrated into that trial before claiming it has the same candidate behaviour.
 
 ## Reply draft (send after the push is verified)

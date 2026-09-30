@@ -26,3 +26,28 @@ User authorized implementation and push, with no repeated stage confirmations. M
 7. Delivery includes a bounded dry-run-first refresh command because no shared brief-backfill CLI existed. No live paid backfill is executed.
 
 No production `.env`, API keys or message contents are included in this branch. Tests use an explicitly disposable loopback PostgreSQL database and mocked providers.
+
+## Independent review and fix pass
+
+Fresh reviewer reviewed `1337533..56dcbbc`, reproduced five Important findings, and reported no Critical findings. Each material finding received a regression test observed failing before its fix:
+
+- Confirmed-person handle additions could evade old dependency lists: topology changes now advance the revision, including additions during provider generation.
+- Undo could revive retired signature-phone candidates: both retired methods remain retired after undo.
+- Outgoing-message recipients were omitted from refresh targets: the shared writer now optionally collects sender, To and CC identities; all three live channel syncs use it. The existing bulk LinkedIn export remains an import operation; it does not acquire new automatic paid backfill behaviour.
+- Staleness hid failed/skipped regeneration: list and detail now retain the error status/reason and also explain the withheld cache.
+- Malformed folder pages or missing child metadata could look like successful empty discovery: responses and required fields are validated, including built-in IDs.
+
+Ruling: the reviewer set aside the pre-existing plain-list/delta-seed arrival race. Expanded folder backfill makes this a material ingestion risk, so the fix pass also retains new seed arrivals rather than discarding them; a failing regression verifies the lost-message case. Cost: holding a set of message identifiers during initial folder backfill.
+
+Ruling: live Graph/provider quality, production migration duration and hosted-database performance remain acceptance checks on the operator's instance. No live credentials or production writes were used to substitute for those checks. Cost: mailbox-specific compatibility and scale remain unproven here.
+
+74 targeted tests passed after the fix pass; final full-suite/CI results follow below.
+
+Headless Edge rendered the production contact panel with synthetic data. Verified conditional wording, aggregate counts, escaped HTML input, and no JavaScript errors; inspected the screenshot.
+
+Deferred minor findings:
+
+- Per-rule counts and partial-run status are available in `resolution_run.results`; the review UI shows run/rule/code/time attribution, not the full run report.
+- Cluster reads currently load visible identity and pending/rejected candidate metadata; the contact route computes the component twice. Traversal is bounded, but database transfer is not yet scoped to a frontier. A large-mailbox latency benchmark and batching are follow-up work.
+
+Final local verification: **399 tests passed in 95.00 seconds** after all review fixes. Full-repository Ruff and pip dependency checks passed. Headless panel verification also passed. Remote CI status is tracked on the pull request.

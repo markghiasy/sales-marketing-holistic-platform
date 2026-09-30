@@ -37,6 +37,20 @@ end $$;
 create trigger identity_context_changed before update on identity
 for each row execute function bump_identity_context();
 
+create function bump_identity_topology() returns trigger language plpgsql as $$
+begin
+  if TG_OP = 'INSERT' then
+    if new.person_id is not null then
+      update identity_cluster_revision set revision=revision+1 where singleton;
+    end if;
+  elsif (new.person_id,new.is_self) is distinct from (old.person_id,old.is_self) then
+    update identity_cluster_revision set revision=revision+1 where singleton;
+  end if;
+  return null;
+end $$;
+create trigger identity_topology_changed after insert or update of person_id,is_self on identity
+for each row execute function bump_identity_topology();
+
 create function bump_participant_context() returns trigger language plpgsql as $$
 begin
   if TG_OP <> 'INSERT' then
