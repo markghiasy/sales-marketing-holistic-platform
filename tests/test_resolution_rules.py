@@ -117,8 +117,10 @@ class TestRuleContactBridge:
         (person_a,) = cur.fetchone()
         cur.execute("select person_id from identity where id = %s", (wa_id,))
         (person_b,) = cur.fetchone()
-        assert person_a is not None
-        assert person_a == person_b
+        assert person_a is None
+        assert person_b is None
+        cur.execute("select count(*) from merge_log")
+        assert cur.fetchone()[0] == 0
 
     def test_group_chat_jids_are_skipped_as_the_phone_side(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
@@ -182,7 +184,7 @@ def _make_thread(cur) -> str:
 
 
 class TestRuleSignaturePhone:
-    def test_phone_in_signature_queues_a_high_score_candidate(self, db_conn: psycopg.Connection):
+    def test_retired_rule_detects_but_writes_no_candidate(self, db_conn: psycopg.Connection):
         cur = db_conn.cursor()
         outlook_id = _make_identity(cur, "outlook", f"eric-{uuid.uuid4().hex[:8]}@example.com", "Eric Tham")
         digits = "1580" + str(uuid.uuid4().int)[:6]  # digits only — .hex contains a-f letters
@@ -196,18 +198,21 @@ class TestRuleSignaturePhone:
         # conftest.py's db_conn fixture note), so the rule may legitimately
         # find other matches too. Scope assertions to this test's own
         # identity pair instead.
-        rule_signature_phone(cur)
+        # RULE RETIRED 2026-09-30 (owner's ruling; migration 0013). Detection
+        # is deliberately kept so the match rate stays observable, but nothing
+        # is written: a phone in a QUOTED signature belongs to the quoted
+        # party, not the sender. Measured 2/9 (finding 21) and 33.3% with 40%
+        # unjudgeable. This test now locks the retirement in.
+        detected = rule_signature_phone(cur)
+        assert detected >= 1, "detection must stay intact so the rate remains observable"
 
         cur.execute(
-            "select status, score, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            "select count(*) from link_candidate where identity_a_id = %s or identity_b_id = %s",
             (outlook_id, outlook_id),
         )
-        status, score, method = cur.fetchone()
-        assert status == "pending"
-        assert score == 0.8
-        assert method == "email_signature_phone"
+        assert cur.fetchone()[0] == 0, "retired rule must not write a candidate"
 
-    def test_inbound_messages_are_also_scanned(self, db_conn: psycopg.Connection):
+    def test_retired_rule_still_scans_inbound_but_writes_nothing(self, db_conn: psycopg.Connection):
         # a phone number in the SENDER's signature is exactly as valid
         # evidence on an inbound message as an outbound one — the mailbox
         # owner's own outbound signature was never a requirement, just
@@ -222,16 +227,16 @@ class TestRuleSignaturePhone:
         body = f"Thanks,\nEric Tham\nMobile: {digits}"
         _make_message(cur, thread, outlook_id, body, direction="inbound")
 
-        rule_signature_phone(cur)
+        # Retired 2026-09-30 — see the note above. Inbound is still scanned
+        # (the mechanism is unchanged) but no candidate is written.
+        detected = rule_signature_phone(cur)
+        assert detected >= 1
 
         cur.execute(
-            "select status, score, method from link_candidate where identity_a_id = %s or identity_b_id = %s",
+            "select count(*) from link_candidate where identity_a_id = %s or identity_b_id = %s",
             (wa_id, wa_id),
         )
-        status, score, method = cur.fetchone()
-        assert status == "pending"
-        assert score == 0.8
-        assert method == "email_signature_phone"
+        assert cur.fetchone()[0] == 0, "retired rule must not write a candidate"
 
     def test_does_not_match_the_mailbox_owners_own_whatsapp_number(self, db_conn: psycopg.Connection):
         # real bug found 2026-09-09: an automated confirmation email

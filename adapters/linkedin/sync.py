@@ -88,8 +88,7 @@ def run() -> None:
             # partway through should not throw away everything pulled so far
             try:
                 for env in fetch_envelopes(headless=True):
-                    identity_id = upsert(conn, env, _self_handle(env))
-                    touched_identity_ids.add(identity_id)
+                    upsert(conn, env, _self_handle(env), touched_identity_ids=touched_identity_ids)
                     conn.commit()
                     count += 1
             except SessionLimitExceeded as e:

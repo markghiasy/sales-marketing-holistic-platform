@@ -722,6 +722,21 @@ async function openContactPanel(personKey) {
           </div>
         `).join("")}
       </div>
+      ${(contact.identity_suggestions || []).length ? `
+        <h3>Possible matching identities</h3>
+        <p>Suggestions only. Check the evidence before confirming these are the same person.</p>
+        ${contact.identity_suggestions.map(s => `
+          <div class="contact-handle-row" style="display:block; padding:10px 0">
+            <strong>May also be ${escapeHtml(s.name)} on ${escapeHtml(s.channel)}</strong>
+            <div>${escapeHtml(s.handle)}</div>
+            <p>${escapeHtml(s.evidence)}</p>
+            <a href="/resolution" target="_blank" rel="noopener">Review identity suggestions</a>
+          </div>`).join("")}
+        ${contact.suggestions_truncated ? '<p>Showing the first 50 suggestions. Open the review queue for all pairs.</p>' : ''}
+        <p role="status">${contact.reply_signal?.provisional
+          ? `If these identities are the same person: ${contact.reply_signal.sent_count ?? 0} sent / ${contact.reply_signal.received_count ?? 0} received across ${contact.reply_signal.identity_count} identities. This is provisional.`
+          : 'No cross-identity aggregation: the candidate group does not meet the safety checks. Counts remain separate.'}</p>
+      ` : ''}
       <h3>Add or link a handle</h3>
       <input type="text" id="contact-add-input" placeholder="Email, phone, or search existing contacts...">
       <div class="contact-search-results" id="contact-search-results"></div>

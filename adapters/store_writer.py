@@ -11,7 +11,8 @@ import psycopg
 from .envelope import Envelope
 
 
-def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str | frozenset[str]) -> str:
+def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str | frozenset[str],
+           *, touched_identity_ids: set[str] | None = None) -> str:
     # WhatsApp/LinkedIn each have exactly one canonical self identifier (a
     # phone number, a member URN) and pass a single string. Outlook can
     # have several -- Eva sends from multiple addresses through the one
@@ -82,6 +83,9 @@ def upsert(conn: psycopg.Connection, env: Envelope, self_handle: str | frozenset
             )
             for i, cc_handle in enumerate(env.cc_handles)
         ]
+
+        if touched_identity_ids is not None:
+            touched_identity_ids.update(str(i) for i in [from_identity_id, *to_identity_ids, *cc_identity_ids])
 
         if message_already_existed:
             # message_participant rows were already recorded on first

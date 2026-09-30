@@ -166,8 +166,7 @@ def run() -> None:
             env = _to_envelope(record, self_jid)
             if env is None:
                 continue
-            identity_id = upsert(conn, env, self_jid)
-            touched_identity_ids.add(identity_id)
+            upsert(conn, env, self_jid, touched_identity_ids=touched_identity_ids)
             conn.commit()
             count += 1
 

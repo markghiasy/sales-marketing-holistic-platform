@@ -182,7 +182,7 @@ def get_access_token(on_device_code: Callable[[dict], None] | None = None) -> st
 _SELECT_FIELDS = (
     "subject,body,from,toRecipients,ccRecipients,receivedDateTime,"
     "internetMessageId,id,conversationId,internetMessageHeaders,"
-    "inferenceClassification"
+    "inferenceClassification,isDraft"
 )
 
 
@@ -218,6 +218,66 @@ def _walk(url: str, headers: dict):
     return next_delta_link
 
 
+# Based on Mark's finding 14 patch. Built-ins are resolved by ID so mailbox
+# locale and user-created folders with identical names cannot alias cursors.
+EXCLUDED_FOLDER_NAMES = {
+    "deleted items", "junk email", "drafts", "outbox", "conversation history",
+    "sync issues", "rss feeds", "clutter", "scheduled", "snoozed",
+}
+
+
+def discover_folders() -> list[tuple[str, str, int]]:
+    """Discover eligible folders, including descendants and every result page."""
+    from urllib.parse import quote
+
+    headers = {"Authorization": f"Bearer {get_access_token()}"}
+    keys, excluded = {}, set()
+    for key in ("inbox", "sentitems", "deleteditems", "junkemail", "drafts", "outbox"):
+        data = _get_with_retry(f"{GRAPH_BASE}/me/mailFolders/{key}?$select=id", headers).json()
+        # Failure to identify a safety-critical folder aborts discovery.
+        if not isinstance(data, dict) or not isinstance(data.get("id"), str) or not data["id"]:
+            raise ValueError("Malformed built-in folder identifier")
+        folder_id = data["id"]
+        if key in ("inbox", "sentitems"):
+            keys[folder_id] = key
+        else:
+            excluded.add(folder_id)
+    select = "$select=id,displayName,totalItemCount,childFolderCount&$top=100"
+    pending = [f"{GRAPH_BASE}/me/mailFolders?{select}"]
+    visited_urls, visited_ids, out = set(), set(), []
+    while pending:
+        url = pending.pop()
+        if url in visited_urls:
+            raise ValueError("Repeated folder discovery page; coverage cannot be established")
+        visited_urls.add(url)
+        data = _get_with_retry(url, headers).json()
+        if not isinstance(data, dict) or not isinstance(data.get("value"), list):
+            raise ValueError("Malformed folder collection response")  # noqa: TRY004 — remote schema validation
+        next_link = data.get("@odata.nextLink")
+        if next_link is not None and (not isinstance(next_link, str) or not next_link):
+            raise ValueError("Malformed folder pagination link")
+        if data.get("@odata.nextLink"):
+            pending.append(data["@odata.nextLink"])
+        for folder in data["value"]:
+            if (not isinstance(folder, dict)
+                or not isinstance(folder.get("id"), str) or not folder["id"]
+                or not isinstance(folder.get("displayName"), str)
+                or type(folder.get("totalItemCount")) is not int or folder["totalItemCount"] < 0
+                or type(folder.get("childFolderCount")) is not int or folder["childFolderCount"] < 0):
+                raise ValueError("Malformed folder metadata; discovery is incomplete")
+            folder_id = folder["id"]
+            if folder_id in visited_ids:
+                continue
+            visited_ids.add(folder_id)
+            name = (folder.get("displayName") or "").strip()
+            if folder_id in excluded or name.casefold() in EXCLUDED_FOLDER_NAMES:
+                continue  # Exclude the entire subtree.
+            out.append((keys.get(folder_id, folder_id), name, folder.get("totalItemCount", 0)))
+            if folder.get("childFolderCount", 0):
+                pending.append(f"{GRAPH_BASE}/me/mailFolders/{quote(folder_id, safe='')}/childFolders?{select}")
+    return out
+
+
 def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_size: int = 50):
     """Yields raw Graph message dicts from the given mail folder ('inbox' or
     'sentitems' — Graph's well-known folder names). Returns the next
@@ -233,12 +293,15 @@ def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_si
     a fresh delta call against a 4769-message inbox and watching it stop
     at 50. So the first run instead does a plain (non-delta) listing,
     which paginates properly with no such cap, to get everything; then
-    makes one delta call afterward (yielding nothing new — everything
-    from it was already pulled) purely to obtain a real deltaLink to seed
-    future incremental runs with.
+    makes one delta call afterward to obtain a real deltaLink. New arrivals
+    from that seed are yielded too; discarding the seed loses mail that
+    arrived between the two passes.
     """
+    from urllib.parse import quote
+
     token = get_access_token()
     headers = {"Authorization": f"Bearer {token}"}
+    folder = quote(folder, safe="")
 
     if delta_link:
         return (yield from _walk(delta_link, headers))
@@ -247,7 +310,12 @@ def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_si
         f"{GRAPH_BASE}/me/mailFolders/{folder}/messages"
         f"?$top={page_size}&$select={_SELECT_FIELDS}"
     )
-    yield from _walk(plain_url, headers)
+    seen = set()
+    for raw in _walk(plain_url, headers):
+        message_key = raw.get("internetMessageId") or raw.get("id")
+        if message_key:
+            seen.add(message_key)
+        yield raw
 
     delta_seed_url = (
         f"{GRAPH_BASE}/me/mailFolders/{folder}/messages/delta"
@@ -256,7 +324,12 @@ def fetch_messages(folder: str = "inbox", delta_link: str | None = None, page_si
     seed_gen = _walk(delta_seed_url, headers)
     while True:
         try:
-            next(seed_gen)  # discard — already have everything from the plain pass
+            raw = next(seed_gen)
+            message_key = raw.get("internetMessageId") or raw.get("id")
+            if not message_key or message_key not in seen:
+                if message_key:
+                    seen.add(message_key)
+                yield raw
         except StopIteration as e:
             return e.value
 

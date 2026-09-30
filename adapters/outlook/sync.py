@@ -6,6 +6,7 @@ Run: python -m adapters.outlook.sync
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -20,7 +21,7 @@ from dotenv import load_dotenv
 from ..ai_brief import person_keys_for_identities, refresh_touched_best_effort
 from ..envelope import Channel, Direction, Envelope
 from ..store_writer import upsert
-from .client import fetch_messages
+from .client import discover_folders, fetch_messages
 
 # Answers a question message-staleness alone can't: "did the sync itself
 # actually run and finish" is a different question from "did any new mail
@@ -47,6 +48,28 @@ _FOLDERS = ("inbox", "sentitems")
 _DELTA_LINK_PATHS = {
     folder: Path(__file__).parent / f".delta_link.{folder}.txt" for folder in _FOLDERS
 }
+
+
+def _delta_link_path(folder_key: str) -> Path:
+    """A Graph folder id is not filename-safe and is long; hash it.
+    Well-known keys keep their original filenames untouched."""
+    if folder_key in _DELTA_LINK_PATHS:
+        return _DELTA_LINK_PATHS[folder_key]
+    digest = hashlib.sha256(folder_key.encode()).hexdigest()[:16]
+    return Path(__file__).parent / f".delta_link.id-{digest}.txt"
+
+
+def _folders_to_sync() -> list[tuple[str, str]]:
+    """LOCAL PATCH 2026-09-28 (finding 14). Default is UNCHANGED: the two
+    well-known folders. Set OUTLOOK_FOLDER_SCOPE=all to walk every folder
+    (minus client.EXCLUDED_FOLDER_NAMES) so filed mail is ingested too."""
+    scope = os.environ.get("OUTLOOK_FOLDER_SCOPE", "").strip().lower()
+    if scope not in ("", "default", "all"):
+        raise ValueError("OUTLOOK_FOLDER_SCOPE must be default or all")
+    if scope != "all":
+        return [(f, f) for f in _FOLDERS]
+    discovered = discover_folders()
+    return [(key, name) for key, name, _count in discovered]
 # pre-existing single-folder cursor from before Sent was added — migrated
 # to the new per-folder name below so a re-run doesn't silently re-backfill
 # the whole inbox from scratch.
@@ -267,6 +290,8 @@ def _resolve_sent_at(raw: dict) -> datetime:
 
 
 def _to_envelope(raw: dict, self_handles: set[str]) -> Envelope | None:
+    if raw.get("isDraft"):
+        return None
     if raw.get("internetMessageId") is None:
         return None  # can't guarantee idempotency without it — drop, don't guess
 
@@ -327,10 +352,11 @@ def run() -> None:
 
     count = 0
     touched_identity_ids: set[str] = set()
+    checkpoints = []
     try:
         with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-            for folder in _FOLDERS:
-                delta_link_path = _DELTA_LINK_PATHS[folder]
+            for folder, _folder_label in _folders_to_sync():
+                delta_link_path = _delta_link_path(folder)
                 delta_link = delta_link_path.read_text().strip() if delta_link_path.exists() else None
 
                 next_delta_link = None
@@ -352,13 +378,18 @@ def run() -> None:
                     env = _to_envelope(raw, self_handles=self_handles)
                     if env is None:
                         continue
-                    identity_id = upsert(conn, env, self_handles)
-                    touched_identity_ids.add(identity_id)
+                    upsert(conn, env, self_handles, touched_identity_ids=touched_identity_ids)
                     count += 1
 
                 if next_delta_link:
-                    delta_link_path.write_text(next_delta_link)
+                    checkpoints.append((delta_link_path, next_delta_link))
             conn.commit()
+        # The DB must commit before any cursor advances. Partial checkpoint writes
+        # after a crash only replay already committed, idempotent messages.
+        for path, link in checkpoints:
+            temporary = path.with_suffix(path.suffix + ".tmp")
+            temporary.write_text(link, encoding="utf-8")
+            temporary.replace(path)
     except Exception as e:  # record the real failure, then let it surface
         _write_status("error", f"sync failed: {e}")
         raise

@@ -20,6 +20,8 @@ class MergeConflictError(Exception):
 
 
 def apply_merge(cur, identity_a_id: str, identity_b_id: str, *, method: str, decision_kind: str) -> str:
+    if decision_kind == "automatic" and method != "exact_email":
+        raise ValueError("Only exact_email may merge automatically; heuristic matches need review")
     if not method or not method.strip() or decision_kind not in {"automatic", "review", "manual"}:
         raise ValueError("A merge requires an explicit rule and decision path")
     # Real bug found 2026-09-19: any per-contact side table keyed on
@@ -243,7 +245,7 @@ def undo_merge(cur, merge_log_id: str) -> None:
     cur.execute(
         """
         update link_candidate set status = case
-            when method = 'linkedin_same_channel_dedupe' then 'retired'
+            when method in ('linkedin_same_channel_dedupe', 'email_signature_phone') then 'retired'
             else 'pending'
         end
         where identity_a_id = %s and identity_b_id = %s and status = 'confirmed'
