@@ -32,6 +32,8 @@ _DEFAULT_URGENCY = 2
 
 
 def _brief_notice(status, error_code, omitted_messages, truncated_text, has_cache):
+    if status == "stale":
+        return "Contact evidence changed. The previous AI brief is withheld until refreshed."
     if status == "truncated":
         notice = f"AI brief uses partial history: {omitted_messages or 0} older messages omitted."
         if truncated_text:
@@ -73,10 +75,12 @@ def list_conversations(cur, show_hidden: bool = False) -> list[ConversationRow]:
             ab.topic,
             ab.urgency,
             coalesce(unread.is_unread, false) as is_unread,
-            abs.status, abs.error_code, abs.omitted_messages, abs.truncated_text
+            case when ab.person_key is null and old_ab.person_key is not null then 'stale'
+                 else abs.status end, abs.error_code, abs.omitted_messages, abs.truncated_text
         from contact_stats cs
         join contact_last_message clm on clm.contact_key = cs.contact_key
-        left join ai_brief ab on ab.person_key = cs.contact_key
+        left join current_ai_brief ab on ab.person_key = cs.contact_key
+        left join ai_brief old_ab on old_ab.person_key = cs.contact_key
         left join ai_brief_status abs on abs.person_key = cs.contact_key
         left join (
             select
@@ -310,7 +314,7 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
     name = cur.fetchone()[0] or "(unknown)"
 
     cur.execute(
-        "select summary, context, topic, graph, urgency from ai_brief where person_key = %s",
+        "select summary, context, topic, graph, urgency from current_ai_brief where person_key = %s",
         (person_key,),
     )
     brief_row = cur.fetchone()
@@ -326,6 +330,11 @@ def get_detail(cur, person_key: str) -> ConversationDetail | None:
     status_row = cur.fetchone()
     brief_status = status_row[0] if status_row else ("success" if brief_row else "not_generated")
     brief_notice = _brief_notice(*status_row, bool(brief_row)) if status_row else ""
+    if not brief_row:
+        cur.execute("select 1 from ai_brief where person_key=%s", (person_key,))
+        if cur.fetchone():
+            brief_status = "stale"
+            brief_notice = _brief_notice("stale", None, None, None, False)
 
     last_message = max(rows, key=lambda r: r[6])
     return ConversationDetail(

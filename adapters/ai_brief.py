@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict
 
 from .reply_signal import reply_signal
 
-PROMPT_VERSION = "v3"
+PROMPT_VERSION = "v4-candidate-statistics"
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 _TOOL_NAME = "submit_brief"
 _MAX_INPUT_TOKENS = 160_000  # leave headroom for output/provider counting differences
@@ -71,12 +71,18 @@ def _default_client():
 
 
 def _gather_input(cur, person_key: str) -> dict:
+    # Capture revisions before gathering or calling the provider. If source data
+    # changes during generation, current_ai_brief withholds the outdated result.
+    cur.execute("select current_identity_cluster_revision()")
+    candidate_revision = cur.fetchone()[0]
+    cur.execute("select id, context_version from identity")
+    versions = {str(i): v for i, v in cur.fetchall()}
     cur.execute("select max(display_name) from identity where coalesce(person_id, id) = %s", (person_key,))
     name = cur.fetchone()[0] or "(unknown)"
 
     cur.execute(
         """
-        select m.channel, m.direction, m.body_text, m.sent_at
+        select distinct m.channel, m.direction, m.body_text, m.sent_at, m.id
         from message m
         join message_participant mp on mp.message_id = m.id
         join identity i on i.id = mp.identity_id
@@ -105,6 +111,8 @@ def _gather_input(cur, person_key: str) -> dict:
     signal = reply_signal(cur, person_key)
 
     return {
+        "candidate_revision": candidate_revision,
+        "dependencies": {i: versions[i] for i in signal.identity_ids},
         "name": name,
         "messages": messages,
         "facts": facts,
@@ -113,6 +121,9 @@ def _gather_input(cur, person_key: str) -> dict:
             "received_count": signal.received_count,
             "reciprocity_ratio": signal.reciprocity_ratio,
             "last_contact_at": signal.last_contact_at.isoformat() if signal.last_contact_at else None,
+            "provisional": signal.provisional,
+            "identity_count": signal.identity_count,
+            "aggregation_reason": signal.aggregation_reason,
         },
     }
 
@@ -128,6 +139,12 @@ Contact name: {data["name"]}
 Structured facts (from identity resolution): {json.dumps(data["facts"])}
 
 Reply signal (this person's own history with this contact): {json.dumps(data["reply_signal"])}
+
+If provisional is true, these statistics include possible matching identities,
+not confirmed identities. Describe them only as a conditional possibility, never
+as this person's established activity. Message history and facts below belong
+only to the confirmed contact; do not infer their employer, skills or identity
+from the candidate statistics. Do not treat candidate links as social relations.
 
 Message history across channels (Outlook/WhatsApp/LinkedIn),
 oldest first: {json.dumps(data["messages"])}
@@ -265,6 +282,12 @@ def generate_brief(cur, person_key: str, client=None) -> AiBrief | None:
     )
     _record_status(cur, person_key, "truncated" if data.get("partial_history") else "success",
                    None, model, input_tokens, original_tokens, omitted, truncated_text)
+    cur.execute("update ai_brief set candidate_revision=%s where person_key=%s",
+                (data.get("candidate_revision", -1), person_key))
+    cur.execute("delete from ai_brief_dependency where person_key=%s", (person_key,))
+    for identity_id, version in data.get("dependencies", {}).items():
+        cur.execute("""insert into ai_brief_dependency(person_key,identity_id,context_version)
+            values (%s,%s,%s)""", (person_key, identity_id, version))
     return brief
 
 
@@ -272,8 +295,9 @@ def person_keys_for_identities(cur, identity_ids: set[str]) -> set[str]:
     if not identity_ids:
         return set()
     cur.execute(
-        "select coalesce(person_id, id) from identity where id = any(%s) and is_self = false",
-        (list(identity_ids),),
+        """select coalesce(person_id, id) from identity where id = any(%s::uuid[]) and is_self = false
+           union select person_key from ai_brief_dependency where identity_id=any(%s::uuid[])""",
+        (list(identity_ids), list(identity_ids)),
     )
     return {str(row[0]) for row in cur.fetchall()}
 

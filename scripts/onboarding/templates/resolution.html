@@ -65,6 +65,10 @@ async function loadCandidates() {
       <div class="names">${escapeHtml(item.name_a)} — ${escapeHtml(item.channel_a)}: ${escapeHtml(item.handle_a)} &harr; ${escapeHtml(item.name_b)} — ${escapeHtml(item.channel_b)}: ${escapeHtml(item.handle_b)}</div>
       <div class="score">score ${item.score.toFixed(2)} — ${escapeHtml(item.method)}</div>
       <div class="reason">${escapeHtml(item.reason || "")}</div>
+      <p>Suggestion only — this match has not been confirmed.</p>
+      <small>${item.run_id
+        ? `Run ${escapeHtml(item.run_id)} · ${escapeHtml(item.generated_at)} · rule ${escapeHtml(item.rule_version)} · code ${escapeHtml(item.code_revision)}`
+        : 'Run provenance unavailable (legacy or manual candidate).'} New suggestions can come from previously stored messages.</small>
       <button class="confirm" data-kind="candidate" data-id="${item.id}" data-action="confirm">Confirm — same person</button>
       <button class="reject" data-kind="candidate" data-id="${item.id}" data-action="reject">Reject — different people</button>
     </div>

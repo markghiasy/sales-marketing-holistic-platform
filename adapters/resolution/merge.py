@@ -20,6 +20,8 @@ class MergeConflictError(Exception):
 
 
 def apply_merge(cur, identity_a_id: str, identity_b_id: str, *, method: str, decision_kind: str) -> str:
+    if decision_kind == "automatic" and method != "exact_email":
+        raise ValueError("Only exact_email may merge automatically; heuristic matches need review")
     if not method or not method.strip() or decision_kind not in {"automatic", "review", "manual"}:
         raise ValueError("A merge requires an explicit rule and decision path")
     # Real bug found 2026-09-19: any per-contact side table keyed on

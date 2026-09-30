@@ -1,17 +1,15 @@
-"""Tier 2 of the noise parser (build plan §9): "have I ever replied to
-this sender? how recently, how often?" — a relational signal, no model
-call. Built on the contact_stats/contact_reciprocity views
-(db/migrations/0002_graph_views.sql), which already compute this from
-message_participant — no new schema.
+"""Deduplicated reply statistics, optionally across a bounded candidate cluster.
 
-No caller yet: Block C's triage inbox is the eventual consumer and
-doesn't exist yet. This module is infrastructure for when it does.
+Counts across unconfirmed identities are explicitly provisional. No person,
+identity or merge-log rows are changed by this read path.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+
+from .resolution.clusters import candidate_cluster
 
 
 @dataclass
@@ -20,20 +18,29 @@ class ReplySignal:
     received_count: int | None
     reciprocity_ratio: float | None
     last_contact_at: datetime | None
+    provisional: bool = False
+    identity_count: int = 0
+    aggregation_reason: str = "no_candidates"
+    identity_ids: tuple[str, ...] = ()
 
 
 def reply_signal(cur, contact_key: str) -> ReplySignal:
+    cluster = candidate_cluster(cur, contact_key)
+    ids = cluster.aggregate_ids
     cur.execute(
         """
-        select s.sent_count, s.received_count, r.reciprocity_ratio, s.last_contact_at
-        from contact_stats s
-        left join contact_reciprocity r on r.contact_key = s.contact_key
-        where s.contact_key = %s
+        select count(*) filter (where direction='outbound'),
+               count(*) filter (where direction='inbound'), max(sent_at)
+        from message m where exists
+          (select 1 from message_participant mp
+           where mp.message_id=m.id and mp.identity_id=any(%s::uuid[]))
         """,
-        (contact_key,),
+        (ids,),
     )
     row = cur.fetchone()
-    if row is None:
-        return ReplySignal(None, None, None, None)
-    sent_count, received_count, reciprocity_ratio, last_contact_at = row
-    return ReplySignal(sent_count, received_count, reciprocity_ratio, last_contact_at)
+    if row is None or row[2] is None:
+        return ReplySignal(None, None, None, None, cluster.allowed, len(ids), cluster.reason, tuple(ids))
+    sent_count, received_count, last_contact_at = row
+    ratio = min(sent_count, received_count) / max(sent_count, received_count)
+    return ReplySignal(sent_count, received_count, ratio, last_contact_at,
+                       cluster.allowed, len(ids), cluster.reason, tuple(ids))

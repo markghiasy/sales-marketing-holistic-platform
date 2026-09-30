@@ -1,5 +1,9 @@
 # Runbook
 
+For the 30 September identity-suggestion and filed-mail upgrade, follow
+[the existing-instance upgrade notes](docs/delivery/2026-09-30-mark-identity-upgrade.md).
+They cover migrations 0013–0015, optional `OUTLOOK_FOLDER_SCOPE=all`, and bounded brief refresh.
+
 Kept current at every block checkpoint (build plan §13 rule 7) — this is
 what makes the cutover in §14 possible at all.
 

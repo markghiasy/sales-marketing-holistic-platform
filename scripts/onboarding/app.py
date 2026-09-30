@@ -420,13 +420,23 @@ def create_app(testing: bool = False) -> Flask:
 
     @flask_app.get("/contact/<person_key>")
     def contact_info_json(person_key):
+        from dataclasses import asdict
+
+        from adapters.reply_signal import reply_signal
+        from adapters.resolution.clusters import candidate_cluster
         with _db_cursor() as cur:
             info = contact_editor.get_contact_info(cur, person_key)
+            cluster = candidate_cluster(cur, person_key) if info else None
+            signal = reply_signal(cur, person_key) if info else None
         if info is None:
             return jsonify({"error": "not found"}), 404
         return jsonify({
             "person_key": info.person_key,
             "name": info.name,
+            "identity_suggestions": cluster.suggestions,
+            "suggestions_truncated": cluster.suggestions_truncated,
+            "aggregation_reason": cluster.reason,
+            "reply_signal": {k: v for k,v in asdict(signal).items() if k != "identity_ids"},
             "handles": [
                 {"identity_id": h.identity_id, "channel": h.channel, "handle": h.handle}
                 for h in info.handles
@@ -487,10 +497,12 @@ def create_app(testing: bool = False) -> Flask:
                 """
                 select lc.id, lc.score, lc.method, lc.reason,
                        ia.display_name, ia.channel, ia.handle,
-                       ib.display_name, ib.channel, ib.handle
+                       ib.display_name, ib.channel, ib.handle,
+                       lc.run_id, lc.rule_version, rr.code_revision, rr.started_at
                 from link_candidate lc
                 join identity ia on ia.id = lc.identity_a_id
                 join identity ib on ib.id = lc.identity_b_id
+                left join resolution_run rr on rr.id = lc.run_id
                 where lc.status = 'pending'
                 order by lc.score desc
                 """
@@ -505,6 +517,8 @@ def create_app(testing: bool = False) -> Flask:
                 # 2026-09-09: the page previously omitted this entirely.
                 "name_a": r[4] or "(no name)", "channel_a": r[5], "handle_a": r[6],
                 "name_b": r[7] or "(no name)", "channel_b": r[8], "handle_b": r[9],
+                "run_id": r[10], "rule_version": r[11], "code_revision": r[12],
+                "generated_at": r[13].isoformat() if r[13] else None,
             }
             for r in rows
         ])

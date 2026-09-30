@@ -11,8 +11,10 @@ every Phase 1 rule is free (no model call).
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import traceback
+from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
@@ -25,6 +27,24 @@ from .rules import (
     rule_signature_phone,
 )
 from .structured_facts import extract_structured_facts
+
+RULE_VERSION = "2026-09-30-suggestions-v1"
+
+
+def code_revision() -> str:
+    """Local metadata only; unknown for an archive without release metadata."""
+    if os.environ.get("IRONMAN_RELEASE"):
+        return os.environ["IRONMAN_RELEASE"][:128]
+    root = Path(__file__).resolve().parents[2]
+    try:
+        result = subprocess.run(
+            ["git", "-c", f"safe.directory={root.as_posix()}", "rev-parse", "HEAD"],
+            cwd=root, capture_output=True, text=True, timeout=3, check=True,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+        return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
 
 
 def run() -> None:
@@ -46,14 +66,33 @@ def run() -> None:
     load_dotenv()
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:  # noqa: SIM117
         with conn.cursor() as cur:
+            cur.execute("insert into resolution_run(code_revision) values (%s) returning id",
+                        (code_revision(),))
+            run_id = str(cur.fetchone()[0])
+            conn.commit()
+            results = []
             for label, rule_fn in rules:
                 try:
+                    cur.execute("select set_config('ironman.resolution_run',%s,true), "
+                                "set_config('ironman.rule_version',%s,true)", (run_id, RULE_VERSION))
+                    cur.execute("select count(*) from link_candidate where run_id=%s", (run_id,))
+                    before = cur.fetchone()[0]
                     count = rule_fn(cur)
+                    cur.execute("select count(*) from link_candidate where run_id=%s", (run_id,))
+                    written = cur.fetchone()[0] - before
                     conn.commit()
-                    print(f"{label}: {count}")
+                    kind = "detections_only" if label == "signature phone" else "rule_results"
+                    results.append({"rule": label, "status": "success", "reported_count": count,
+                                        "candidates_written": written, "count_kind": kind})
+                    print(f"{label}: {count} {kind}; {written} candidates written; run {run_id}")
                 except Exception as e:  # noqa: BLE001 — one rule's bug must not block the rest
                     conn.rollback()
+                    results.append({"rule": label, "status": "failed", "error_type": type(e).__name__})
                     print(f"{label}: FAILED — {e}", file=sys.stderr)
+            status = "partial_failure" if any(r["status"] == "failed" for r in results) else "success"
+            cur.execute("update resolution_run set finished_at=now(),status=%s,results=%s where id=%s",
+                        (status, psycopg.types.json.Json(results), run_id))
+            conn.commit()
 
 
 def run_best_effort() -> None:

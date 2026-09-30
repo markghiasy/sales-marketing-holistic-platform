@@ -1,15 +1,9 @@
 # adapters/resolution/rules.py
-"""Rules 1 & 3 of §8's identity-resolution ladder — exact email match
-and the contact bridge. §8's Rule 2 (exact phone match) is folded into
-Rule 3 here rather than implemented separately: a phone-only match with
-no corroborating email has no second identity to merge into on its own
-(graph_contact isn't itself an identity), and is weaker evidence than
-the other automatic rules anyway — decided with Eva 2026-09-03, see
-Task 6's header note. Both rules here are "automatic": they write an
-already-confirmed link_candidate row (not a bare identity.person_id
-write — see the design doc's "Evidence provenance" section for why),
-subject to the safety checks in safety.py. See
-docs/superpowers/specs/2026-09-03-identity-resolution-design.md.
+"""Identity matching: exact email may auto-merge after safety checks.
+
+Contact bridge, name/company and same-channel matches are suggestions only.
+Signature-phone detection is retained for observation but writes no candidates.
+Human confirmation uses the reversible merge path.
 """
 
 from __future__ import annotations
@@ -66,7 +60,12 @@ def _propose_and_maybe_confirm(
     full_reason = reason
     status = "confirmed"
 
-    if blocked_reason:
+    if method != "exact_email":
+        status = "pending"
+        full_reason = f"{reason} — heuristic suggestion, human confirmation required"
+        if blocked_reason:
+            full_reason += f" — {blocked_reason}"
+    elif blocked_reason:
         status = "pending"
         full_reason = f"{reason} — {blocked_reason}"
     elif cluster_names_contradict(cur, identity_a_id, identity_b_id):
@@ -270,14 +269,16 @@ def rule_signature_phone(cur) -> int:
                 continue
             if has_existing_candidate(cur, str(from_identity_id), wa_id):
                 continue
-            reason = f"phone {digits} found in signature of message {message_id}, matches WhatsApp handle {digits}"
-            cur.execute(
-                """
-                insert into link_candidate (identity_a_id, identity_b_id, score, method, status, reason)
-                values (%s, %s, 0.8, 'email_signature_phone', 'pending', %s)
-                """,
-                (str(from_identity_id), wa_id, reason),
-            )
+            # RULE RETIRED 2026-09-30 (owner's ruling; migration 0013).
+            # A phone number in a QUOTED signature block belongs to the
+            # quoted party, not to the sender of the message it appears
+            # in, so this paired the wrong person with that WhatsApp
+            # handle. Measured 2/9 (finding 21) and 33.3% precision with
+            # 40% unjudgeable (blind adjudication 28 Sep). Widening the
+            # mailbox scope made it worse: +57 bad candidates.
+            # Detection is left intact and counted so the rate stays
+            # observable; nothing is written to link_candidate.
+            _ = (from_identity_id, wa_id, message_id, digits)
             count += 1
     return count
 
