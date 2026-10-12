@@ -10,6 +10,33 @@ from werkzeug.serving import make_server
 from scripts.network_demo import create_app
 
 
+def install_strategy_response(page, answer):
+    """Serve a completed run through the real workspace event transport."""
+    import json
+    payloads = {}
+
+    def create(route):
+        result = {}
+        class AnswerRoute:
+            request = route.request
+            def fulfill(self, *, body='', **kwargs):
+                result.update(kwargs.get('json') or json.loads(body))
+        answer(AnswerRoute())
+        run_id = 'ui-run-' + str(len(payloads) + 1)
+        payloads[run_id] = result
+        route.fulfill(status=202, json={'run_id': run_id, 'status': 'running'})
+
+    def events(route):
+        run_id = route.request.url.split('/runs/')[1].split('/')[0]
+        event = {'seq': 1, 'type': 'completed', 'data': payloads[run_id]}
+        route.fulfill(content_type='text/event-stream', body='id: 1\ndata: ' + json.dumps(event) + '\n\n')
+
+    page.route('**/network/strategy/runs', create)
+    page.route('**/network/strategy/runs/ui-run-*', lambda route: route.fulfill(json={'status': 'completed', 'events': []}))
+    page.route('**/network/strategy/runs/*/events?*', events)
+
+
+
 @pytest.fixture
 def page():
     server = make_server("127.0.0.1", 0, create_app(testing=True), threaded=True)
@@ -51,12 +78,16 @@ def fulfill(route, payload):
 def test_explicit_search_hands_off_once_and_renders_evidence_map(page):
     requests = []
     page.route("**/network/search.json?*", lambda r: fulfill(r, {"status": "needs_clarification", "criteria": [], "unresolved": "goal", "results": []}))
-    page.route("**/network/agent.json", lambda r: (requests.append(r.request.post_data_json), fulfill(r, answer())))
+    install_strategy_response(page, lambda r: (requests.append(r.request.post_data_json), fulfill(r, answer())))
     page.goto(page.base_url + "/inbox?mode=history&as_of=2026-09-25T12%3A00%3A00Z")
     page.locator("#searchbar").click()
     page.locator("#discovery-query").fill("Find a logistics AI security pilot and identify missing decision authority")
     assert requests == []
     page.get_by_role("button", name="Search", exact=True).click()
+    page.get_by_role("button", name="Continue in Strategy", exact=True).click()
+    expect(page.locator("#strategy-goal")).to_have_value("Find a logistics AI security pilot and identify missing decision authority")
+    assert requests == []
+    page.locator("#strategy-start").click()
     expect(page.locator(".strategy-map")).to_be_visible()
     assert len(requests) == 1
     assert requests[0]["question"].startswith("Find a logistics")
@@ -69,7 +100,7 @@ def test_explicit_search_hands_off_once_and_renders_evidence_map(page):
     assert "mode=history" in page.locator(".strategy-record a").first.get_attribute("href")
     assert page.locator(".strategy-record script").count() == 0
     expect(page.get_by_text("Budget owner", exact=False)).to_be_visible()
-    page.get_by_role("button", name="Close assistant").click()
+    page.get_by_role("link", name="Back to network", exact=True).click()
     assert page.locator(".strategy-map").count() == 0
 
 
@@ -124,26 +155,26 @@ def test_real_strategy_payload_connects_requirements_and_is_usable_on_mobile(pag
     payload["strategy_graph"] = build_strategy_map(data, query, pack)
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.route("**/network/agent.json", lambda r: fulfill(r, payload))
+    install_strategy_response(page, lambda r: fulfill(r, payload))
     page.goto(page.base_url + "/network?mode=history")
     page.locator("#ask-network").click()
-    page.locator("#agent-question").fill("Who has a logistics security pilot need?")
-    page.locator(".agent-send").click()
+    page.locator("#strategy-goal").fill("Who has a logistics security pilot need?")
+    page.locator("#strategy-start").click()
     page.get_by_role("button", name="Security pilot", exact=False).click()
     expect(page.locator(".strategy-record.is-highlighted").first).to_be_visible()
     assert page.locator('[data-requirement="requirement:pilot"]').count() == 1
-    expect(page.get_by_role("button", name="Unrecorded requirement", exact=False)).to_contain_text("Evidence gap")
+    expect(page.get_by_role("button", name="Unrecorded requirement", exact=False)).to_contain_text("No match in searched evidence")
     assert page.locator(".strategy-canvas canvas").count() > 0
     page.screenshot(path="tmp/network-strategy-desktop.png", full_page=True)
     page.set_viewport_size({"width": 390, "height": 844})
-    panel = page.locator(".network-assistant")
+    panel = page.locator("main")
     assert panel.bounding_box()["width"] <= 390
     assert panel.evaluate("e=>e.scrollWidth<=e.clientWidth")
     page.screenshot(path="tmp/network-strategy-mobile.png", full_page=True)
-    page.locator("#agent-question").fill("What remains uncertain?")
-    page.locator(".agent-send").click()
-    expect(page.locator(".strategy-map")).to_have_count(2)
-    page.get_by_role("button", name="Close assistant").click()
+    page.locator("#strategy-goal").fill("What remains uncertain?")
+    page.locator("#strategy-start").click()
+    expect(page.locator(".strategy-map")).to_have_count(1)
+    page.get_by_role("link", name="Back to network", exact=True).click()
     assert not errors
 
 
@@ -188,12 +219,12 @@ def test_network_disconnect_keeps_question_and_explains_manual_retry(page):
     def disconnect(route):
         calls.append(route.request.post_data_json)
         route.abort("connectionreset")
-    page.route("**/network/agent.json", disconnect)
+    page.route("**/network/strategy/runs", disconnect)
     page.goto(page.base_url + "/network")
     page.locator("#ask-network").click()
-    page.locator("#agent-question").fill("Help me plan a cybersecurity program")
-    page.locator(".agent-send").click()
-    expect(page.locator(".agent-answer [role=alert]")).to_contain_text("Could not reach the local demo")
-    expect(page.locator("#agent-question")).to_have_value("Help me plan a cybersecurity program")
-    expect(page.locator(".agent-send")).to_be_enabled()
+    page.locator("#strategy-goal").fill("Help me plan a cybersecurity program")
+    page.locator("#strategy-start").click()
+    expect(page.locator("#strategy-status")).to_contain_text("Could not reach the local app")
+    expect(page.locator("#strategy-goal")).to_have_value("Help me plan a cybersecurity program")
+    expect(page.locator("#strategy-start")).to_be_enabled()
     assert len(calls)==1

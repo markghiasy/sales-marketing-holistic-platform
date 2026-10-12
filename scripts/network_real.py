@@ -40,6 +40,8 @@ def create_app(*,service:NetworkService,llm_config=None,agent_provider=None,test
         provider.key=''
     agent=NetworkAgent(provider)
     app.extensions.update(network_store=service.store,network_service=service,network_agent=agent)
+    from scripts.network_strategy_routes import register_strategy_routes
+    register_strategy_routes(app, agent, service=service)
 
     def query():
         return service.query(request.args.to_dict())

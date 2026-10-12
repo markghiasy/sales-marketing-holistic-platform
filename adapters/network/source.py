@@ -82,12 +82,20 @@ class SourceRepository:
             yield conn
 
     def _capabilities(self, conn):
-        schema = conn.execute('select current_schema() as schema').fetchone()['schema']
+        # Recheck on every transaction, but fetch independent metadata in one trip.
+        metadata = conn.execute('''
+            select current_schema() as schema, current_database() as name,
+                   c.table_name, c.column_name
+            from (select 1) as anchor
+            left join information_schema.columns c on c.table_schema=current_schema()
+        ''').fetchall()
+        schema = metadata[0]['schema']
         if not schema or schema == 'network':
             raise SourceError('invalid_source_schema')
         columns = {}
-        for row in conn.execute('select table_name, column_name from information_schema.columns where table_schema=%s', (schema,)):
-            columns.setdefault(row['table_name'], set()).add(row['column_name'])
+        for row in metadata:
+            if row['table_name'] is not None:
+                columns.setdefault(row['table_name'], set()).add(row['column_name'])
         if not REQUIRED.issubset(columns):
             raise SourceError('missing_required_table')
         for kind, fields in FIELDS.items():
@@ -95,16 +103,14 @@ class SourceRepository:
                 raise SourceError('missing_required_column')
         if not {'message_id', 'identity_id', 'role'}.issubset(columns['message_participant']):
             raise SourceError('missing_required_column')
-        db = conn.execute('select current_database() as name').fetchone()['name']
+        db = metadata[0]['name']
         params = conn.info.get_parameters()
         binding = fingerprint([params.get('host'), params.get('port'), db, schema])
         if self.expected_binding and self.expected_binding != binding:
             raise SourceError('source_binding_mismatch')
         return schema, columns, binding
 
-    def _read(self, conn, schema, columns, kind, where=ALL_ROWS, params=(), limit=None, order=None):
-        if kind not in columns:
-            return []
+    def _read_query(self, schema, columns, kind, where=ALL_ROWS, params=(), limit=None, order=None):
         fields = FIELDS[kind].split()
         if kind == 'person' and 'preferred_name' in columns[kind]:
             fields.append('preferred_name')
@@ -115,7 +121,9 @@ class SourceRepository:
         if limit is not None:
             query += sql.SQL(' limit %s')
             params = (*params, limit)
-        rows = list(conn.execute(query, params))
+        return query, params
+
+    def _records(self, conn, schema, kind, rows):
         if kind == 'message' and rows:
             participants = {}
             for p in conn.execute(sql.SQL('select message_id,identity_id,role from {} where message_id=ANY(%s) order by identity_id,role').format(sql.Identifier(schema, 'message_participant')), ([r['id'] for r in rows],)):
@@ -123,10 +131,17 @@ class SourceRepository:
             for row in rows:
                 row['participants'] = participants.get(str(row['id']), [])
         result = []
+        key = 'contact_key' if kind == 'contact_hidden' else 'id'
         for row in rows:
             payload = json_value(row)
             result.append(SourceRecord(kind, str(row[key]), fingerprint(payload), payload))
         return result
+
+    def _read(self, conn, schema, columns, kind, where=ALL_ROWS, params=(), limit=None, order=None):
+        if kind not in columns:
+            return []
+        query, params = self._read_query(schema, columns, kind, where, params, limit, order)
+        return self._records(conn, schema, kind, list(conn.execute(query, params)))
 
     def snapshot_pages(self, page_size: int = 500) -> Iterator[SourceBatch]:
         if not 1 <= page_size <= 5000:
@@ -194,10 +209,20 @@ class SourceRepository:
                 if kind not in FIELDS:
                     return False
                 grouped.setdefault(kind, {})[record_id] = expected
+            # Submit independent kind reads together; retain the same read-only,
+            # repeatable-read transaction for metadata, records and participants.
+            cursors = {}
+            with conn.pipeline():
+                for kind, expected in grouped.items():
+                    if kind not in columns:
+                        continue
+                    key = 'contact_key' if kind == 'contact_hidden' else 'id'
+                    # Text cast permits heterogeneous UUID/text ids; reads remain evidence-bounded.
+                    query, params = self._read_query(schema, columns, kind,
+                        sql.SQL('{}::text=ANY(%s)').format(sql.Identifier(key)), (list(expected),))
+                    cursors[kind] = conn.execute(query, params)
             for kind, expected in grouped.items():
-                key = 'contact_key' if kind == 'contact_hidden' else 'id'
-                # Text cast permits heterogeneous UUID/text ids; validation is bounded by selected evidence.
-                rows = self._read(conn, schema, columns, kind, sql.SQL('{}::text=ANY(%s)').format(sql.Identifier(key)), (list(expected),))
+                rows = self._records(conn, schema, kind, cursors[kind].fetchall()) if kind in cursors else []
                 actual = {r.id: r.fingerprint for r in rows}
                 if any(actual.get(k, 'absent') != v for k, v in expected.items()):
                     return False

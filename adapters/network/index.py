@@ -66,7 +66,9 @@ class IndexedRetrieval:
         now=self.query.as_of
         def known(row):
             return all(timestamp(row[k])<=now for k in ('at','known_at','observed_at') if row.get(k))
-        data['evidence']=[e for e in data['evidence'] if known(e)]
+        known_evidence=[e for e in data['evidence'] if known(e)]
+        self.truncated=self.truncated or len(known_evidence)>200
+        data['evidence']=known_evidence[:200]
         data['messages']=[m for m in data['messages'] if known(m)]
         available={e['id'] for e in data['evidence']}
         claims=[]
@@ -121,6 +123,52 @@ class IndexedRetrieval:
     @property
     def records(self):
         return self.inner.records if self.inner else {}
+
+    def fork(self, *, fresh=False):
+        """A branch owns all mutable state; only the connection pool is shared."""
+        branch = IndexedRetrieval(self.store, self.query, entity_limit=self.entity_limit)
+        for name in ('data', 'dependencies', 'selected', 'source_ids', 'terms'):
+            setattr(branch, name, deepcopy(getattr(self, name)))
+        branch.version, branch.truncated = self.version, self.truncated
+        branch.inner = NetworkRetrieval(branch.data, branch.query)
+        if fresh:
+            # A gap-directed branch must be able to discover replacements even
+            # when its parent filled every slot. Proof stays cumulative.
+            branch.selected, branch.source_ids = [], []
+        return branch
+
+    def merge_from(self, base, branches, *, prefer_new=False):
+        """Planner-order union, one globally bounded capture, conflict checked proof."""
+        dependencies = dict(base.dependencies)
+        for branch in branches:
+            for key, value in branch.dependencies.items():
+                if key in dependencies and dependencies[key] != value:
+                    raise RuntimeError('source_changed')
+                dependencies[key] = value
+        self.dependencies = dependencies
+        self.selected, self.source_ids = list(base.selected), list(base.source_ids)
+        ids = list(dict.fromkeys(i for b in branches for i in b.selected))
+        refs = list(dict.fromkeys(i for b in branches for i in b.source_ids))
+        if prefer_new:
+            def fair_novel(attribute, old):
+                groups = [[value for value in getattr(branch, attribute) if value not in old] for branch in branches]
+                return list(dict.fromkeys(groups[b][position]
+                    for position in range(max((len(group) for group in groups), default=0))
+                    for b in range(len(groups)) if position < len(groups[b])))
+            # Reserve half the global allocation for genuinely new gap results;
+            # retain old context in the other half. Unused reservation flows back
+            # to the previous evidence. This is a bounded policy, not relevance
+            # scoring or a claim that the retained half is optimal.
+            def rotate(old, discovered, capacity):
+                novel = [value for value in discovered if value not in old]
+                reserved = min(len(novel), max(1, capacity // 2))
+                return list(dict.fromkeys([*old[:capacity-reserved], *novel[:reserved],
+                                           *discovered, *old]))[:capacity]
+            self.selected = rotate(base.selected, fair_novel('selected', base.selected), self.entity_limit-1)
+            self.source_ids = rotate(base.source_ids, fair_novel('source_ids', base.source_ids), 200)
+        self.terms = list(dict.fromkeys(t for b in [base, *branches] for t in b.terms))
+        self.truncated = any(b.truncated for b in [base, *branches])
+        self._refresh(ids, refs)
 
     def people(self,terms):
         ids,refs=self._hits(terms)

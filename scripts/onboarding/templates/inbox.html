@@ -488,6 +488,7 @@ function renderRail() {
     `<button data-channel="${it.key}" class="${state.channel === it.key ? "active" : ""}">${it.icon}</button>`
   ).join("");
   if (NETWORK_DEMO) rail.insertAdjacentHTML('beforeend', `<a class="rail-network" href="/network" title="Knowledge graph" aria-label="Knowledge graph"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5 19 7 12 20 5 5 4 16 19 7" stroke="currentColor"/><circle cx="5" cy="5" r="2" fill="currentColor"/><circle cx="19" cy="7" r="2" fill="currentColor"/><circle cx="12" cy="20" r="2" fill="currentColor"/><circle cx="4" cy="16" r="1.5" fill="currentColor"/></svg><span>Graph</span></a>`);
+  if (NETWORK_DEMO) rail.insertAdjacentHTML('beforeend', `<a class="rail-network" href="/strategy" aria-label="Strategy" title="Strategy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m16 8-3 5-5 3 3-5 5-3Z"/></svg><span>Strategy</span></a>`);
   rail.querySelectorAll("button").forEach(btn => {
     btn.addEventListener("click", () => { state.channel = btn.dataset.channel; render(); });
   });

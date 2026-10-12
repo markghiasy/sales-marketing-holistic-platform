@@ -1,93 +1,98 @@
-# Handover — Comms & Outreach Platform, Phase 1
+# Project Ironman — pause handover
+**Prepared for Mark · 12 October 2026**
 
-Written 2026-08-24, for picking this up in a fresh conversation (memory/context about to be cleared). Read this first — it's the source of truth for "where things actually are," not the git log or the artifacts sent to Mark, both of which lag behind this.
+Mark — this is the bookmark for what we have built so far: where the code lives, what each part does, how to inspect it, and what remains unfinished. The project remains paused. This handover preserves the current work; it is not a production release sign-off.
 
-## Where this sits in Mark's build plan
+## 1. Where the work lives
 
-Full build plan PDF: `C:\Users\Eva Ng\Desktop\ironman\Comms & Outreach Platform — MVP 1.0 Build Plan.pdf` (16 pages). Read §7 (store schema), §8 (identity resolution), and §14 (blocks/checkpoints) before touching identity work — don't rely on secondhand memory of these, the exact wording matters (e.g. rule 5 is "never automatic," rule 3 is explicitly called out by Mark as likely to resolve "a large share" on its own).
+Repository: https://github.com/markghiasy/sales-marketing-holistic-platform
 
-**Block A** (repo, schema, envelope, Outlook adapter, contacts ingest, export, pipe-health) — functionally done. Outlook adapter now does a correct full backfill + incremental delta.
+| Delivery | Location | Status checked 12 October |
+| --- | --- | --- |
+| Resolution quality, merge attribution, brief failure visibility and SDK compatibility | [PR 2](https://github.com/markghiasy/sales-marketing-holistic-platform/pull/2), [PR 3](https://github.com/markghiasy/sales-marketing-holistic-platform/pull/3); merged revision `13375331b134ffba53ca6c77828889dcc7258b3a` | Merged. Your earlier feedback confirmed applying migrations 0010–0012 locally. |
+| Network explorer and real-data trial | [PR 4](https://github.com/markghiasy/sales-marketing-holistic-platform/pull/4), `codex/network-demo-paper`, revision `50ce177afcf27a9902da86c92491cea949d1dfca` | Open draft; separate trial, not merged or accepted on your Mac. |
+| Provisional identity suggestions and filed-mail upgrade | [PR 5](https://github.com/markghiasy/sales-marketing-holistic-platform/pull/5), `codex/identity-cluster-review`, revision `6543a8814670687229b8e31deae1c71d28068bf1` | Open; separate from PR 4. |
+| Additional Strategy workspace and performance work | `codex/ironman-pause-handover` — this branch | WIP snapshot built on the PR 4 revision above. Adds the previously local increment, tests and engineering reports. |
 
-**Block B** (aggregator client, WhatsApp adapter, LinkedIn adapter, resolution v1 + contacts bridge, parser tiers 1–2, graph views) — WhatsApp and LinkedIn adapters are built and have real synced data. Resolution v1 has NOT been built yet — this is the next task, plan already agreed with Eva (see below).
+This branch does **not** include PR 5. The two product branches have not been integrated into a single release. Do not treat checking out this handover branch as installing the identity upgrade.
 
-This block boundary from §14 was rediscovered late (2026-08-24) — worth flagging to Mark that Block A/B labels in past updates weren't tracking the brief's actual block definitions.
+## 2. What is available
 
-## Real data currently in the store
+1. **Existing ingestion and Inbox.** The existing platform ingests Outlook, WhatsApp and LinkedIn into the shared store. The Inbox has cross-channel threads, contact editing/linking, hide/unhide, AI briefs and live-refresh support. Availability still depends on the configured collectors and local processes.
 
-| Channel | Messages | Identities |
-|---|---|---|
-| Outlook | 4,769 | 1,215 |
-| LinkedIn | 1,432 | 232 |
-| WhatsApp | 930 | 119 |
+2. **Identity quality and auditability.** The merged fixes retire the unreliable name-only LinkedIn rule, attribute merge decisions, expose brief-generation failures and isolate database tests. PR 5 implements your subsequent policy: exact-email is the only automatic-merge-eligible signal; heuristic matches remain evidence-backed suggestions. Provisional aggregation is bounded to components of at most eight identities with at least 50% edge density. It also retires signature-phone candidates, adds brief invalidation dependencies and records resolution-run provenance.
 
-Outlook's 4,769 covers full real historical mail (2020–2026), synced with correct original dates — not the "today" import-corrupted dates that existed for a while (see below).
+3. **Filed Outlook mail.** PR 5 includes opt-in recursive folder discovery with `OUTLOOK_FOLDER_SCOPE=all`, exclusions and checkpoint handling. It requires its documented migration/upgrade steps; the existing default remains Inbox and Sent Items.
 
-## The big thing that changed this session: Outlook auth
+4. **Network exploration.** Full graph and conversation-level slices, light styling, multi-label contacts, filtering and evidence inspection. Four relationship scopes distinguish direct interaction, documented collaboration/introduction, shared project/team and shared organization/company. Affiliation is context, not proof that people know one another.
 
-**Original app registration (`comms-outreach-platform-phase1`, multi-tenant + personal accounts, no verified publisher) cannot authenticate against this personal Outlook.com mailbox at all.** Every flow tried (device code, interactive browser, admin-consent-first) failed with `AADSTS530035` ("signed in successfully but no permission to access this resource"). Root cause: Microsoft blocks unverified-publisher multitenant apps from getting real per-user consent against a personal Microsoft account's mail data, and this holds even after admin-consenting the app within its own tenant.
+5. **Profiles and strategic discovery.** Evidence-backed profile proposals can be reviewed before becoming confirmed graph assertions. The assistant retrieves people, organizations, projects and supported paths for a goal, with source references and unresolved requirements. A past role does not establish present availability or willingness.
 
-**Fix in place:** `adapters/outlook/client.py` now uses Microsoft's own first-party, publisher-verified **"Microsoft Graph Command Line Tools"** client id (`14d82eec-204b-4c2f-b7e8-296a70dab67e`), hardcoded — this is not a secret, it's published everywhere Microsoft's own docs discuss script access to Graph, same idea as Azure CLI's own public client id. Do not switch back to the custom app registration for anything touching this mailbox's mail data.
+6. **Independent Strategy workspace — new WIP.** `/strategy` separates longer goal analysis from ordinary contact search. It plans requirements, runs up to three bounded retrieval workers concurrently, assesses coverage, performs at most one gap-driven search round and returns conditional options/actions. The workers are read-only retrieval tasks, not three independent paid agent conversations. Results stream in stages; failures retain validated partial results, and reconnect can replay the retained run.
 
-**Second fix, same investigation:** authority must be `https://login.microsoftonline.com/consumers`, not a tenant GUID. A tenant-specific authority issues a token that looks completely valid (right audience, right scopes) but still gets 401'd by Graph's mail backend — personal Outlook.com mailboxes live on consumer infrastructure. Confirmed by decoding a token and finding `unique_name: "live.com#chuqiaowu6@gmail.com"` — the MSA-in-a-directory marker.
+7. **Performance work — implemented versus prospective.** Existing retrieval uses PostgreSQL full-text search and bounded graph/evidence selection. Pooling, proof deduplication and evidence-packing improvements are implemented. This WIP batches source-validation reads while retaining a consistent source snapshot. BM25/vector/HNSW hybrid search, optimized team selection and a replacement graph database remain proposals, not shipped capabilities.
 
-**Third thing found (not really "fixed," just worked around):** msal's built-in device-flow polling (`acquire_token_by_device_flow`, and even a hand-rolled retry loop calling it repeatedly) is unreliable in this environment — returns `authorization_pending` as a terminal result after a single poll instead of continuing to block. Every script now polls the token endpoint directly by hand (plain `requests.post` loop per RFC 8628) instead of trusting msal's polling. If a future script hits the same "device code didn't work" symptom instantly after printing the code, this is why — don't waste time debugging the Azure app config again, check the polling code first.
+The product purpose is to help someone move from “what am I trying to achieve?” to a small, inspectable set of relevant people, supporting evidence, missing information and next actions. It cannot infer undocumented offline relationships, a contact's full external network, willingness or decision-making authority.
 
-**Token caching:** `client.py`'s `get_access_token()` now uses a simple raw-JSON cache (`adapters/outlook/.token_cache.bin`, despite the name — it's JSON now, not an msal binary blob) instead of `msal.SerializableTokenCache`, which never accepted the device-code flow's raw token response cleanly and silently cached nothing. `scripts/_graph_auth.py` is the same pattern, shared across the one-off diagnostic scripts, caching to `scripts/.graph_token_cache.json`. Both are gitignored.
+## 3. Preview the new work without changing the running installation
 
-## Second big thing: Outlook delta sync was silently truncating
+Use a **fresh checkout**, preserving the current installation and its state:
 
-Found by tracing every page of a fresh delta call by hand: `/me/mailFolders/inbox/messages/delta` on this mailbox stops after ~50 items total and hands back a deltaLink as if that were everything — regardless of how many messages are actually in the folder (confirmed against a 4,769-message inbox). This appears to be a personal-account-specific behavior of the delta endpoint, not a bug in our pagination loop (the loop itself is correct — plain, non-delta listing paginates fine with no such cap).
+```sh
+git clone --branch codex/ironman-pause-handover --single-branch \
+  https://github.com/markghiasy/sales-marketing-holistic-platform.git \
+  ironman-handover
+cd ironman-handover
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python -m scripts.network_demo --port 5055
+```
 
-**Fix in `client.py`'s `fetch_messages()`:** first run (no `delta_link` yet) now does a plain non-delta listing to get everything, then makes one delta call afterward purely to obtain a real `deltaLink` to seed future incremental syncs (the items from that call are discarded — already have them from the plain pass). Subsequent runs with a `delta_link` use pure delta as before.
+Open `http://127.0.0.1:5055/inbox`, `/network` or `/strategy` on the same computer. This is the synthetic-data demo; a localhost URL on Eva's computer is not accessible from your Mac. Choose a free port if 5055 is occupied.
 
-## Third thing: New Outlook's `.eml` importer corrupts timestamps
+For an intentional Claude-backed synthetic question, stop that process and restart with an absolute path to your own existing configuration:
 
-This only affects the **Gmail-seeded test data** (imported via New Outlook's Import > Email Files feature to give Eva's test mailbox realistic volume) — not real mail. New Outlook's importer stamps `receivedDateTime` with the *import* time, not the message's real date. The original `Date:` header survives untouched in `internetMessageHeaders`, though.
+```sh
+.venv/bin/python -m scripts.network_demo --port 5055 \
+  --env-file /absolute/path/to/your/existing/ironman/.env
+```
 
-**Fix in `sync.py`:** `_resolve_sent_at()` now prefers the parsed `Date` header over `receivedDateTime`, falling back to `receivedDateTime` only when no `Date` header is present (real, non-imported mail is unaffected either way since its `receivedDateTime` was never wrong).
+A submitted strategy question uses the configured commercial API and incurs provider usage. Credentials remain server-side. The project declares `anthropic>=0.125,<1`; handover checks used 0.125.0.
 
-Also found and fixed while seeding: New Outlook's importer dumps everything into one destination folder regardless of original Gmail label (so "Sent" mail landed in Inbox too) — this is inherent to the import tool, not fixable from our side, and only matters for this test data, not real sync.
+For **your real existing data**, follow [the separate Network trial upgrade guide](docs/demos/network-trial-upgrade.md). It covers source audit, the separate derived `network` schema, the app/worker, readiness checks and stopping the trial. Do not replay source migrations for the Network trial. Mac acceptance remains outstanding.
 
-## Fourth thing: WhatsApp `@lid` identity bug (already fixed and merged)
+For **PR 5**, use [its identity-upgrade instructions at the pinned revision](https://github.com/markghiasy/sales-marketing-holistic-platform/blob/6543a8814670687229b8e31deae1c71d28068bf1/docs/delivery/2026-09-30-mark-identity-upgrade.md). Reconcile your existing patches and applied migrations before changing that installation.
 
-WhatsApp is mid-rollout of an opaque `@lid` identifier standing in for a contact's phone number on some events. 11 contacts had landed as duplicate identities (once under their phone-jid, once under `@lid`). Fixed in `ingest.js` (resolves `@lid` → phone jid at ingest time now) and backfilled via `scripts/merge_lid_identities.py` + `scripts/reingest_pre_lid_queue.py` (already run once, real fix is live). `adapters/whatsapp/node/resolve_lids.js` is the reusable lid-resolution utility if this needs doing again — takes a gitignored input file of `@lid`s now (used to have them hardcoded; that was a real-contact-identifier leak risk, fixed).
+## 4. Validation and known limits
 
-## Gmail-seed cleanup (already done)
+**Current handover verification:** see [the verification record](docs/delivery/2026-10-12-handover-verification.txt). It separates this run's results from older validation.
 
-29,568 emails were imported from Eva's own Gmail (via Google Takeout → `gmail_export/split_mbox_to_eml.py` → New Outlook import) purely to give the Outlook adapter realistic test volume — nothing to do with Mark's actual channels. 24,590 were identified as promo/spam/job-alert noise (Gmail's own labels + a hand-built sender-domain blocklist, both iteratively refined by sampling real data — see `gmail_export/*.log` for the iteration history if the domain list needs revisiting) and deleted via `scripts/cleanup_seed_inbox.py`. This already ran; don't re-run unless re-seeding from scratch.
+**Historical records:** PR 4 recorded 579 local passing tests; PR 5 recorded 399. These are the corresponding historical test runs, not a fresh full-suite or Mac result for this branch.
 
-## Environment / credentials
+- **Refresh health remains unresolved.** The latest retained real-data inspection on 5 October ended with graph version 9 stale and the worker reporting `source_unavailable`, following connection/advisory-lock investigation. A readable old graph was not proof of successful refresh. This handover does not claim recovery or a fresh live-health check.
+- **Latency remains material.** The last retained real-data strategy answer took approximately 77 seconds. Component speedups do not establish a faster end-to-end answer.
+- **Progressive output has a bounded demonstration.** One 5 October synthetic live-provider run showed its first subgraph at 7.91 seconds and completed at 57.58 seconds. It retained partial assessments and omitted an unsupported proposal. It is not a production latency or reliability guarantee.
+- **Strategy runs are process-local.** Up to eight runs are retained for 30 minutes; restart loses them. A run has a 180-second budget. Cancellation prevents subsequent work but cannot forcibly stop an already-running synchronous request.
+- **Evidence quality is still a review concern.** Schema/quotation/source-binding checks improve traceability; they do not prove that an observation supports a proposed role or that a person is suitable for the goal.
+- **Real-data acceptance is outstanding.** Database integration checks, source semantics, storage quota, continuous refresh and the target Mac must be verified before broader use. Tests must use a disposable test database.
+- **No automatic external action.** The current Strategy work recommends conditional next steps. It does not send outreach, schedule meetings or execute tasks on the user's behalf.
 
-Real credentials live in `repo/.env` (copied from `C:\Users\Eva Ng\Desktop\ironman\.env.phase1.local`, which is the canonical source — keep both in sync if either changes). `AZURE_TENANT_ID`/`AZURE_CLIENT_ID` in there are now **unused** by the Outlook adapter (superseded by the hardcoded Graph CLI client id above) — still fine to leave in the file, just don't expect them to do anything.
+## 5. Unipile: retained research, no adoption claim
 
-`.env`, `*.local`, all the token cache files, and the files listed above with real contact data are all gitignored — verified before this commit (same rigor as the original pre-push privacy audit).
+The own-account trial demonstrated sample message/history retrieval, an email attachment check and one observed live webhook event per channel. A separate bounded three-contact LinkedIn pilot returned profile information. Those profiles were not written into the production graph. The temporary webhook experiment was cleaned up; it was not a persistent ingestion connector.
 
-## Next task: identity resolution v1 (§8) — plan already agreed with Eva
+Your per-channel decision remains the reference point: keep direct Microsoft Graph for Outlook; hold LinkedIn; evaluate WhatsApp only as a possible purchase. The requested WhatsApp head-to-head against your 3,153-message window, predeclared acceptance gates and written vendor answers on history, residency/DPA and profile processing are **not established as complete** in this handover. The earlier sample trial does not satisfy those gates. Under your stated 7 October deadline, there is no evidenced go decision.
 
-Order agreed, not yet built:
-1. Build `/me/contacts` ingest (a small new adapter piece — doesn't exist yet at all)
-2. Rule 1 (exact email match) + Rule 2 (exact phone match) — plain SQL against existing `identity` rows
-3. Rule 3 (contacts bridge: a contact record with both an email and a phone) — automatic, using the data from step 1. Mark's own framing: this alone should resolve "a large share" of WhatsApp identities.
-4. Rule 4 (phone number found in an email signature, regex over `body_text`) — high confidence but writes to `link_candidate` for review before auto-linking, per the brief
-5. Rule 5 (LinkedIn name + organisation correlation) — never automatic, always `link_candidate`
-6. Rule 6 — everything else stays `person_id = null`. Unresolved is a fine state; a wrong merge is not (this is Mark's own stated priority — optimize for precision, accept low recall early).
+Research reports are dated observations, not current pricing quotes, a vendor security audit or a ban-free guarantee:
+- [Pricing and fit](docs/research/2026-09-30-unipile-pricing-and-fit.md)
+- [Trial observations](docs/research/2026-10-02-unipile-live-trial-assessment.md)
+- [Security and platform risk](docs/research/2026-10-02-unipile-security-and-platform-risk.md)
+- [Profile pilot and source-refresh status](docs/research/2026-10-05-unipile-profile-pilot-and-search-status.md)
 
-## Separate, not-yet-started: knowledge graph scope
+## 6. Where to pick up later
 
-Mark asked for §10's network graph to become a real knowledge graph (entities/relationships/facts extracted from messages, e.g. "X reports to Y" — not just message-volume ranking). He explicitly delegated the scoping decision to Eva, on the condition her final design is reasonable and she can explain it to him. Not started — see memory file `project_knowledge_graph_scope.md` for the full framing (should still exist unless memory was fully wiped along with this conversation). Recommended direction discussed but not committed to: closed vocabulary of fact types (not open-ended extraction), reuse the `action`/`outreach` tables' confidence+verdict pattern rather than inventing a new one, probably needs a real graph database for the entity/relationship layer specifically (unlike §10's graph, which stays SQL views per Mark's own framing for that one).
+If the project resumes, the first steps are to agree one concrete strategy use case, reconcile the identity and Network branches, restore and verify source-to-graph refresh, and repeat acceptance on the target machine. Then measure first useful evidence, total latency, answer support and API cost on fixed scenarios before choosing the next search change.
 
-## Housekeeping done alongside this handover
+The project tickets have been backfilled in [Linear](https://linear.app/mlai-aus/project/studio-project-ironman-2f1a6ddc9f72), with completed, in-review, in-progress and backlog work separated.
 
-- Removed four throwaway diagnostic scripts (`check_delta_response.py`, `check_import_data.py`, `check_inbox_count.py`, `trace_pagination.py`) — their findings are now captured as comments in `client.py`/`sync.py`, no ongoing value in keeping the scripts themselves
-- `.gitignore` extended to cover the WhatsApp `@lid`-related files that carry real contact identifiers, and the DB backup dump from the lid-merge migration
-- `resolve_lids.js` parameterized to read its lid list from a gitignored input file instead of a hardcoded list of real contacts' identifiers
-
-## Time spent so far
-
-~13h43m of active work across 2026-08-18 through 2026-08-24 (self-tracked via `time_tracker.py` against this session's own transcript — see that script and its known limitations, e.g. it can't distinguish "reading closely" from "background wait," documented in its own conversation history if that matters later).
-
-## Working style notes (durable, not just this session)
-
-- Confirm the plan before executing anything non-trivial; fix bugs found mid-execution freely, but stop and re-confirm before swapping in a "better approach" mid-flight
-- Always give enough context to actually follow what's happening — this user reads and wants to understand the reasoning, not just get a result
-- Verify against real data/real UI before trusting documentation or assumptions — this project has been bitten multiple times by "the docs/my assumption said X, the real thing did Y" (Outlook delta pagination, LinkedIn export manifest, the timestamp corruption, the auth flows above)
+The new commit contains product source, tests and engineering records. New personal academic drafts, credentials, real-message/profile payloads, local runtime state and virtual environments are excluded. Existing private data stays with its current operator. No production migration, deployment, new ingestion run or vendor purchase was performed as part of preparing this bookmark.

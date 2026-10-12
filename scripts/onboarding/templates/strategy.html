@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy · Your network</title>
+<link rel="stylesheet" href="/static/network/network.css"><link rel="stylesheet" href="/static/network/discovery.css">
+<link rel="stylesheet" href="/static/network/intelligence.css"><link rel="stylesheet" href="/static/network/strategy-workspace.css">
+<script src="/static/vendor/cytoscape.min.js"></script></head>
+<body class="network-app with-app-nav strategy-workspace">
+<script>window.NETWORK_CONFIG={{ (network_config|default({}))|tojson }};</script>
+<a class="skip-link" href="#strategy-goal">Skip to your goal</a>
+<nav class="app-nav" aria-label="Main navigation">
+<a href="/inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14h5l2 3h2l2-3h5"/></svg><span>Inbox</span></a>
+<a href="/inbox?discover=1" aria-label="Search contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><span>Search</span></a>
+<a href="/network" aria-label="Knowledge graph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 5 14 2-7 13L5 5 4 16 19 7"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="20" r="2"/></svg><span>Graph</span></a>
+<a href="/strategy" aria-label="Strategy" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m16 8-3 5-5 3 3-5 5-3Z"/></svg><span>Strategy</span></a>
+</nav>
+<header class="network-header"><a class="wordmark" href="/inbox">Comms<span> / Strategy</span></a><span class="demo-label">{{ 'Local network trial' if network_real else 'Synthetic demo' }}</span><a id="return-link" href="/network">Back to network</a></header>
+<main>
+<div class="page-heading"><div><h1>What are you working towards?</h1><p>Find people, inspect the evidence and build your next move.</p></div><a class="strategy-search-link" href="/inbox?discover=1">Just finding a contact? Search</a></div>
+<form id="strategy-form" class="strategy-brief">
+<label for="strategy-goal">Your goal</label><textarea id="strategy-goal" name="question" rows="2" maxlength="2000" required placeholder="I’m planning an AI workshop. Who could help with teaching, a venue and reaching participants?"></textarea>
+<div class="strategy-brief-actions"><p id="strategy-context"></p><div><button id="strategy-cancel" type="button" hidden>Stop analysis</button><button class="primary" id="strategy-start" type="submit">Start analysis</button></div></div>
+<p id="strategy-provider" class="strategy-caption">Analysis uses Claude. Opening this page does not start a request.</p>
+</form>
+<section class="strategy-progress" aria-label="Analysis progress"><p id="strategy-status" role="status" aria-live="polite">Ready when you are. Results will appear as evidence is found.</p><button id="strategy-reconnect" type="button" hidden>Reconnect</button><ol id="strategy-tasks" aria-label="Search tasks"></ol></section>
+<section id="strategy-plan" aria-label="Understood goal" hidden><h2>What we’re looking for</h2><p id="strategy-intent"></p><div id="strategy-requirements"></div><p class="strategy-caption">Suggested requirements are assumptions to check. Edit your goal and run again to change the brief.</p></section>
+<div class="strategy-results-grid">
+<section class="strategy-map-panel" aria-label="Candidate network"><div class="strategy-section-heading"><h2>Your opportunity map</h2><span id="strategy-snapshot"></span></div><div id="strategy-map"><div class="strategy-empty"><svg viewBox="0 0 210 110" aria-hidden="true"><path d="M25 60 90 25 160 60 90 90 25 60M90 25v65m0-65 95-5"/><circle cx="25" cy="60" r="5"/><circle cx="90" cy="25" r="6"/><circle cx="160" cy="60" r="5"/><circle cx="90" cy="90" r="5"/><circle cx="185" cy="20" r="4"/></svg><h3>A map shaped by your goal</h3><p>Candidate people, projects and organizations appear here as their source records are checked.</p></div></div></section>
+<section class="strategy-analysis-panel" aria-label="Strategy analysis"><h2>From evidence to action</h2><div id="strategy-analysis"><p class="strategy-empty-copy">Explore candidate evidence while the analysis continues. The final assessment will explain what is supported and what still needs checking.</p></div></section>
+</div>
+<section id="strategy-evaluation" class="strategy-evaluation" aria-label="Options and requirement assessment" hidden></section>
+<p class="strategy-session-note">Results stay in this local app’s memory for a limited session. Restarting the app removes them. Candidate relevance does not establish availability, authority or willingness to help.</p>
+</main><script type="module" src="/static/network/strategy-workspace.js"></script></body></html>

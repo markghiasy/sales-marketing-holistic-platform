@@ -55,6 +55,8 @@ def create_app(*, testing=False, llm_config=None, agent_provider=None, network_s
         provider.key = ""  # Ordinary tests must never spend API credits.
     agent = NetworkAgent(provider)
     app.extensions["network_agent"] = agent
+    from scripts.network_strategy_routes import register_strategy_routes
+    register_strategy_routes(app, agent, store=store)
 
     def query():
         return GraphQuery(**request.args.to_dict())

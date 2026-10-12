@@ -125,13 +125,20 @@ class NetworkService:
         result.update(data_source='real',truncated=retriever.truncated)
         return result
 
-    def answer(self,request,agent):
+    def answer(self,request,agent,*,emit=None,cancel=None,on_dependencies=None,iterative=False):
         query=self.query(request.model_dump())
         request=request.model_copy(update={'focus':query.focus,'as_of':query.as_of.isoformat()})
         retriever=IndexedRetrieval(self.store,query,entity_limit=30)
         data=retriever.seed(request.question)
+        branch_base=retriever.fork()
+        def validate():
+            dependencies=dict(retriever.dependencies)
+            if on_dependencies is not None:
+                on_dependencies(dependencies)
+            return self.validate(dependencies)
         result=agent.answer(data,request,retriever.version,retriever=retriever,
-                            validate_sources=lambda:self.validate(retriever.dependencies))
+                            validate_sources=validate,emit=emit,cancel=cancel,
+                            retrieval_factory=branch_base.fork,iterative=iterative)
         result['version']=retriever.version
         result['freshness']=self.health()
         return result

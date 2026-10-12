@@ -3,10 +3,37 @@
 import threading
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 from werkzeug.serving import make_server
 
 from scripts.network_demo import create_app
+
+
+def install_strategy_response(page, answer):
+    """Serve a completed run through the real workspace event transport."""
+    import json
+    payloads = {}
+
+    def create(route):
+        result = {}
+        class AnswerRoute:
+            request = route.request
+            def fulfill(self, *, body='', **kwargs):
+                result.update(kwargs.get('json') or json.loads(body))
+        answer(AnswerRoute())
+        run_id = 'ui-run-' + str(len(payloads) + 1)
+        payloads[run_id] = result
+        route.fulfill(status=202, json={'run_id': run_id, 'status': 'running'})
+
+    def events(route):
+        run_id = route.request.url.split('/runs/')[1].split('/')[0]
+        event = {'seq': 1, 'type': 'completed', 'data': payloads[run_id]}
+        route.fulfill(content_type='text/event-stream', body='id: 1\ndata: ' + json.dumps(event) + '\n\n')
+
+    page.route('**/network/strategy/runs', create)
+    page.route('**/network/strategy/runs/ui-run-*', lambda route: route.fulfill(json={'status': 'completed', 'events': []}))
+    page.route('**/network/strategy/runs/*/events?*', events)
+
 
 
 @pytest.fixture
@@ -92,7 +119,7 @@ def test_assistant_preserves_history_and_explains_retrieval_coverage(page, entry
                              {"label": "Project work", "status": "budget_omitted"}]}
         }))
 
-    page.route("**/network/agent.json", answer)
+    install_strategy_response(page, answer)
     if entry == "explorer":
         page.goto(page.base_url + "/network?mode=history&focus=person:alex")
         page.locator("#ask-network").click()
@@ -100,13 +127,13 @@ def test_assistant_preserves_history_and_explains_retrieval_coverage(page, entry
         page.goto(page.base_url + "/inbox?mode=history")
         page.locator("#searchbar").click()
         page.locator(".discovery-agent").click()
-    page.locator("#agent-question").fill("Who could help?")
-    page.locator(".agent-send").click()
-    page.get_by_text("How this answer was grounded").click()
+    page.locator("#strategy-goal").fill("Who could help?")
+    page.locator("#strategy-start").click()
+    page.get_by_text("Search coverage", exact=True).click()
     page.get_by_text("No match in searched records", exact=False).wait_for()
     assert requests[0]["mode"] == "history"
     assert "24 contacts searched" in page.locator(".agent-trace").inner_text()
-    assert "Matching records found but omitted" in page.locator(".agent-coverage").inner_text()
+    assert "Retrieval budget reached; coverage remains unknown" in page.locator(".agent-coverage").inner_text()
     if entry == "explorer":
         page.screenshot(path="docs/demos/network-retrieval-coverage.png", full_page=True)
 
@@ -209,23 +236,24 @@ def test_strategy_chat_carries_context_and_follow_up_history(page):
             ),
         )
 
-    page.route("**/network/agent.json", answer)
+    install_strategy_response(page, answer)
     page.goto(page.base_url + "/network?focus=person:sam")
     page.get_by_role("button", name="Ask Claude about this person").click()
-    page.get_by_label("Ask about a goal or this context").fill("Who can help with Cybertest?")
-    page.get_by_role("button", name="Ask Claude", exact=True).click()
+    page.get_by_label("Your goal").fill("Who can help with Cybertest?")
+    page.locator("#strategy-start").click()
     page.get_by_text("What is not established yet", exact=True).wait_for()
     page.locator(".agent-finding summary").click()
     assert "<script>bad()</script>" in page.locator(".agent-finding blockquote").inner_text()
     assert page.locator(".agent-finding script").count() == 0
     assert received[0]["focus"] == "person:sam"
-    page.get_by_label("Ask about a goal or this context").fill("What should I ask him first?")
-    page.get_by_role("button", name="Ask Claude", exact=True).click()
-    page.locator(".agent-turn").nth(1).get_by_text("Suggested next moves", exact=True).wait_for()
+    page.get_by_label("Your goal").fill("What should I ask him first?")
+    page.locator("#strategy-start").click()
+    page.wait_for_function("document.querySelector('#strategy-status').textContent.includes('Analysis complete')")
+    expect(page.locator("#strategy-start")).to_be_enabled()
     assert len(received[1]["history"]) == 1
     assert "Cybertest" in received[1]["history"][0]["question"]
-    page.get_by_role("button", name="Close assistant").click()
-    assert page.locator(".network-assistant").count() == 0
+    page.get_by_role("link", name="Back to network", exact=True).click()
+    assert page.locator("#strategy-form").count() == 0
 
 
 def test_business_search_tags_evidence_and_graph_navigation(page):
@@ -266,7 +294,8 @@ def test_complex_search_handoff_and_sidebar_full_graph(page):
     page.get_by_role("button", name="Search", exact=True).click()
     page.get_by_role("heading", name="Find people and opportunities", exact=True).wait_for()
     assert page.locator(".discovery-result").count() == 0
-    page.get_by_role("button", name="Close assistant").click()
+    page.get_by_role("button", name="Continue in Strategy", exact=True).click()
+    page.get_by_role("link", name="Back to network", exact=True).click()
     page.get_by_role("link", name="Knowledge graph", exact=True).click()
     page.get_by_role("heading", name="Your network", exact=True).wait_for()
     assert (

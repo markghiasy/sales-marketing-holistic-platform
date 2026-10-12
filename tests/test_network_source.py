@@ -5,6 +5,61 @@ import psycopg
 import pytest
 
 
+def test_validation_batches_remote_reads_without_caching_source_state(source_seed):
+    """Real queries with a deterministic RTT penalty expose sequential read latency."""
+    from contextlib import contextmanager
+    from time import perf_counter, sleep
+
+    dsn, ids = source_seed
+    repo = repository(dsn)
+    records = [r for page in repo.snapshot_pages(10) for r in page.records]
+    dependencies = {r.key: r.fingerprint for r in records}
+    dependencies['contact_hidden:'+ids['contact']] = 'absent'
+    exchanges = []
+
+    class MeasuredConnection:
+        def __init__(self, conn):
+            self.conn = conn
+            self.info = conn.info
+            self.pipelined = False
+
+        def exchange(self):
+            exchanges.append(1)
+            sleep(0.02)
+
+        def execute(self, *args, **kwargs):
+            if not self.pipelined:
+                self.exchange()
+            return self.conn.execute(*args, **kwargs)
+
+        @contextmanager
+        def pipeline(self):
+            self.pipelined = True
+            try:
+                with self.conn.pipeline():
+                    yield
+            finally:
+                self.pipelined = False
+                self.exchange()
+
+    original_connection = repo.connection
+
+    @contextmanager
+    def measured_connection():
+        with original_connection() as conn:
+            yield MeasuredConnection(conn)
+
+    repo.connection = measured_connection
+    started = perf_counter()
+    assert repo.validate(dependencies)
+    elapsed = perf_counter() - started
+    print(f'validation read exchanges={len(exchanges)} elapsed={elapsed:.3f}s injected_rtt=0.020s')
+    assert len(exchanges) <= 3, 'validation must batch independent reads over remote PostgreSQL'
+    with psycopg.connect(dsn) as conn:
+        conn.execute("update identity set display_name='Changed' where id=%s", (ids['contact'],))
+    assert not repo.validate(dependencies), 'each validation must observe a fresh source transaction'
+
+
 def repository(dsn, **kwargs):
     from adapters.network.source import SourceRepository
     return SourceRepository(dsn, **kwargs)
@@ -89,6 +144,45 @@ def test_dependencies_detect_participants_identity_hide_and_deleted_message(sour
         conn.execute('delete from message_participant')
         conn.execute('delete from message')
     assert not repo.validate(dependencies)
+
+
+def test_validation_participants_share_record_snapshot(source_seed, monkeypatch):
+    """A concurrent edit cannot split the message and participant fingerprints."""
+    dsn, _ = source_seed
+    repo = repository(dsn)
+    records = [r for page in repo.snapshot_pages(10) for r in page.records]
+    dependencies = {r.key: r.fingerprint for r in records}
+    original_records = repo._records
+    edited = False
+
+    def change_after_record_reads(conn, schema, kind, rows):
+        nonlocal edited
+        if kind == 'message' and not edited:
+            with psycopg.connect(dsn) as writer:
+                writer.execute("update message_participant set role='cc'")
+            edited = True
+        return original_records(conn, schema, kind, rows)
+
+    monkeypatch.setattr(repo, '_records', change_after_record_reads)
+    assert repo.validate(dependencies)
+    assert edited
+    assert not repo.validate(dependencies)
+
+
+def test_validation_rechecks_schema_and_optional_absence(source_seed):
+    from adapters.network.source import SourceError
+
+    dsn, _ = source_seed
+    repo = repository(dsn)
+    with psycopg.connect(dsn) as conn:
+        conn.execute('drop table linkedin_connection')
+    assert repo.validate({'linkedin_connection:missing': 'absent'})
+    assert not repo.validate({'linkedin_connection:missing': 'old-fingerprint'})
+    assert not repo.validate({'unsupported:missing': 'absent'})
+    with psycopg.connect(dsn) as conn:
+        conn.execute('alter table identity rename column display_name to unavailable_name')
+    with pytest.raises(SourceError, match='missing_required_column'):
+        repo.validate({})
 
 
 def test_interrupted_snapshot_never_authorizes_deletion(source_seed):

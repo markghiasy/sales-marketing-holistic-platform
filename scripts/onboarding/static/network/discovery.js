@@ -20,7 +20,9 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
   </section>`;
   const input = container.querySelector('input');
   const output = container.querySelector('.discovery-output');
-  container.querySelector('.discovery-agent').onclick=()=>{const p=new URLSearchParams(location.search);const question=input.value;onClose();openAssistant({question,focus:p.get('focus')||defaultOwner(),as_of:p.get('as_of')||defaultDate(),mode:p.get('mode')||'current'});};
+  const handoff=()=>{const p=new URLSearchParams(location.search);openAssistant({question:input.value,focus:p.get('focus')||defaultOwner(),as_of:p.get('as_of')||defaultDate(),mode:p.get('mode')||'current'});};
+  container.querySelector('.discovery-agent').textContent='Open Strategy';
+  container.querySelector('.discovery-agent').onclick=handoff;
   container.querySelector('.discovery-close').onclick = onClose;
   container.querySelector('form').onsubmit = event => { event.preventDefault(); search(); };
   container.querySelectorAll('[data-example]').forEach(button => button.onclick = () => {
@@ -52,9 +54,8 @@ export function mountDiscovery(container, {onClose, onOpenContact}) {
       if (!response.ok) throw new Error(data.error || 'Search unavailable. Please retry.');
       if (closed || ticket !== generation) return;
       if(data.status==='needs_clarification'){
-        const p=new URLSearchParams(location.search);
-        onClose();
-        openAssistant({question:text,autoSubmit:true,focus:p.get('focus')||defaultOwner(),as_of:asOf,mode:p.get('mode')||'current'});
+        output.innerHTML='<div class="discovery-clarify"><h3>This question needs a strategy analysis</h3><p>Explore the goal, candidate people and missing evidence in a dedicated workspace. You can review your question before starting Claude.</p><button type="button" data-strategy-handoff>Continue in Strategy</button></div>';
+        output.querySelector('[data-strategy-handoff]').onclick=handoff;
         return;
       }
       render(data);
