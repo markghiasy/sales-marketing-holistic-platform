@@ -32,7 +32,7 @@ def _today() -> str:
     # next morning's quota before local midnight ever happened. Local
     # time keeps the quota's "today" aligned with the schedule it's
     # actually budgeting for.
-    return datetime.now().strftime("%Y-%m-%d")  # noqa: DTZ005 — deliberately naive/local,
+    return datetime.now().strftime("%Y-%m-%d")  # deliberately naive/local,
     # see the comment above: this must match the machine's own wall
     # clock (what Task Scheduler's local-time triggers fire against),
     # not a fixed timezone

@@ -16,7 +16,8 @@ def setup(network_database):
     source=SourceRepository(dsn)
     store=PostgresNetworkStore(dsn,source.audit()['binding'])
     store.initialize()
-    NetworkWorker(source,store).tick(datetime.now(UTC))
+    # Keep bootstrap before the fixed follow-up ticks, independent of the test date.
+    NetworkWorker(source,store).tick(datetime(2026,10,1,tzinfo=UTC))
     snap=store.capture(('identity:'+ids['contact'],),50)
     batch=ProposalBatch.model_validate({
         'entities':[{'id':'new:aurora','kind':'project','name':'Project Aurora',

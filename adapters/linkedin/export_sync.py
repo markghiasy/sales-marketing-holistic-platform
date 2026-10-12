@@ -159,7 +159,7 @@ def _parse_connected_on(date_str: str | None) -> object | None:
     if not date_str:
         return None
     try:
-        return datetime.strptime(date_str, "%d %b %Y").date()  # noqa: DTZ007 — date only, no tz to attach
+        return datetime.strptime(date_str, "%d %b %Y").date()  # date only, no tz to attach
     except ValueError:
         return None  # unparseable — leave null rather than guess
 
@@ -231,7 +231,7 @@ def _parse_export_date(date_str: str) -> datetime:
     # real format confirmed 2026-08-21: "2026-08-20 05:33:12 UTC" — not
     # ISO 8601, fromisoformat() rejects the trailing " UTC" outright
     if date_str.endswith(" UTC"):
-        naive = datetime.strptime(date_str[: -len(" UTC")], "%Y-%m-%d %H:%M:%S")  # noqa: DTZ007 — tzinfo attached on the next line
+        naive = datetime.strptime(date_str[: -len(" UTC")], "%Y-%m-%d %H:%M:%S")  # tzinfo attached on the next line
         return naive.replace(tzinfo=UTC)
     # Python 3.11+'s fromisoformat() accepts a trailing "Z" natively
     return datetime.fromisoformat(date_str)

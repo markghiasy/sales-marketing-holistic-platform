@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime
 
 import psycopg
@@ -148,12 +149,21 @@ def test_selected_extraction_and_confirmed_project_ui_contract(network_database)
     assert not profile['assertions']
     response=client.post('/network/profile/review',json={'proposal_id':saved['id'],'expected_version':saved['version'],'decision':'confirm','entity_bindings':{'new:aurora':'create'}})
     assert response.status_code==200,response.json
-    profile=client.get('/network/profile.json?as_of=2026-10-02T00:00:00Z&focus='+person).json
+    # Review happens now: an earlier historical slice must not be used to assert
+    # current confirmation. Query after review using the real route's current time.
+    profile=client.get('/network/profile.json',query_string={'focus':person}).json
     from adapters.network.profiles import validate_assertion
     actual=store.capture((person,),100).data
     for row in actual['strategic_assertions']:
         validate_assertion(actual,row)
     assert profile['assertions'][0]['status']=='confirmed'
+    # Retain the historical-visibility guarantee at the actual review boundary.
+    from datetime import timedelta
+    reviewed_at=datetime.fromisoformat(actual['strategic_assertions'][0]['reviewed_at'])
+    before_review=client.get('/network/profile.json',query_string={
+        'focus':person,'as_of':(reviewed_at-timedelta(microseconds=1)).isoformat(),
+    }).json
+    assert not before_review['assertions']
 
 
 @pytest.mark.parametrize('decision', ['reject', 'confirm'])
@@ -211,7 +221,9 @@ def test_real_browser_graph_sources_and_model_unavailability(real_client,tmp_pat
             page.get_by_role('button',name='Focus neighborhood').click()
             expect(page.locator('#expansion-controls')).to_be_visible()
             page.get_by_role('button',name='Ask your network',exact=True).click()
-            expect(page.locator('.agent-provider')).to_contain_text('not configured')
+            expect(page).to_have_url(re.compile(r'/strategy\?'))
+            expect(page.locator('#strategy-context')).to_contain_text('Source-backed records')
+            expect(page.locator('#strategy-provider')).to_contain_text('not configured')
             page.screenshot(path=str(tmp_path/'real-network.png'),full_page=True)
             page.goto(url+'/inbox?as_of=2026-10-02T00:00:00Z&focus='+person)
             expect(page.get_by_role('link',name='Open full network')).to_be_visible()
