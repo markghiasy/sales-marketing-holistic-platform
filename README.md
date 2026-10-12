@@ -1,8 +1,8 @@
 # Comms & Outreach Platform — MVP 1.0
 
-Block A skeleton. See the full build plan (§ references throughout this repo
-point back to it) for the complete design — this README only covers what's
-here and how to run it.
+Start with [the project summary and handover](handover.md) for the complete scope, implementation evidence, acceptance gaps and separate release branches. The project is paused; the Network/Strategy branch is a controlled trial, not a completed MVP.
+
+The sections below retain the original Block A setup overview. They are historical foundation documentation, not an inventory of everything subsequently built.
 
 ## What's in Block A
 
